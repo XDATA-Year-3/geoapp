@@ -1,0 +1,41 @@
+{
+  "name": "geoapp",
+  "version": "0.1.0",
+  "description": "XData GeoApp for Kitware early 2015",
+  "homepage": "https://github.com/manthey/geoapp",
+  "bugs": {
+    "url": "https://github.com/manthey/geoapp/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manthey/geoapp.git"
+  },
+  "dependencies": {
+    "backbone": "~1.1.2",
+    "grunt": "~0.4",
+    "grunt-cli": "~0.1",
+    "grunt-contrib-jade": "~0.14",
+    "grunt-contrib-stylus": "~0.20",
+    "grunt-contrib-uglify": "~0.7",
+    "grunt-contrib-watch": "~0.6",
+    "grunt-contrib-copy": "~0.7",
+    "grunt-shell": ">=1.1.1",
+    "grunt-gitinfo": "~0.1",
+    "grunt-contrib-compress": "~0.13",
+    "markdown": "~0.5",
+    "jade": "~1.9",
+    "jquery": "2.1.3",
+    "underscore": "~1.7"
+  },
+  "devDependencies": {
+    "jshint": "~2.6",
+    "phantomjs": "1.9.9",
+    "jasmine-core": "~2.1",
+    "blanket": "1.1.6",
+    "jscs": "~1.10"
+  },
+  "scripts": {
+    "postinstall": "grunt init && grunt"
+  }
+}

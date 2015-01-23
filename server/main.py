@@ -20,10 +20,13 @@
 import cherrypy
 import girder.utility.config
 import girder.utility.server
+import mako.template
 import os
+import pprint
 import sys
 import time
 
+import taxi
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(PACKAGE_DIR)
@@ -34,10 +37,18 @@ class GeoAppRoot(object):
     Serve the root webpage for our application.
     """
     exposed = True
+    indexHtml = None
+    vars = {
+        'apiRoot': 'removeMe',  # ##DWM::
+        'staticRoot': 'static',
+    }
 
     def GET(self):
-        page = open(os.path.join(ROOT_DIR, 'client/index.html')).read()
-        return page
+        if self.indexHtml is None:
+            page = open(os.path.join(ROOT_DIR, 'static/index.html')).read()
+            print '%r' % page
+            self.indexHtml = mako.template.Template(page).render(**self.vars)
+        return self.indexHtml
 
 
 class GeoApp():
@@ -51,14 +62,36 @@ class GeoApp():
         self.root = GeoAppRoot()
         # Create the girder services and place them at /girder
         self.root.girder, appconf = girder.utility.server.configureServer()
+        curConfig = girder.utility.config.getConfig()
+        localappconf = {
+            '/static': {
+                'tools.staticdir.on': 'True',
+                'tools.staticdir.dir': os.path.join(ROOT_DIR, 'static')
+            },
+            '/girder/static': curConfig['/static']
+        }
+        appconf.update(localappconf)
+        curConfig.update(localappconf)
+
         self.server = cherrypy.tree.mount(self.root, '/', appconf)
         # move the girder API from /girder/api to /api
         self.root.api = self.root.girder.api
         del self.root.girder.api
-        curConfig = girder.utility.config.getConfig()
+
+        self.root.girder.updateHtmlVars({'staticRoot': '/girder/static'})
+        self.root.api.v1.updateHtmlVars({'staticRoot': '/girder/static'})
+
+        info = {
+            'config': appconf,
+            'serverRoot': self.root,
+            'apiRoot': self.root.api.v1
+        }
         # load plugin is called with plugin, root, appconf, root.api.v1 as apiRoot, curConfig
         # the plugin module is then called with info = {name: plugin, config: appconf, serverRoot: root, apiRoot: root.api.v1, pluginRootDir: (root)}
         # if can modify root, appconf, and apiRoot
+
+        taxi.load(info)
+
         cherrypy.engine.start()
         cherrypy.engine.block()
 

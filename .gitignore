@@ -1,0 +1,12 @@
+*.py[cod]
+node_modules
+docs/_build
+docs/_output
+.coverage*
+.DS_Store
+.*.swp
+.*.swo
+.vagrant
+env/*
+static/*
+*.log
