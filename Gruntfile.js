@@ -101,6 +101,16 @@ module.exports = function (grunt) {
             }
         },
 
+        cssmin: {
+            libs: {
+                files: {
+                    'static/built/libs.min.css': [
+                        'node_modules/bootstrap/dist/css/bootstrap.css'
+                    ],
+                }
+            }
+        },
+
         shell: {
             sphinx: {
                 command: [
@@ -151,9 +161,9 @@ module.exports = function (grunt) {
                         'node_modules/underscore/underscore.js',
                         'node_modules/backbone/backbone.js',
                         'node_modules/markdown/lib/markdown.js',
+                        'node_modules/bootstrap/dist/js/bootstrap.js',
                         /*
                         'clients/web/lib/js/d3.js',
-                        'clients/web/lib/js/bootstrap.js',
                         'clients/web/lib/js/bootstrap-switch.js',
                         'clients/web/lib/js/jquery.jqplot.js',
                         'clients/web/lib/js/jqplot.pieRenderer.js',
@@ -201,6 +211,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-stylus');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-copy');
+    grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-gitinfo');
     grunt.loadNpmTasks('grunt-contrib-compress');
 
@@ -246,6 +257,7 @@ module.exports = function (grunt) {
     ]);
     grunt.registerTask('init', [
         'uglify:libs',
+        'cssmin:libs',
 //        'shell:readServerConfig'
     ]);
     grunt.registerTask('docs', ['shell:sphinx']);

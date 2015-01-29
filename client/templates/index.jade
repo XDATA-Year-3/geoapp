@@ -1,3 +1,18 @@
 #ga-main-map
 #ga-main-page
-  | This page intentionally left blank
+  .panel-group#ga-settings-panel
+    .panel.panel-default
+      .panel-heading
+        .panel-title
+          a(data-toggle="collapse", data-parent="#ga-settings-panel",
+            href="#ga-settings")
+            b Controls
+      #ga-settings.panel-collapse.collapse
+        .panel-body
+          .form-group
+            label(for="ga-medallion") Medallion
+            input#ga-medallion.form-control.input-sm(
+              type="text", placeholder="#XX##", title="Taxi medallion")
+            button.g-submit-settings.btn.btn-default.btn-sm
+              i.icon-ok
+              |  Filter
