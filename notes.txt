@@ -16,7 +16,7 @@ git submodule init
 git submodule update
 npm install
 cd ..
-cp geojs/dist/built/geo.*min.js* ../static/built/.
+cp geojs/dist/built/geo.*min.js* ../built/.
 
 # Run via
 python ../server/main.py

@@ -40,12 +40,12 @@ class GeoAppRoot(object):
     indexHtml = None
     vars = {
         'apiRoot': 'removeMe',  # ##DWM::
-        'staticRoot': 'static',
+        'staticRoot': 'built',
     }
 
     def GET(self):
         if self.indexHtml is None:
-            page = open(os.path.join(ROOT_DIR, 'static/index.html')).read()
+            page = open(os.path.join(ROOT_DIR, 'built/index.html')).read()
             print '%r' % page
             self.indexHtml = mako.template.Template(page).render(**self.vars)
         return self.indexHtml
@@ -64,9 +64,9 @@ class GeoApp():
         self.root.girder, appconf = girder.utility.server.configureServer()
         curConfig = girder.utility.config.getConfig()
         localappconf = {
-            '/static': {
+            '/built': {
                 'tools.staticdir.on': 'True',
-                'tools.staticdir.dir': os.path.join(ROOT_DIR, 'static')
+                'tools.staticdir.dir': os.path.join(ROOT_DIR, 'built')
             },
             '/girder/static': curConfig['/static']
         }

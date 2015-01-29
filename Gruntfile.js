@@ -74,7 +74,7 @@ module.exports = function (grunt) {
             },
             core: {
                 files: {
-                    'static/built/templates.js': [
+                    'built/templates.js': [
                         'client/templates/**/*.jade'
                     ]
                 }
@@ -86,14 +86,14 @@ module.exports = function (grunt) {
                     expand: true,
                     cwd: 'client/static',
                     src: ['**/*'],
-                    dest: 'static'
+                    dest: 'built'
             }
         },
 
         stylus: {
             core: {
                 files: {
-                    'static/built/app.min.css': [
+                    'built/app.min.css': [
                         'client/stylesheets/**/*.styl',
                         '!client/stylesheets/apidocs/*.styl'
                     ],
@@ -104,7 +104,7 @@ module.exports = function (grunt) {
         cssmin: {
             libs: {
                 files: {
-                    'static/built/libs.min.css': [
+                    'built/libs.min.css': [
                         'node_modules/bootstrap/dist/css/bootstrap.css'
                     ],
                 }
@@ -142,12 +142,12 @@ module.exports = function (grunt) {
             },
             app: {
                 files: {
-                    'static/built/app.min.js': [
-                        'static/built/templates.js',
+                    'built/app.min.js': [
+                        'built/templates.js',
                         'client/js/**/*.js',
                     ],
                     /* DWM::
-                    'static/built/main.min.js': [
+                    'built/main.min.js': [
                         'clients/web/src/main.js'
                     ]
                     */
@@ -155,7 +155,7 @@ module.exports = function (grunt) {
             },
             libs: {
                 files: {
-                    'static/built/libs.min.js': [
+                    'built/libs.min.js': [
                         'node_modules/jquery/dist/jquery.js',
                         'node_modules/jade/runtime.js',
                         'node_modules/underscore/underscore.js',
@@ -170,7 +170,7 @@ module.exports = function (grunt) {
                         'clients/web/lib/js/sprintf.js'
                         */
                     ],
-                    'static/built/testing.min.js': [
+                    'built/testing.min.js': [
                         /*
                         'clients/web/test/lib/jasmine-1.3.1/jasmine.js',
                         'node_modules/blanket/dist/jasmine/blanket_jasmine.js',
@@ -218,7 +218,7 @@ module.exports = function (grunt) {
     /*
     grunt.registerTask('test-env-html', 'Build the phantom test html page.', function () {
         var buffer = fs.readFileSync('client/test/testEnv.jadehtml');
-        var globs = grunt.config('uglify.app.files')['static/built/app.min.js'];
+        var globs = grunt.config('uglify.app.files')['built/app.min.js'];
         var inputs = [];
         globs.forEach(function (glob) {
             var files = grunt.file.expand(glob);
@@ -231,12 +231,12 @@ module.exports = function (grunt) {
             client: false,
             pretty: true
         });
-        fs.writeFileSync('static/built/testEnv.html', fn({
+        fs.writeFileSync('built/testEnv.html', fn({
             cssFiles: [
                 '/static/lib/bootstrap/css/bootstrap.min.css',
                 '/static/lib/bootstrap/css/bootstrap-switch.min.css',
                 '/static/lib/fontello/css/fontello.css',
-                '/static/built/app.min.css'
+                '/built/app.min.css'
             ],
             jsFiles: inputs,
             staticRoot: staticRoot

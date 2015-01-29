@@ -8,5 +8,5 @@ docs/_output
 .*.swo
 .vagrant
 env/*
-static/*
+built/*
 *.log
