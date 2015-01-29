@@ -105,7 +105,9 @@ module.exports = function (grunt) {
             libs: {
                 files: {
                     'built/libs.min.css': [
+/*                    
                         'node_modules/bootstrap/dist/css/bootstrap.css'
+*/                        
                     ],
                 }
             }
@@ -145,23 +147,24 @@ module.exports = function (grunt) {
                     'built/app.min.js': [
                         'built/templates.js',
                         'client/js/**/*.js',
+                        '!client/js/main.js'
                     ],
-                    /* DWM::
                     'built/main.min.js': [
-                        'clients/web/src/main.js'
+                        'client/js/main.js'
                     ]
-                    */
                 }
             },
             libs: {
                 files: {
                     'built/libs.min.js': [
+                        /*
                         'node_modules/jquery/dist/jquery.js',
                         'node_modules/jade/runtime.js',
                         'node_modules/underscore/underscore.js',
                         'node_modules/backbone/backbone.js',
                         'node_modules/markdown/lib/markdown.js',
                         'node_modules/bootstrap/dist/js/bootstrap.js',
+                        */
                         /*
                         'clients/web/lib/js/d3.js',
                         'clients/web/lib/js/bootstrap-switch.js',

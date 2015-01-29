@@ -1,3 +1,51 @@
+var geoapp = $.extend({}, girder);
+var app;
+
+geoapp.App = geoapp.View.extend({
+    initialize: function (settings) {
+        geoapp.events.on('ga:navigateTo', this.navigateTo, this);
+    },
+    render: function () {
+        console.log('HERE');
+        this.$el.html(geoapp.templates.controls());
+        return this;
+    },
+    /**
+     * Changes the current body view to the view class specified by view.
+     * @param view The view to display in the body.
+     * @param [settings={}] Settings to pass to the view initialize() method.
+     */
+    navigateTo: function (view, settings) {
+        var container = this.$('#app-container');
+
+        this.globalNavView.deactivateAll();
+
+        settings = settings || {};
+
+        if (view) {
+            if (this.bodyView) {
+                this.bodyView.destroy();
+            }
+
+            settings = _.extend(settings, {
+                el: this.$('#app-container'),
+                parentView: this
+            });
+
+            /* We let the view be created in this way even though it is
+             * normally against convention. */
+            /*jshint -W055 */
+            // jscs:disable requireCapitalizedConstructors
+            this.bodyView = new view(settings);
+            // jscs:enable requireCapitalizedConstructors
+        } else {
+            console.error('Undefined page.');
+        }
+        return this;
+    },
+
+});    
+
 var geo_map = null, drawTimer = null, drawQueued = false;
 
 function showMap(data) {
@@ -41,8 +89,8 @@ function triggerDraw(fromTimer) {
     }
 }
 
-$(document).ready(function () {
-    $('#app-container').html(geoapp.templates.index());
 
-    showMap();
+$(document).ready(function () {
+    app = new geoapp.views.ControlsView({el: '#app-container', parentView: null});
+
 });

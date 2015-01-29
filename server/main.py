@@ -39,8 +39,9 @@ class GeoAppRoot(object):
     exposed = True
     indexHtml = None
     vars = {
-        'apiRoot': 'removeMe',  # ##DWM::
+        'apiRoot': 'api/v1',
         'staticRoot': 'built',
+        'girderRoot': 'girder/static',
     }
 
     def GET(self):
