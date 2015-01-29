@@ -88,7 +88,7 @@ class TaxiViaMongo():
         self.database = db_connection.get_default_database()
         self.trips = self.database['trips']
 
-    def find(self, params={}, limit=50, offset=0, sort=None):
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
         Get data from the mongo database.  Yield each row in turn as a python
         object with the default keys.
@@ -100,6 +100,7 @@ class TaxiViaMongo():
         :param limit: default limit for the data.
         :param offset: default offset for the data.
         :param sort: a tuple of the form (key, direction).
+        :param fields: a list of fields to return, or None for all fields.
         :returns: an iterator that yields a python dictionary of each matching
                   row in order.
         """
@@ -124,12 +125,15 @@ class TaxiViaMongo():
         for key in findParam:
             query[self.KeyTable.get(key, key)] = findParam[key]
         sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        if fields:
+            fields = [self.KeyTable.get(key, key) for key in fields]
         cursor = self.trips.find(spec=query, offset=offset, limit=limit,
-                                 sort=sort, timeout=False)
-        return [
+                                 sort=sort, timeout=False, fields=fields)
+        total = cursor.count()
+        return {'count': total, 'data': [
             {self.RevTable.get(k, k): v for k, v in row.items() if k != '_id'}
             for row in cursor
-        ]
+        ]}
 
     def getDbConnection(self):
         """
@@ -170,7 +174,17 @@ class Taxi(girder.api.rest.Resource):
     def find(self, params):
         limit, offset, sort = self.getPagingParameters(params,
                                                        'pickup_datetime')
-        return self.access.find(params, limit, offset, sort)
+        fields = None
+        if 'fields' in params:
+            fields = params['fields'].replace(',', ' ').strip().split()
+            if not len(fields):
+                fields = None
+        result = self.access.find(params, limit, offset, sort, fields)
+        result['limit'] = limit
+        result['offset'] = offset
+        result['sort'] = sort
+        result['datacount'] = len(result.get('data', []))
+        return result
     find.description = (
         Description('Get a set of taxi data.')
         .param('limit', 'Result set size limit (default=50).', required=False,
@@ -180,7 +194,9 @@ class Taxi(girder.api.rest.Resource):
         .param('sort', 'Field to sort the user list by (default='
                'pickup_datetime)', required=False)
         .param('sortdir', '1 for ascending, -1 for descending (default=1)',
-               required=False, dataType='int'))
+               required=False, dataType='int')
+        .param('fields', 'A comma-separated list of fields to return (default '
+               'is all fields).', required=False))
     for field in sorted(FieldTable):
         (fieldType, fieldDesc) = FieldTable[field]
         dataType = fieldType
