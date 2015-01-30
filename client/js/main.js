@@ -1,4 +1,4 @@
-var geoapp = $.extend({}, girder);
+var geoapp = girder;
 var app;
 
 geoapp.App = geoapp.View.extend({
