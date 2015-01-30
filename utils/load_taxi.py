@@ -22,8 +22,12 @@ import datetime
 import md5
 import pymongo
 import random
+import os
 import sys
 import zipfile
+
+
+CollectionName = 'taxi'
 
 
 TypeTable = {
@@ -175,8 +179,19 @@ def getDbConnection():
         'connectTimeoutMS': 15000,
         # 'socketTimeoutMS': 60000,
     }
-    dbUri = 'mongodb://localhost:27017/taxi'
-    return pymongo.MongoClient(dbUri, **clientOptions)
+    dbUri = 'mongodb://localhost:27017/' + CollectionName
+    retryTime = 1
+    while True:
+        try:
+            client = pymongo.MongoClient(dbUri, **clientOptions)
+            return client
+        except pymongo.errors.ConnectionFailure:
+            retryTime *= 2
+            if retryTime > 128:
+                raise
+            print('MongoDB failed to connect.  Waiting %d s and trying '
+                  'again.' % retryTime)
+            time.sleep(retryTime)
 
 
 def getKey(key):
@@ -197,17 +212,21 @@ def indexTrips():
     collection.ensure_index([(getKey('medallion'), 1)], background=True)
     collection.ensure_index([(getKey('hack_license'), 1)], background=True)
     collection.ensure_index([(getKey('pickup_datetime'), 1)], background=True)
+    collection.ensure_index([('rnd', 1)], background=True)
 
 
-def readFiles(sampleRate=None, uniqueTrips=False):
+def readFiles(opts={}, uniqueTrips=False):
     """
     Read the taxi data from files in the local directory that are named
     trip_(data|fare)_{month}.csv.zip and store the data in the 'trips'
     collection of a mongo database at mongodb://localhost:27017/taxi.  Any
-    existing trips collection is dropped.
+    existing trips collection is dropped.  The opts dictionary can contain the
+    following items:
+        sampleRate: if a number, only keep a statistical average of 1 row in
+    this many.
+        random: if True, add a random number to each realized row.
 
-    :param sampleRate: if a number, only keep a statistical average of 1 row in
-                       this many.
+    :param opts: options dictionary.  See above.
     :param uniqueTrips: True to enforce (medallion, hack_license,
                         pickup_datetime) tuple uniqueness.
     """
@@ -273,7 +292,8 @@ def readFiles(sampleRate=None, uniqueTrips=False):
                     trip['hack'], {})[trip['pdate']] = True
             
             rcount += 1
-            if sampleRate and random.random() * sampleRate >= 1:
+            if (opts.get('sampleRate', None) and
+                    random.random() * opts['sampleRate'] >= 1):
                 continue
                 
             for key in trip:
@@ -292,6 +312,8 @@ def readFiles(sampleRate=None, uniqueTrips=False):
                     except ValueError:
                         print 'ValueError', TypeTable[key], key, trip[key]
                         sys.exit(0)
+            if opts.get('random', False):
+                trip['rnd'] = random.random()
             bulk.insert(trip)
             dcount += 1
             if not dcount % 1000:
@@ -299,6 +321,19 @@ def readFiles(sampleRate=None, uniqueTrips=False):
                     month, dcount, rcount, len(triples)))
                 sys.stderr.flush()
                 bulk.execute()
+                # Reload the database connection
+                if not dcount % 1000000:
+                    sys.stderr.write('\n')
+                    collection = None
+                    database = None
+                    client = None
+                    if sys.platform == 'win32':
+                        os.system('net stop MongoDB >NUL 2>NUL')
+                        os.system('net start MongoDB >NUL 2>NUL')
+                    client = getDbConnection()
+                    database = client.get_default_database()
+                    collection = database['trips']
+                    sys.stderr.write('Restarted database\n')
                 bulk = collection.initialize_unordered_bulk_op()
         bulk.execute()
         data = None
@@ -309,17 +344,21 @@ def readFiles(sampleRate=None, uniqueTrips=False):
 if __name__ == '__main__':
     help = False
     actions = {}
+    opts = {}
     seed = 0
-    sampleRate = None
     for arg in sys.argv[1:]:
-        if arg == '--dehash':
+        if arg.startswith('--collection='):
+            CollectionName = arg.split('=', 1)[1]
+        elif arg == '--dehash':
             actions['dehash'] = True
         elif arg == '--index':
             actions['index'] = True
+        elif arg == '--random':
+            opts['random'] = True
         elif arg == '--read':
             actions['read'] = True
         elif arg.startswith('--sample='):
-            sampleRate = float(arg.split('=', 1)[1])
+            opts['sampleRate'] = float(arg.split('=', 1)[1])
         elif arg.startswith('--seed='):
             seed = arg.split('=', 1)[1]
         else:
@@ -327,8 +366,8 @@ if __name__ == '__main__':
     if help or not len(actions):
         print """Load taxi zip files into a mongo database.
 
-Syntax: load_taxi.py --read --dehash --index
-                     --sample=(rate) --seed=(value)
+Syntax: load_taxi.py --read --dehash --index --collection=(table)
+                     --sample=(rate) --seed=(value) --random
 
 --read drops the 'trips' collection at mongodb://localhost:27017/taxi and reads
     it in from files in the local directory that are named
@@ -336,6 +375,9 @@ Syntax: load_taxi.py --read --dehash --index
 --dehash creates collections called 'hacks' and 'medallions' which can be used
     to deanonymize the hack and medallion hashes.
 --index regenerates indices on the 'trips' collection.
+--collection specifies the collection (table) to use in mongo.  This defaults
+    to 'taxi'.
+--random adds a random value from 0 to 1 to each row under the 'rnd' tag.    
 --sample picks a subset of rows.  Statistically, 1 row in (rate) is selected.
     The random seed affects which rows are selected.
 --seed specifies a random number seed.  Default is 0.  Blank for no explicit
@@ -344,7 +386,7 @@ Syntax: load_taxi.py --read --dehash --index
     if 'read' in actions:
         if seed != '':
             random.seed(int(seed))
-        readFiles(sampleRate)
+        readFiles(opts)
     if 'index' in actions:
         indexTrips()
     if 'dehash' in actions:
