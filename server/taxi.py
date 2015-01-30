@@ -20,6 +20,7 @@
 # This file exposes an endpoint to get taxi data and has a class to handle
 # getting the data from a mongo instance
 
+import collections
 import datetime
 import dateutil.parser
 import pymongo
@@ -29,31 +30,33 @@ from girder.api import access
 from girder.api.describe import Description
 
 
-FieldTable = {
-    'medallion': ('text', 'Taxi medallion'),
-    'hack_license': ('text', 'Hack license number'),
-    'vendor_id': ('text', 'Vendor ID'),
-    'store_and_fwd_flag': ('text', 'Store and forward flag'),
-    'payment_type': ('text', 'Payment type'),
+FieldTable = collections.OrderedDict([
+    ('medallion', ('text', 'Taxi medallion')),
+    ('hack_license', ('text', 'Hack license number')),
+    ('vendor_id', ('text', 'Vendor ID')),
+    ('store_and_fwd_flag', ('text', 'Store and forward flag')),
+    ('payment_type', ('text', 'Payment type')),
 
-    'dropoff_datetime': ('date', 'Dropoff date'),
-    'dropoff_latitude': ('float', 'Dropoff latitude'),
-    'dropoff_longitude': ('float', 'Dropoff longitude'),
-    'passenger_count': ('int', 'Passenger count'),
-    'pickup_datetime': ('date', 'Pickup date'),
-    'pickup_latitude': ('float', 'Pickup latitude'),
-    'pickup_longitude': ('float', 'Pickup longitude'),
-    'rate_code': ('int', 'Rate code'),
-    'trip_distance': ('float', 'Trip distance (miles)'),
-    'trip_time_in_secs': ('int', 'Time time (seconds)'),
+    ('dropoff_datetime', ('date', 'Dropoff date')),
+    ('dropoff_latitude', ('float', 'Dropoff latitude')),
+    ('dropoff_longitude', ('float', 'Dropoff longitude')),
+    ('passenger_count', ('int', 'Passenger count')),
+    ('pickup_datetime', ('date', 'Pickup date')),
+    ('pickup_latitude', ('float', 'Pickup latitude')),
+    ('pickup_longitude', ('float', 'Pickup longitude')),
+    ('rate_code', ('int', 'Rate code')),
+    ('trip_distance', ('float', 'Trip distance (miles)')),
+    ('trip_time_in_secs', ('int', 'Time time (seconds)')),
 
-    'fare_amount': ('float', 'Fare amount'),
-    'mta_tax': ('float', 'MTA tax'),
-    'surcharge': ('float', 'Surcharge'),
-    'tip_amount': ('float', 'Tip amount'),
-    'tolls_amount': ('float', 'Tolls'),
-    'total_amount': ('float', 'Total cost'),
-}
+    ('fare_amount', ('float', 'Fare amount')),
+    ('mta_tax', ('float', 'MTA tax')),
+    ('surcharge', ('float', 'Surcharge')),
+    ('tip_amount', ('float', 'Tip amount')),
+    ('tolls_amount', ('float', 'Tolls')),
+    ('total_amount', ('float', 'Total cost')),
+
+    ('random', ('float', 'Random value [0-1)')),
+])
 
 
 class TaxiViaMongo():
@@ -80,6 +83,8 @@ class TaxiViaMongo():
         'tip_amount': 'tip',
         'tolls_amount': 'toll',
         'total_amount': 'total',
+
+        'random': 'rnd',
     }
     RevTable = {v: k for k, v in KeyTable.items()}
 
@@ -184,6 +189,18 @@ class Taxi(girder.api.rest.Resource):
         result['offset'] = offset
         result['sort'] = sort
         result['datacount'] = len(result.get('data', []))
+        if params.get('format', None) == 'list':
+            result['format'] = params['format']
+            if not fields:
+                fields = FieldTable.keys()
+            result['fields'] = fields
+            result['columns'] = {fields[col]: col
+                                 for col in xrange(len(fields))}
+            if 'data' in result:
+                result['data'] = [
+                    [row.get(field, None) for field in fields]
+                    for row in result['data']
+                ]
         return result
     find.description = (
         Description('Get a set of taxi data.')
@@ -196,7 +213,9 @@ class Taxi(girder.api.rest.Resource):
         .param('sortdir', '1 for ascending, -1 for descending (default=1)',
                required=False, dataType='int')
         .param('fields', 'A comma-separated list of fields to return (default '
-               'is all fields).', required=False))
+               'is all fields).', required=False)
+        .param('format', 'The format to return the data (default is dict).',
+               required=False, enum=['dict', 'list']))
     for field in sorted(FieldTable):
         (fieldType, fieldDesc) = FieldTable[field]
         dataType = fieldType
