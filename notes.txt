@@ -1,10 +1,8 @@
 cd ~/geoapp
 
-git submodule init
-git submodule update
+git submodule update --init --recursive
+git submodule update --recursive
 cd geojs
-git submodule init
-git submodule update
 npm install
 cd ..
 

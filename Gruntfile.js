@@ -87,6 +87,12 @@ module.exports = function (grunt) {
                     cwd: 'client/static',
                     src: ['**/*'],
                     dest: 'built'
+            },
+            libs: {
+                expand: true,
+                cwd: 'node_modules/bootstrap/dist/fonts',
+                src: ['**/*'],
+                dest: 'built/lib/bootstrap/fonts'
             }
         },
 
@@ -105,9 +111,8 @@ module.exports = function (grunt) {
             libs: {
                 files: {
                     'built/libs.min.css': [
-/*                    
-                        'node_modules/bootstrap/dist/css/bootstrap.css'
-*/                        
+                        // daterangepicker
+                        'node_modules/daterangepicker/daterangepicker-bs3.css'
                     ],
                 }
             }
@@ -163,23 +168,10 @@ module.exports = function (grunt) {
                         'geojs/bower_components/proj4/dist/proj4-src.js',
                         'geojs/bower_components/d3/d3.js',
                         'geojs/node_modules/pnltri/pnltri.js',
-                        'geojs/dist/built/geo.min.js'
-
-                        /*
-                        'node_modules/jquery/dist/jquery.js',
-                        'node_modules/jade/runtime.js',
-                        'node_modules/underscore/underscore.js',
-                        'node_modules/backbone/backbone.js',
-                        'node_modules/markdown/lib/markdown.js',
-                        'node_modules/bootstrap/dist/js/bootstrap.js',
-                        */
-                        /*
-                        'clients/web/lib/js/d3.js',
-                        'clients/web/lib/js/bootstrap-switch.js',
-                        'clients/web/lib/js/jquery.jqplot.js',
-                        'clients/web/lib/js/jqplot.pieRenderer.js',
-                        'clients/web/lib/js/sprintf.js'
-                        */
+                        'geojs/dist/built/geo.min.js',
+                        /* daterangepicker */
+                        'node_modules/moment/moment.js',
+                        'node_modules/daterangepicker/daterangepicker.js'
                     ],
                     'built/testing.min.js': [
                         /*
@@ -269,6 +261,7 @@ module.exports = function (grunt) {
     grunt.registerTask('init', [
         'uglify:libs',
         'cssmin:libs',
+        'copy:libs',
 //        'shell:readServerConfig'
     ]);
     grunt.registerTask('docs', ['shell:sphinx']);

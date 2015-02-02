@@ -69,7 +69,12 @@ class GeoApp():
                 'tools.staticdir.on': 'True',
                 'tools.staticdir.dir': os.path.join(ROOT_DIR, 'built')
             },
-            '/girder/static': curConfig['/static']
+            '/girder/static': curConfig['/static'],
+            '/girder/static/lib/bootstrap/fonts': {
+                'tools.staticdir.on': 'True',
+                'tools.staticdir.dir': os.path.join(
+                    ROOT_DIR, 'built/lib/bootstrap/fonts')
+            }
         }
         appconf.update(localappconf)
         curConfig.update(localappconf)

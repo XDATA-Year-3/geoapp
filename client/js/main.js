@@ -77,10 +77,10 @@ function replaceMapData(options) {
         if (options.data.datacount < options.data.count &&
                 options.data.datacount < options.maxcount) {
             options.params.offset += resp.datacount;
-            console.log('next '+((new Date).getTime()-options.startTime)+' '+options.params.offset); //DWM::
+            console.log('next '+((new Date).getTime()-options.startTime)+' '+options.data.datacount); //DWM::
             replaceMapData(options);
         } else {
-            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.params.offset); //DWM::
+            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.data.datacount); //DWM::
         }
     }, this));
     xhr.girder = {mapdata: true};
@@ -94,7 +94,7 @@ function showMap(data) {
                 x: -73.978165,
                 y: 40.757977
             },
-            zoom: 9,
+            zoom: 10,
         });
         geo_map.createLayer('osm', {
             baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',

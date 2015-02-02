@@ -6,14 +6,25 @@
         .panel-title
           a(data-toggle="collapse", data-parent="#ga-settings-panel",
             href="#ga-settings")
-            b Controls
-      #ga-settings.panel-collapse.collapse
+            b Filters
+      #ga-settings.panel-collapse
         .panel-body
           .form-group
             label(for="ga-medallion") Medallion
             input#ga-medallion.form-control.input-sm(
               type="text", placeholder="#XX##", title="Taxi medallion",
               taxifield="medallion")
+          .form-group
+            label(for="ga-hack-license") Hack License
+            input#ga-hack-license.form-control.input-sm(
+              type="text", placeholder="#######", title="Hack license",
+              taxifield="hack-license")
+          .form-group
+            label(for="ga-pickup-date") Pickup Date
+            input#ga-pickup-date.form-control.input-sm(
+              type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
+              title="Pickup date range")
+          .form-group              
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
               |  Filter
