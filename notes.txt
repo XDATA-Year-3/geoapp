@@ -1,5 +1,13 @@
 cd ~/geoapp
 
+git submodule init
+git submodule update
+cd geojs
+git submodule init
+git submodule update
+npm install
+cd ..
+
 npm install
 
 virtualenv env
@@ -10,13 +18,13 @@ python -c "import bcrypt"
 girder-install web
 girder-install plugin
 
-git clone --depth=1 git://github.com/OpenGeoscience/geojs.git
-cd geojs
-git submodule init
-git submodule update
-npm install
-cd ..
-cp geojs/dist/built/geo.*min.js* ../built/.
+#git clone --depth=1 git://github.com/OpenGeoscience/geojs.git
+#cd geojs
+#git submodule init
+#git submodule update
+#npm install
+#cd ..
+#cp geojs/dist/built/geo.*min.js* ../built/.
 
 # Run via
 python ../server/main.py
