@@ -23,7 +23,9 @@
 import collections
 import datetime
 import dateutil.parser
+import json
 import pymongo
+import urllib
 
 import girder.api.rest
 from girder import logger
@@ -89,15 +91,17 @@ class TaxiViaMongo():
     }
     RevTable = {v: k for k, v in KeyTable.items()}
 
-    def __init__(self):
+    def __init__(self, dbUri=None):
+        self.dbUri = dbUri
         db_connection = self.getDbConnection()
         self.database = db_connection.get_default_database()
         self.trips = self.database['trips']
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
-        Get data from the mongo database.  Yield each row in turn as a python
-        object with the default keys.
+        Get data from the mongo database.  Return each row in turn as a python
+        object with the default keys or the entire dataset as a list with
+        metadata.
 
         :param params: a dictionary of query restrictions.  See the
                        FieldTable.  For values that aren't of type 'text',
@@ -107,8 +111,7 @@ class TaxiViaMongo():
         :param offset: default offset for the data.
         :param sort: a tuple of the form (key, direction).
         :param fields: a list of fields to return, or None for all fields.
-        :returns: an iterator that yields a python dictionary of each matching
-                  row in order.
+        :returns: a dictionary of results.
         """
         findParam = {}
         for field in FieldTable:
@@ -144,7 +147,8 @@ class TaxiViaMongo():
 
     def getDbConnection(self):
         """
-        Connect to local mongo database named 'taxi'
+        Connect to local mongo database named 'taxi' or to the specified 
+        database URI.
 
         :return client: a pymongo client.
         """
@@ -152,7 +156,9 @@ class TaxiViaMongo():
             'connectTimeoutMS': 15000,
             # 'socketTimeoutMS': 60000,
         }
-        dbUri = 'mongodb://parakon:27017/taxifull'
+        dbUri = 'mongodb://parakon:27017/taxi'
+        if self.dbUri:
+            dbUri = self.dbUri
         # TODO: We should use the reconnect proxy
         return pymongo.MongoClient(dbUri, **clientOptions)
 
@@ -169,13 +175,74 @@ class TaxiViaMongo():
         return value
 
 
+class TaxiViaTangeloService():
+
+    KeyTable = {
+        'medallion': 'medallion_deanon',
+        'hack_license': 'hack_license_deanon',
+    }
+    RevTable = {v: k for k, v in KeyTable.items()}
+
+    def __init__(self):
+        self.url = 'http://damar.kitwarein.com:50000/taxi'
+
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
+        """
+        Get data from the tangelo service.
+
+        :param params: a dictionary of query restrictions.  See the
+                       FieldTable.  For values that aren't of type 'text',
+                       we also support (field)_min and (field)_max parameters,
+                       which are inclusive and exclusive respectively.
+        :param limit: default limit for the data.
+        :param offset: default offset for the data.
+        :param sort: a tuple of the form (key, direction).  Not currently
+                     supported.
+        :param fields: a list of fields to return, or None for all fields.
+        :returns: a dictionary of results.
+        """
+        data = {'headers': 'true', 'offset': offset, 'limit': limit}
+        findParam = {}
+        for field in FieldTable:
+            if field in params:
+                value = params[field]
+                if FieldTable[field][0] == 'date':
+                    value = value.replace(' ', '_')
+                data[self.KeyTable.get(field, field)] = value
+            if field + '_min' in params or field + '_max' in params:
+                minvalue = params.get(field + '_min', '')
+                maxvalue = params.get(field + '_max', '')
+                if FieldTable[field][0] == 'date':
+                    minvalue = minvalue.replace(' ', '_')
+                    maxvalue = maxvalue.replace(' ', '_')
+                data[self.KeyTable.get(field, field)] = '%s,%s' % (
+                    minvalue, maxvalue)
+        # Handle sort
+        #sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        if fields:
+            fields = [self.KeyTable.get(key, key) for key in fields]
+            data['fields'] = ','.join(fields)
+        url = self.url+'?'+urllib.urlencode(data)
+        logger.info('Query %r', ((url, data, sort), ))
+        results = json.loads(urllib.urlopen(url).read())
+        fields = [self.RevTable.get(k, k) for k in results[0]]
+        columns = {fields[col]: col for col in xrange(len(fields))}
+        return {'format': 'list', 'data': results[1:], 'fields': fields, 
+                'columns': columns}
+
+
 class Taxi(girder.api.rest.Resource):
     """API endpoint for taxi data."""
 
     def __init__(self):
         self.resourceName = 'taxi'
         self.route('GET', (), self.find)
-        self.access = TaxiViaMongo()
+        self.access = {
+            'mongo': (TaxiViaMongo, {}),
+            'mongofull': (TaxiViaMongo, {
+                'dbUri': 'mongodb://parakon:27017/taxifull'}),
+            'tangelo': (TaxiViaTangeloService, {}),
+        }
 
     @access.public
     def find(self, params):
@@ -186,26 +253,41 @@ class Taxi(girder.api.rest.Resource):
             fields = params['fields'].replace(',', ' ').strip().split()
             if not len(fields):
                 fields = None
-        result = self.access.find(params, limit, offset, sort, fields)
+        access = self.access[params.get('source', 'mongo')]
+        if isinstance(access, tuple):
+            access = access[0](**access[1])
+            self.access[params.get('source', 'mongo')] = access
+        result = access.find(params, limit, offset, sort, fields)
         result['limit'] = limit
         result['offset'] = offset
         result['sort'] = sort
         result['datacount'] = len(result.get('data', []))
         if params.get('format', None) == 'list':
-            result['format'] = params['format']
-            if not fields:
-                fields = FieldTable.keys()
-            result['fields'] = fields
-            result['columns'] = {fields[col]: col
-                                 for col in xrange(len(fields))}
-            if 'data' in result:
-                result['data'] = [
-                    [row.get(field, None) for field in fields]
-                    for row in result['data']
-                ]
+            if result.get('format', '') != 'list':
+                result['format'] = params['format']
+                if not fields:
+                    fields = FieldTable.keys()
+                result['fields'] = fields
+                result['columns'] = {fields[col]: col
+                                     for col in xrange(len(fields))}
+                if 'data' in result:
+                    result['data'] = [
+                        [row.get(field, None) for field in fields]
+                        for row in result['data']
+                    ]
+        else:
+            if result.get('format', '') == 'list':
+                if 'data' in result:
+                    result['data'] = [{
+                        result['fields'][col]: row[col]
+                        for col in xrange(len(row))} for row in result['data']]
+                result['format'] = 'dict'
+                del result['columns']
         return result
     find.description = (
         Description('Get a set of taxi data.')
+        .param('source', 'Database source (default mongo).', required=False,
+               enum=['mongo', 'mongofull', 'tangelo'])
         .param('limit', 'Result set size limit (default=50).', required=False,
                dataType='int')
         .param('offset', 'Offset into result set (default=0).', required=False,

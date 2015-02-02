@@ -15,6 +15,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                         view.getFloatRange(elem, params,
                                            elem.attr('taxifield'));
                         break;
+                    case 'intRange':
+                        view.getIntRange(elem, params, elem.attr('taxifield'));
+                        break;
                     default:
                         var value = elem.val();
                         if (value.length > 0) {
@@ -105,6 +108,41 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         if (parts[1].trim() !== '') {
             val = parseFloat(parts[1].trim());
+            if (!isNaN(val)) {
+                params[baseKey+'_max'] = val;
+            }
+        }
+    },
+
+    /* Get an integer range from a control.  The ranges are of the form
+     * (min value) - (max value).  Everything is optional.  The ranges must be
+     * separated by the string '-'.
+     * @param selector: selector for input control.
+     * @param params: dictionary in which to store result.
+     * @param baseKey: baseKey for which to store the value.  If there is no
+     *                 range separator, this is assumed to be a singular
+     *                 entry.
+     */
+    getIntRange: function (selector, params, baseKey) {
+        var val = $(selector).val().trim();
+        if (val === '') {
+            return;
+        }
+        var parts = val.split('-');
+        if (parts.length === 1) {
+            if (!isNaN(parseInt(val))) {
+                params[baseKey] = parseInt(val);
+            }
+            return;
+        }
+        if (parts[0].trim() !== '') {
+            val = parseInt(parts[0].trim());
+            if (!isNaN(val)) {
+                params[baseKey+'_min'] = val;
+            }
+        }
+        if (parts[1].trim() !== '') {
+            val = parseInt(parts[1].trim());
             if (!isNaN(val)) {
                 params[baseKey+'_max'] = val;
             }

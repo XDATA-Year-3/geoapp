@@ -77,7 +77,9 @@ function replaceMapData(options) {
         }
         console.log('show '+((new Date).getTime()-options.startTime)); //DWM::
         showMap(options.data);
-        if (options.data.datacount < options.data.count &&
+        if ((options.data.datacount < options.data.count ||
+                (resp.datacount == options.params.limit &&
+                 options.data.count == undefined)) &&
                 options.data.datacount < options.maxcount) {
             options.params.offset += resp.datacount;
             console.log('next '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::

@@ -10,6 +10,13 @@
       #ga-settings.panel-collapse
         .panel-body
           .form-group
+            label(for="ga-source") Data Source
+            select#ga-source.form-control.input-sm(title="Database source",
+                taxifield="source")
+              option(value="mongo") Mongo 1/12
+              option(value="mongofull") Mongo Full Data
+              option(value="tangelo") Tangelo Service 1/12
+          .form-group
             label(for="ga-medallion") Medallion
             input#ga-medallion.form-control.input-sm(
               type="text", placeholder="#XX##", title="Taxi medallion",
@@ -31,6 +38,18 @@
               type="text", placeholder="#.## - #.## (miles)",
               title="Trip distance in miles",
               taxifield="trip_distance", taxitype="floatRange")
+          .form-group
+            label(for="ga-passenger-count") Passengers
+            input#ga-passenger-count.form-control.input-sm(
+              type="text", placeholder="# - #",
+              title="Number of passengers",
+              taxifield="passenger_count", taxitype="intRange")
+          .form-group
+            label(for="ga-random") Random Selector
+            input#ga-random.form-control.input-sm(
+              type="text", placeholder="#.### - #.###",
+              title="Random Selector",
+              taxifield="random", taxitype="floatRange")
           .form-group
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
