@@ -49,6 +49,7 @@ var geo_map = null, drawTimer = null, drawQueued = false;
 
 function replaceMapData(options) {
     if (!options.maxcount) {
+        console.log(options); //DWM::
         options.maxcount = 250000;
         options.params.offset = 0;
         options.params.format = 'list';
@@ -59,7 +60,9 @@ function replaceMapData(options) {
         options.params.limit = 50000;
     }
     if (!options.params.fields) {
-        options.params.fields = 'medallion, hack_license, pickup_datetime, pickup_longitude, pickup_latitude';
+        options.params.fields = 'medallion, hack_license, ' +
+            'pickup_datetime, pickup_longitude, pickup_latitude, ' +
+            'dropoff_datetime, dropoff_longitude, dropoff_latitude';
     }
     console.log('request '+((new Date).getTime()-options.startTime)); //DWM::
     geoapp.cancelRestRequests('mapdata');
@@ -77,10 +80,10 @@ function replaceMapData(options) {
         if (options.data.datacount < options.data.count &&
                 options.data.datacount < options.maxcount) {
             options.params.offset += resp.datacount;
-            console.log('next '+((new Date).getTime()-options.startTime)+' '+options.data.datacount); //DWM::
+            console.log('next '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::
             replaceMapData(options);
         } else {
-            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.data.datacount); //DWM::
+            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::
         }
     }, this));
     xhr.girder = {mapdata: true};
@@ -102,7 +105,7 @@ function showMap(data) {
             zoomDelta: 3.5,
         });
         geo_layer = geo_map.createLayer('feature');
-        geo_feature = geo_layer.createFeature('point', {selectionAPI:true})
+        geo_feature = geo_layer.createFeature('point', {selectionAPI: true})
     }
     if (data && data.data) {
         geo_feature.data(data.data)
@@ -113,8 +116,7 @@ function showMap(data) {
     //            fillOpacity: 0.65,
     //            strokeColor: 'black',
     //            strokeWidth: 1,
-                strokeWidth: 0,
-                strokeOpacity: 0,
+                stroke: false,
                 radius: 5,
             })
             .position(function (d) {

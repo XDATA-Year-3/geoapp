@@ -23,8 +23,15 @@
             label(for="ga-pickup-date") Pickup Date
             input#ga-pickup-date.form-control.input-sm(
               type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
-              title="Pickup date range")
-          .form-group              
+              title="Pickup date range",
+              taxifield="pickup_datetime", taxitype="dateRange")
+          .form-group
+            label(for="ga-trip-distance") Trip Distance
+            input#ga-trip-distance.form-control.input-sm(
+              type="text", placeholder="#.## - #.## (miles)",
+              title="Trip distance in miles",
+              taxifield="trip_distance", taxitype="floatRange")
+          .form-group
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
               |  Filter

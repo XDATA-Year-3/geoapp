@@ -26,6 +26,7 @@ import dateutil.parser
 import pymongo
 
 import girder.api.rest
+from girder import logger
 from girder.api import access
 from girder.api.describe import Description
 
@@ -132,6 +133,7 @@ class TaxiViaMongo():
         sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
         if fields:
             fields = [self.KeyTable.get(key, key) for key in fields]
+        logger.info('Query %r', ((query, offset, limit, sort, fields), ))
         cursor = self.trips.find(spec=query, offset=offset, limit=limit,
                                  sort=sort, timeout=False, fields=fields)
         total = cursor.count()
@@ -150,7 +152,7 @@ class TaxiViaMongo():
             'connectTimeoutMS': 15000,
             # 'socketTimeoutMS': 60000,
         }
-        dbUri = 'mongodb://parakon:27017/taxi'
+        dbUri = 'mongodb://parakon:27017/taxifull'
         # TODO: We should use the reconnect proxy
         return pymongo.MongoClient(dbUri, **clientOptions)
 
