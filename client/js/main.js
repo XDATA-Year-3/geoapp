@@ -5,14 +5,25 @@ moment.suppressDeprecationWarnings = true;
 
 geoapp.App = geoapp.View.extend({
     initialize: function (settings) {
+        geoapp.restRequest({
+            path: 'user/me'
+        }).done(_.bind(function (user) {
+            this.globalNavView = new geoapp.views.LayoutGlobalNavView({
+                parentView: this
+            });
+            this.render();
+            // Once we've rendered the layout, we can start up the routing.
+            Backbone.history.start({
+                pushState: false
+            });
+        }, this));
         geoapp.events.on('ga:navigateTo', this.navigateTo, this);
     },
     render: function () {
-        this.$el.html(geoapp.templates.controls());
         return this;
     },
-    /**
-     * Changes the current body view to the view class specified by view.
+    /* Changes the current body view to the view class specified by view.
+     *
      * @param view The view to display in the body.
      * @param [settings={}] Settings to pass to the view initialize() method.
      */
@@ -45,7 +56,64 @@ geoapp.App = geoapp.View.extend({
         return this;
     },
 
-});    
+});
+
+/* The navigation is of the form #(primary/route)?(section)=(params).  This
+ * updates one of the query parameters to contain an encoded dictionary of
+ * parameters.
+ *
+ * @param base: new base navigation if not null or undefined.
+ * @param section: the base name of the query parameter.
+ * @param params: a dictionary to encode.
+ */
+geoapp.updateNavigation = function (base, section, params) {
+    var curRoute = Backbone.history.fragment || '',
+        routeParts = geoapp.dialogs.splitRoute(curRoute),
+        queryString = geoapp.parseQueryString(routeParts.name);
+    if (base === null || base === undefined) {
+        base = routeParts.base;
+    }
+    if (queryString[section]) {
+        delete queryString[section];
+    }
+    if (params) {
+        queryString[section] = $.param(params);
+    }
+    var unparsedQueryString = $.param(queryString);
+    if (unparsedQueryString.length > 0) {
+        unparsedQueryString = '?' + unparsedQueryString;
+    }
+    geoapp.router.navigate(base + unparsedQueryString);
+};
+
+/* Parse a JSON string to an object, returning an empty object on any error.
+ *
+ * @param jsonValue: the JSON value.
+ * @returns: the parsed object or an empty object.
+ */
+geoapp.parseJSON = function (jsonValue)  {
+    try {
+        return JSON.parse(jsonValue);
+    } catch (err) {
+        return {};
+    }
+}
+
+/* I'd rather use the girder function, but as of girder 1.2.1, the function was
+ * defective. */
+geoapp.parseQueryString = function (queryString) {
+    var params = {};
+    if (queryString) {
+        _.each(queryString.split(/&/g), function (el, i) {
+            var aux = el.split('='), o = {}, val;
+            if (aux.length > 1) {
+                val = decodeURIComponent(el.substr(aux[0].length+1));
+            }
+            params[decodeURIComponent(aux[0])] = val;
+        });
+    }
+    return params;
+};
 
 var geo_map = null, drawTimer = null, drawQueued = false;
 
@@ -91,7 +159,7 @@ function replaceMapData(options) {
         }
     }, this));
     xhr.girder = {mapdata: true};
-}    
+}
 
 function showMap(data) {
     if (!geo_map) {
@@ -114,12 +182,8 @@ function showMap(data) {
     if (data && data.data) {
         geo_feature.data(data.data)
             .style({
-    //            fillColor: '#91bfff',
                 fillColor: 'black',
                 fillOpacity: 0.05,
-    //            fillOpacity: 0.65,
-    //            strokeColor: 'black',
-    //            strokeWidth: 1,
                 stroke: false,
                 radius: 5,
             })
@@ -152,9 +216,13 @@ function triggerDraw(fromTimer) {
     }
 }
 
-
-$(document).ready(function () {
+/* Run this when everything else is loaded */
+$(function () {
     girder.apiRoot = 'api/v1';
-    app = new geoapp.views.ControlsView({el: '#app-container', parentView: null});
-
+    app = new geoapp.App({el: 'body', parentView: null});
 });
+
+/* TODO:
+ * - encode and restore map positions via navigation (encode whenever update or
+ * filter is called).
+ */

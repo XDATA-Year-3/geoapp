@@ -1,43 +1,21 @@
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-controls-filter': function () {
-            var view = this;
-            var params = {}
-            $('#ga-settings [taxifield]').each(function () {
-                var elem = $(this);
-                var ttype = elem.attr('taxitype');
-                switch (ttype) {
-                    case 'dateRange':
-                        view.getDateRange(elem, params,
-                                          elem.attr('taxifield'));
-                        break;
-                    case 'floatRange':
-                        view.getFloatRange(elem, params,
-                                           elem.attr('taxifield'));
-                        break;
-                    case 'intRange':
-                        view.getIntRange(elem, params, elem.attr('taxifield'));
-                        break;
-                    default:
-                        var value = elem.val();
-                        if (value.length > 0) {
-                            params[elem.attr('taxifield')] = elem.val();
-                        }
-                        break;
-                }
-            });
-            replaceMapData({params: params});
+            this.updateView(true, 'filter');
         }
     },
 
-    initialize: function () {
+    initialize: function (settings) {
+        this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
         this.render();
     },
     
     render: function () {
+        var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
+            update = false;
             $('#ga-pickup-date').daterangepicker({
                 timePicker: true,
                 startDate: '2013-01-01 00:00',
@@ -46,6 +24,24 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 timePicker12Hour: false,
                 timePickerIncrement: 5
             });
+            if (view.initialSettings && !view.usedInitialSettings) {
+                settings = view.initialSettings;
+                view.usedInitialSettings = true;
+                if (settings.filter) {
+                    params = geoapp.parseQueryString(settings.filter);
+                    _.each(params, function (value, id) {
+                        try {
+                            if (value !== '' && value !== undefined) {
+                                $('#ga-settings #'+id).val(value);
+                                update = true;
+                            }
+                        } catch (err) { ; }
+                    });
+                }
+            }
+            if (update) {
+                view.updateView(false);
+            }
         });
         showMap([]);
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
@@ -147,11 +143,56 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 params[baseKey+'_max'] = val;
             }
         }
+    },
+
+    updateView: function (updateNav, updateSection) {
+        var view = this;
+        var newMapData = false;
+        if (!updateSection || updateSection === 'filter') {
+            var params = {}
+            var navFields = {}
+            $('#ga-settings [taxifield]').each(function () {
+                var elem = $(this);
+                var value = elem.val();
+                if (value !== '') {
+                    navFields[elem.attr('id')] = value;
+                }
+                var ttype = elem.attr('taxitype');
+                switch (ttype) {
+                    case 'dateRange':
+                        view.getDateRange(elem, params,
+                                          elem.attr('taxifield'));
+                        break;
+                    case 'floatRange':
+                        view.getFloatRange(elem, params,
+                                           elem.attr('taxifield'));
+                        break;
+                    case 'intRange':
+                        view.getIntRange(elem, params, elem.attr('taxifield'));
+                        break;
+                    default:
+                        if (value.length > 0) {
+                            params[elem.attr('taxifield')] = elem.val();
+                        }
+                        break;
+                }
+            });
+            if (updateNav) {
+                geoapp.updateNavigation('mapview', 'filter', navFields);
+            }
+            newMapData = params;
+        }
+        if (newMapData !== false) {
+            replaceMapData({params: newMapData});
+        }
     }
 });
 
-/*
-geoapp.router.route('', 'index', function () {
-    geoapp.events.trigger('ga:navigateTo', geoapp.views.ControlsView);
-});
-*/
+function routeToControls(params) {
+    geoapp.events.trigger(
+        'ga:navigateTo', geoapp.views.ControlsView, _.extend({
+        }, params || {}));
+}
+
+geoapp.router.route('', 'mapview', routeToControls);
+geoapp.router.route('mapview', 'mapview', routeToControls);
