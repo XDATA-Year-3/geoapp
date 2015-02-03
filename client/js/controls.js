@@ -1,3 +1,18 @@
+/* Copyright 2015 Kitware Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 ( the "License" );
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-controls-filter': function () {
@@ -16,14 +31,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
             update = false;
-            $('#ga-pickup-date').daterangepicker({
-                timePicker: true,
-                startDate: '2013-01-01 00:00',
-                endDate: '2014-01-01 00:00',
-                format: 'YYYY-MM-DD HH:mm',
-                timePicker12Hour: false,
-                timePickerIncrement: 5
-            });
             if (view.initialSettings && !view.usedInitialSettings) {
                 settings = view.initialSettings;
                 view.usedInitialSettings = true;
@@ -39,6 +46,21 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     });
                 }
             }
+            $('#ga-settings .ga-date-range').each(function () {
+                var elem = $(this);
+                var params = {};
+                view.getDateRange(elem, params, 'date');
+                elem.daterangepicker({
+                    timePicker: true,
+                    startDate: (params.date_min || params.date ||
+                                '2013-01-01 00:00'),
+                    endDate: (params.date_max || params.date ||
+                              '2014-01-01 00:00'),
+                    format: 'YYYY-MM-DD HH:mm',
+                    timePicker12Hour: false,
+                    timePickerIncrement: 5
+                });
+            });
             if (update) {
                 view.updateView(false);
             }

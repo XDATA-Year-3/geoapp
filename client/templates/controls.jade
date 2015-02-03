@@ -25,10 +25,10 @@
             label(for="ga-hack-license") Hack License
             input#ga-hack-license.form-control.input-sm(
               type="text", placeholder="#######", title="Hack license",
-              taxifield="hack-license")
+              taxifield="hack_license")
           .form-group
             label(for="ga-pickup-date") Pickup Date
-            input#ga-pickup-date.form-control.input-sm(
+            input#ga-pickup-date.ga-date-range.form-control.input-sm(
               type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
               title="Pickup date range",
               taxifield="pickup_datetime", taxitype="dateRange")
