@@ -1,3 +1,4 @@
 [submodule "geojs"]
 	path = geojs
 	url = git://github.com/OpenGeoscience/geojs.git
+	ignore = dirty

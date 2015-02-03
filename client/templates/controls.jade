@@ -3,11 +3,11 @@
   .panel-group#ga-settings-panel
     .panel.panel-default
       .panel-heading
-        .panel-title
-          a(data-toggle="collapse", data-parent="#ga-settings-panel",
-            href="#ga-settings")
+        a(data-toggle="collapse", data-parent="#ga-settings-panel",
+          href="#ga-settings")
+          .panel-title
             b Filters
-      #ga-settings.panel-collapse
+      #ga-settings.panel-collapse.collapse.in
         .panel-body
           .form-group
             label(for="ga-source") Data Source
@@ -54,3 +54,39 @@
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
               |  Filter
+  .panel-group#ga-display-panel
+    .panel.panel-default
+      .panel-heading
+        a(data-toggle="collapse", data-parent="#ga-display-panel",
+          href="#ga-display")
+          .panel-title
+            b Display
+      #ga-display.panel-collapse.collapse.in
+        .panel-body
+          .form-group
+            label(for="ga-cycle") Cycle
+            select#ga-cycle.form-control.input-sm(title="Time cycle")
+              option(value="none") None
+              option(value="hour") Hour
+              option(value="day") Day
+              option(value="week") Week
+              option(value="month") Month
+              option(value="year") Year
+          .form-group
+            label(for="ga-cycle-parts") Cycle Steps
+            input#ga-cycle-parts.form-control.input-sm(
+              type="text", placeholder="#", title="Time cycle divisions",
+              taxifield="cycle-parts")
+          .form-group
+            button#ga-display-update.btn.btn-default.btn-sm
+              i.icon-cw
+              |  Update
+            button#ga-display-play.btn.btn-default.btn-sm
+              i.icon-play
+              |  Play
+            button#ga-display-step.btn.btn-default.btn-sm
+              i.icon-to-end
+              |  Step
+            button#ga-display-stop.btn.btn-default.btn-sm
+              i.icon-stop
+              |  Stop

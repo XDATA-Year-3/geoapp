@@ -1,6 +1,8 @@
 var geoapp = girder;
 var app;
 
+moment.suppressDeprecationWarnings = true;
+
 geoapp.App = geoapp.View.extend({
     initialize: function (settings) {
         geoapp.events.on('ga:navigateTo', this.navigateTo, this);
