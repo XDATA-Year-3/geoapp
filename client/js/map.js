@@ -15,6 +15,18 @@
 
 var geo_map = null, drawTimer = null, drawQueued = false;
 
+/* Replace or add to the data used for the current map.  The options consist of
+ *  params: a list of parameters to pass to the rest call.  If they are not
+ *      set, the limit and fields keys in this dictionary are set
+ *  maxcount: unset to auto-pick values, otherwise the maximum number of points
+ *      to retrieve.
+ *  data: the data that has been fetched.  This is extended as more data
+ *      arrives.
+ *  startTime: the epoch in ms when the first call to this function was made.
+ *
+ * @param: options: a dictionary with the parameters to use for fetching data
+ *                  and the state of the process.  See above.
+ */
 function replaceMapData(options) {
     if (!options.maxcount) {
         console.log(options); //DWM::
@@ -23,6 +35,7 @@ function replaceMapData(options) {
         options.params.format = 'list';
         options.data = null;
         options.startTime = (new Date).getTime();
+options.requestTime = 0;  options.showTime = 0; //DWM::
     }
     if (!options.params.limit) {
         options.params.limit = 50000;
@@ -32,6 +45,7 @@ function replaceMapData(options) {
             'pickup_datetime, pickup_longitude, pickup_latitude, ' +
             'dropoff_datetime, dropoff_longitude, dropoff_latitude';
     }
+options.lastCheck = (new Date).getTime(); //DWM::
     console.log('request '+((new Date).getTime()-options.startTime)); //DWM::
     geoapp.cancelRestRequests('mapdata');
     var xhr = geoapp.restRequest({
@@ -43,8 +57,10 @@ function replaceMapData(options) {
             $.merge(options.data.data, resp.data);
             options.data.datacount += resp.datacount;
         }
+options.requestTime += (new Date).getTime()-options.lastCheck;options.lastCheck = (new Date).getTime(); //DWM::
         console.log('show '+((new Date).getTime()-options.startTime)); //DWM::
         showMap(options.data);
+options.showTime += (new Date).getTime()-options.lastCheck;options.lastCheck = (new Date).getTime(); //DWM::
         if ((options.data.datacount < options.data.count ||
                 (resp.datacount == options.params.limit &&
                  options.data.count == undefined)) &&
@@ -53,7 +69,7 @@ function replaceMapData(options) {
             console.log('next '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::
             replaceMapData(options);
         } else {
-            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::
+            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count+' requestTime '+options.requestTime+' showTime '+options.showTime); //DWM::
         }
     }, this));
     xhr.girder = {mapdata: true};
@@ -75,9 +91,10 @@ function showMap(data) {
             zoomDelta: 3.5,
         });
         geo_layer = geo_map.createLayer('feature');
-        geo_feature = geo_layer.createFeature('point', {selectionAPI: true})
+        geo_feature = geo_layer.createFeature('point', {selectionAPI: true});
     }
     if (data && data.data) {
+        debugVal = data.data; //DWM::
         geo_feature.data(data.data)
             .style({
                 fillColor: 'black',

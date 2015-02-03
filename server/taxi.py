@@ -137,7 +137,7 @@ class TaxiViaMongo():
         if fields:
             fields = [self.KeyTable.get(key, key) for key in fields]
         logger.info('Query %r', ((query, offset, limit, sort, fields), ))
-        cursor = self.trips.find(spec=query, offset=offset, limit=limit,
+        cursor = self.trips.find(spec=query, skip=offset, limit=limit,
                                  sort=sort, timeout=False, fields=fields)
         total = cursor.count()
         return {'count': total, 'data': [
