@@ -20,11 +20,13 @@
 # This file exposes an endpoint to get taxi data and has a class to handle
 # getting the data from a mongo instance
 
+import cherrypy
 import collections
 import datetime
 import dateutil.parser
 import json
 import pymongo
+import time
 import urllib
 
 import girder.api.rest
@@ -135,19 +137,21 @@ class TaxiViaMongo():
             query[self.KeyTable.get(key, key)] = findParam[key]
         sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
         if fields:
-            fields = [self.KeyTable.get(key, key) for key in fields]
+            fields = {self.KeyTable.get(key, key): 1 for key in fields}
+            fields['_id'] = 0
         logger.info('Query %r', ((query, offset, limit, sort, fields), ))
         cursor = self.trips.find(spec=query, skip=offset, limit=limit,
                                  sort=sort, timeout=False, fields=fields)
         total = cursor.count()
-        return {'count': total, 'data': [
+        result = {'count': total, 'data': [
             {self.RevTable.get(k, k): v for k, v in row.items() if k != '_id'}
             for row in cursor
         ]}
+        return result
 
     def getDbConnection(self):
         """
-        Connect to local mongo database named 'taxi' or to the specified 
+        Connect to local mongo database named 'taxi' or to the specified
         database URI.
 
         :return client: a pymongo client.
@@ -227,7 +231,7 @@ class TaxiViaTangeloService():
         results = json.loads(urllib.urlopen(url).read())
         fields = [self.RevTable.get(k, k) for k in results[0]]
         columns = {fields[col]: col for col in xrange(len(fields))}
-        return {'format': 'list', 'data': results[1:], 'fields': fields, 
+        return {'format': 'list', 'data': results[1:], 'fields': fields,
                 'columns': columns}
 
 
@@ -283,7 +287,16 @@ class Taxi(girder.api.rest.Resource):
                         for col in xrange(len(row))} for row in result['data']]
                 result['format'] = 'dict'
                 del result['columns']
-        return result
+        # We could let Girder convert the results into JSON, but it is
+        # margninally faster to dump the JSON ourselves, since we can exclude
+        # sorting and reduce whitespace
+        #  return result
+        def resultFunc():
+            yield json.dumps(result, check_circular=False, separators=(',', ':'), sort_keys=False, default=str)
+
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        return resultFunc
+
     find.description = (
         Description('Get a set of taxi data.')
         .param('source', 'Database source (default mongo).', required=False,

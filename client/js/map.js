@@ -13,7 +13,8 @@
  *  limitations under the License.
  */
 
-var geo_map = null, drawTimer = null, drawQueued = false;
+var geo_map, geo_layer, geo_feature, drawTimer, drawQueued;
+var lastMapData = null;
 
 /* Replace or add to the data used for the current map.  The options consist of
  *  params: a list of parameters to pass to the rest call.  If they are not
@@ -35,15 +36,20 @@ function replaceMapData(options) {
         options.params.format = 'list';
         options.data = null;
         options.startTime = (new Date).getTime();
-options.requestTime = 0;  options.showTime = 0; //DWM::
+        options.callNumber = 0;
+options.requestTime = options.showTime = 0; //DWM::
     }
     if (!options.params.limit) {
-        options.params.limit = 50000;
+        options.params.limit = Math.min(250000, options.maxcount);
     }
     if (!options.params.fields) {
         options.params.fields = 'medallion, hack_license, ' +
             'pickup_datetime, pickup_longitude, pickup_latitude, ' +
             'dropoff_datetime, dropoff_longitude, dropoff_latitude';
+        if (options.params.random || options.params.random_min ||
+                options.params.random_max) {
+            options.params.sort = 'random';
+        }
     }
 options.lastCheck = (new Date).getTime(); //DWM::
     console.log('request '+((new Date).getTime()-options.startTime)); //DWM::
@@ -59,7 +65,8 @@ options.lastCheck = (new Date).getTime(); //DWM::
         }
 options.requestTime += (new Date).getTime()-options.lastCheck;options.lastCheck = (new Date).getTime(); //DWM::
         console.log('show '+((new Date).getTime()-options.startTime)); //DWM::
-        showMap(options.data);
+        showMap(options.data, options.callNumber);
+        options.callNumber += 1;
 options.showTime += (new Date).getTime()-options.lastCheck;options.lastCheck = (new Date).getTime(); //DWM::
         if ((options.data.datacount < options.data.count ||
                 (resp.datacount == options.params.limit &&
@@ -90,11 +97,15 @@ function showMap(data) {
             //baseUrl: 'http://tile.openstreetmap.org/'
             zoomDelta: 3.5,
         });
-        geo_layer = geo_map.createLayer('feature');
-        geo_feature = geo_layer.createFeature('point', {selectionAPI: true});
+        geo_layer = geo_map.createLayer('feature', {
+            renderer: 'vgl'});
+        geo_feature = geo_layer.createFeature('point', {
+            selectionAPI: false,
+            dynamicDraw: true
+        });
     }
+    lastMapData = data;
     if (data && data.data) {
-        debugVal = data.data; //DWM::
         geo_feature.data(data.data)
             .style({
                 fillColor: 'black',
@@ -131,4 +142,52 @@ function triggerDraw(fromTimer) {
     }
 }
 
+var animTimer = null;
 
+function animate(options) {
+    if (animTimer) {
+        window.clearTimeout(animTimer);
+        animTimer = null;
+    }
+    if (!options || !options.steps || options.steps <= 1) {
+        return;
+    }
+    options = $.extend({}, options);
+    options.step = 0;
+    options.timestep = options.timestep || 1000;
+    options.startTime = options.lastStepTime = (new Date).getTime();
+    console.log(options); //DWM::
+    animTimer = window.setTimeout(function () {
+        animateCallback(options);
+    }, options.timestep);
+}
+
+function animateCallback(options) {
+    if (!lastMapData || !lastMapData.data) {
+        return;
+    }
+    if (!options.opac || options.opac.length != lastMapData.data.length * 6) {
+        options.opac = new Float32Array(lastMapData.data.length * 6);
+    }
+    var chunk = (lastMapData.data.length + options.steps - 1) / options.steps;
+    var startNum = chunk * 6 * options.step, endNum = startNum + chunk * 6;
+    chunk *= 6;
+    var visOpac = (options.opacity || 0.1);
+    for (var i=0; i<lastMapData.data.length * 6; i++) {
+        var vis = (i >= startNum && i < endNum);
+        options.opac[i] = (vis ? visOpac : 0);
+    }
+    geo_feature.mapper().updateSourceBuffer('fillOpacity', options.opac);
+    geo_map.draw();
+    var delay;
+    do {
+        options.step = (options.step + 1) % options.steps;
+        options.lastStepTime += options.timestep;
+        delay = (options.lastStepTime + options.timestep -
+                 (new Date).getTime());
+    } while (delay < -options.timestep);
+    console.log([delay, options.timestep-delay, options.step]); //DWM::
+    animTimer = window.setTimeout(function () {
+        animateCallback(options);
+    }, delay <= 0 ? 1 : delay);
+}
