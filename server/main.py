@@ -22,9 +22,6 @@ import girder.utility.config
 import girder.utility.server
 import mako.template
 import os
-import pprint
-import sys
-import time
 
 import taxi
 
@@ -92,9 +89,12 @@ class GeoApp():
             'serverRoot': self.root,
             'apiRoot': self.root.api.v1
         }
-        # load plugin is called with plugin, root, appconf, root.api.v1 as apiRoot, curConfig
-        # the plugin module is then called with info = {name: plugin, config: appconf, serverRoot: root, apiRoot: root.api.v1, pluginRootDir: (root)}
-        # if can modify root, appconf, and apiRoot
+        # load plugin is called with plugin, root, appconf, root.api.v1 as
+        #   apiRoot, curConfig
+        # the plugin module is then called with info = {name: plugin,
+        #   config: appconf, serverRoot: root, apiRoot: root.api.v1,
+        #   pluginRootDir: (root)}
+        # it can modify root, appconf, and apiRoot
 
         taxi.load(info)
 

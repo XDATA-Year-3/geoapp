@@ -22,11 +22,9 @@
 
 import cherrypy
 import collections
-import datetime
 import dateutil.parser
 import json
 import pymongo
-import time
 import urllib
 
 import girder.api.rest
@@ -206,7 +204,6 @@ class TaxiViaTangeloService():
         :returns: a dictionary of results.
         """
         data = {'headers': 'true', 'offset': offset, 'limit': limit}
-        findParam = {}
         for field in FieldTable:
             if field in params:
                 value = params[field]
@@ -222,7 +219,7 @@ class TaxiViaTangeloService():
                 data[self.KeyTable.get(field, field)] = '%s,%s' % (
                     minvalue, maxvalue)
         # Handle sort
-        #sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        # sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
         if fields:
             fields = [self.KeyTable.get(key, key) for key in fields]
             data['fields'] = ','.join(fields)
@@ -291,8 +288,11 @@ class Taxi(girder.api.rest.Resource):
         # margninally faster to dump the JSON ourselves, since we can exclude
         # sorting and reduce whitespace
         #  return result
+
         def resultFunc():
-            yield json.dumps(result, check_circular=False, separators=(',', ':'), sort_keys=False, default=str)
+            yield json.dumps(
+                result, check_circular=False, separators=(',', ':'),
+                sort_keys=False, default=str)
 
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return resultFunc

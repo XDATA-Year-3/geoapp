@@ -25,7 +25,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         girder.cancelRestRequests('fetch');
         this.render();
     },
-    
+
     render: function () {
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
@@ -39,7 +39,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     _.each(params, function (value, id) {
                         try {
                             if (value !== '' && value !== undefined) {
-                                $('#ga-settings #'+id).val(value);
+                                $('#ga-settings #' + id).val(value);
                                 update = true;
                             }
                         } catch (err) { ; }
@@ -90,10 +90,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
             return;
         }
         if (parts[0].trim() !== '') {
-            params[baseKey+'_min'] = parts[0].trim();
+            params[baseKey + '_min'] = parts[0].trim();
         }
         if (parts[1].trim() !== '') {
-            params[baseKey+'_max'] = parts[1].trim();
+            params[baseKey + '_max'] = parts[1].trim();
         }
     },
 
@@ -121,13 +121,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (parts[0].trim() !== '') {
             val = parseFloat(parts[0].trim());
             if (!isNaN(val)) {
-                params[baseKey+'_min'] = val;
+                params[baseKey + '_min'] = val;
             }
         }
         if (parts[1].trim() !== '') {
             val = parseFloat(parts[1].trim());
             if (!isNaN(val)) {
-                params[baseKey+'_max'] = val;
+                params[baseKey + '_max'] = val;
             }
         }
     },
@@ -156,13 +156,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (parts[0].trim() !== '') {
             val = parseInt(parts[0].trim());
             if (!isNaN(val)) {
-                params[baseKey+'_min'] = val;
+                params[baseKey + '_min'] = val;
             }
         }
         if (parts[1].trim() !== '') {
             val = parseInt(parts[1].trim());
             if (!isNaN(val)) {
-                params[baseKey+'_max'] = val;
+                params[baseKey + '_max'] = val;
             }
         }
     },

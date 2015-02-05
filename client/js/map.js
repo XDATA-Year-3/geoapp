@@ -90,12 +90,12 @@ function showMap(data) {
                 x: -73.978165,
                 y: 40.757977
             },
-            zoom: 10,
+            zoom: 10
         });
         geo_map.createLayer('osm', {
             baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
             //baseUrl: 'http://tile.openstreetmap.org/'
-            zoomDelta: 3.5,
+            zoomDelta: 3.5
         });
         geo_layer = geo_map.createLayer('feature', {
             renderer: 'vgl'});
@@ -111,12 +111,12 @@ function showMap(data) {
                 fillColor: 'black',
                 fillOpacity: 0.05,
                 stroke: false,
-                radius: 5,
+                radius: 5
             })
             .position(function (d) {
                 return {
-                    x: d[data.columns['pickup_longitude']],
-                    y: d[data.columns['pickup_latitude']]
+                    x: d[data.columns.pickup_longitude],
+                    y: d[data.columns.pickup_latitude]
                 };
             });
     }
@@ -133,7 +133,7 @@ function triggerDraw(fromTimer) {
     if (!drawTimer) {
         geo_map.draw();
         drawQueued = false;
-        drawTimer = window.setTimeout(function() {
+        drawTimer = window.setTimeout(function () {
             triggerDraw(true);
         }, 100);
         return;
@@ -173,11 +173,12 @@ function animateCallback(options) {
     var startNum = chunk * 6 * options.step, endNum = startNum + chunk * 6;
     chunk *= 6;
     var visOpac = (options.opacity || 0.1);
-    for (var i=0; i<lastMapData.data.length * 6; i++) {
+    for (var i = 0; i < lastMapData.data.length * 6; i++) {
         var vis = (i >= startNum && i < endNum);
         options.opac[i] = (vis ? visOpac : 0);
     }
-    geo_feature.mapper().updateSourceBuffer('fillOpacity', options.opac);
+    geo_feature.actors()[0].mapper().updateSourceBuffer(
+        'fillOpacity', options.opac);
     geo_map.draw();
     var delay;
     do {

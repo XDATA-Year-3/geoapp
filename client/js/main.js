@@ -69,7 +69,7 @@ geoapp.App = geoapp.View.extend({
             console.error('Undefined page.');
         }
         return this;
-    },
+    }
 
 });
 
@@ -122,7 +122,7 @@ geoapp.parseQueryString = function (queryString) {
         _.each(queryString.replace(/\+/g, ' ').split(/&/g), function (el, i) {
             var aux = el.split('='), o = {}, val;
             if (aux.length > 1) {
-                val = decodeURIComponent(el.substr(aux[0].length+1));
+                val = decodeURIComponent(el.substr(aux[0].length + 1));
             }
             params[decodeURIComponent(aux[0])] = val;
         });
