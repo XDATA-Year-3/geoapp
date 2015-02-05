@@ -22,6 +22,7 @@
 
 import cherrypy
 import collections
+import datetime
 import dateutil.parser
 import json
 import pymongo
@@ -141,8 +142,12 @@ class TaxiViaMongo():
         cursor = self.trips.find(spec=query, skip=offset, limit=limit,
                                  sort=sort, timeout=False, fields=fields)
         total = cursor.count()
-        result = {'count': total, 'data': [
-            {self.RevTable.get(k, k): v for k, v in row.items() if k != '_id'}
+        epoch = datetime.datetime.utcfromtimestamp(0)
+        dt = datetime.datetime
+        result = {'count': total, 'data': [{
+            self.RevTable.get(k, k):
+            v if not isinstance(v, dt) else int((v-epoch).total_seconds())
+            for k, v in row.items() if k != '_id'}
             for row in cursor
         ]}
         return result
@@ -265,7 +270,6 @@ class Taxi(girder.api.rest.Resource):
         result['datacount'] = len(result.get('data', []))
         if params.get('format', None) == 'list':
             if result.get('format', '') != 'list':
-                result['format'] = params['format']
                 if not fields:
                     fields = FieldTable.keys()
                 result['fields'] = fields
@@ -276,6 +280,8 @@ class Taxi(girder.api.rest.Resource):
                         [row.get(field, None) for field in fields]
                         for row in result['data']
                     ]
+                result['format'] = 'list'
+            print result['data'][0]  # ##DWM::
         else:
             if result.get('format', '') == 'list':
                 if 'data' in result:

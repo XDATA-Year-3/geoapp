@@ -133,6 +133,8 @@ geoapp.parseQueryString = function (queryString) {
 /* Run this when everything else is loaded */
 $(function () {
     girder.apiRoot = 'api/v1';
+    geoapp.map = geoapp.Map();
+
     app = new geoapp.App({el: 'body', parentView: null});
 });
 
