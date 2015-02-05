@@ -35,7 +35,7 @@ function replaceMapData(options) {
         options.params.offset = 0;
         options.params.format = 'list';
         options.data = null;
-        options.startTime = (new Date).getTime();
+        options.startTime = new Date().getTime();
         options.callNumber = 0;
 options.requestTime = options.showTime = 0; //DWM::
     }
@@ -51,8 +51,8 @@ options.requestTime = options.showTime = 0; //DWM::
             options.params.sort = 'random';
         }
     }
-options.lastCheck = (new Date).getTime(); //DWM::
-    console.log('request '+((new Date).getTime()-options.startTime)); //DWM::
+options.lastCheck = new Date().getTime(); //DWM::
+    console.log('request '+(new Date().getTime()-options.startTime)); //DWM::
     geoapp.cancelRestRequests('mapdata');
     var xhr = geoapp.restRequest({
         path: 'taxi', type: 'GET', data: options.params
@@ -63,20 +63,20 @@ options.lastCheck = (new Date).getTime(); //DWM::
             $.merge(options.data.data, resp.data);
             options.data.datacount += resp.datacount;
         }
-options.requestTime += (new Date).getTime()-options.lastCheck;options.lastCheck = (new Date).getTime(); //DWM::
-        console.log('show '+((new Date).getTime()-options.startTime)); //DWM::
+options.requestTime += new Date().getTime()-options.lastCheck;options.lastCheck = new Date().getTime(); //DWM::
+        console.log('show '+(new Date().getTime()-options.startTime)); //DWM::
         showMap(options.data, options.callNumber);
         options.callNumber += 1;
-options.showTime += (new Date).getTime()-options.lastCheck;options.lastCheck = (new Date).getTime(); //DWM::
+options.showTime += new Date().getTime()-options.lastCheck;options.lastCheck = new Date().getTime(); //DWM::
         if ((options.data.datacount < options.data.count ||
                 (resp.datacount == options.params.limit &&
-                 options.data.count == undefined)) &&
+                 options.data.count === undefined)) &&
                 options.data.datacount < options.maxcount) {
             options.params.offset += resp.datacount;
-            console.log('next '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::
+            console.log('next '+(new Date().getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count); //DWM::
             replaceMapData(options);
         } else {
-            console.log('last '+((new Date).getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count+' requestTime '+options.requestTime+' showTime '+options.showTime); //DWM::
+            console.log('last '+(new Date().getTime()-options.startTime)+' '+options.data.datacount+' '+options.data.count+' requestTime '+options.requestTime+' showTime '+options.showTime); //DWM::
         }
     }, this));
     xhr.girder = {mapdata: true};
@@ -155,7 +155,7 @@ function animate(options) {
     options = $.extend({}, options);
     options.step = 0;
     options.timestep = options.timestep || 1000;
-    options.startTime = options.lastStepTime = (new Date).getTime();
+    options.startTime = options.lastStepTime = new Date().getTime();
     console.log(options); //DWM::
     animTimer = window.setTimeout(function () {
         animateCallback(options);
@@ -185,7 +185,7 @@ function animateCallback(options) {
         options.step = (options.step + 1) % options.steps;
         options.lastStepTime += options.timestep;
         delay = (options.lastStepTime + options.timestep -
-                 (new Date).getTime());
+                 new Date().getTime());
     } while (delay < -options.timestep);
     console.log([delay, options.timestep-delay, options.step]); //DWM::
     animTimer = window.setTimeout(function () {

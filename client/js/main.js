@@ -112,7 +112,7 @@ geoapp.parseJSON = function (jsonValue)  {
     } catch (err) {
         return {};
     }
-}
+};
 
 /* I'd rather use the girder function, but as of girder 1.2.1, the function was
  * defective. */

@@ -42,7 +42,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                                 $('#ga-settings #' + id).val(value);
                                 update = true;
                             }
-                        } catch (err) { ; }
+                        } catch (err) { }
                     });
                 }
             }
@@ -171,8 +171,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var newMapData = false;
         if (!updateSection || updateSection === 'filter') {
-            var params = {}
-            var navFields = {}
+            var params = {};
+            var navFields = {};
             $('#ga-settings [taxifield]').each(function () {
                 var elem = $(this);
                 var value = elem.val();
