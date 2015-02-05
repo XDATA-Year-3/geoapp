@@ -1,2 +1,13 @@
-# geoapp
-This is a placeholder for the XData geo-js based app for examining the data sets for 2015.
+geoapp
+======
+
+This is a `girder <https://github.com/girder/girder>`__ and `geojs
+<https://github.com/OpenGeoscience/geojs>`__ based app for examining the XData
+data sets for 2015.
+
+Currently, only the NYC-Taxi data is used.
+
+The app probably won't work outside of Kitware's internal network without
+changing the data sources.
+
+See notes.txt for a build script.
