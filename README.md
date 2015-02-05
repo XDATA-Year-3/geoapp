@@ -1,8 +1,8 @@
 geoapp
 ======
 
-This is a `girder <https://github.com/girder/girder>`__ and `geojs
-<https://github.com/OpenGeoscience/geojs>`__ based app for examining the XData
+This is a girder (https://github.com/girder/girder) and geojs
+(https://github.com/OpenGeoscience/geojs) based app for examining the XData
 data sets for 2015.
 
 Currently, only the NYC-Taxi data is used.
