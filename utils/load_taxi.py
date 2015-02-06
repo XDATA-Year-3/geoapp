@@ -24,6 +24,7 @@ import pymongo
 import random
 import os
 import sys
+import time
 import zipfile
 
 
@@ -191,6 +192,8 @@ def getDbConnection():
                 raise
             print('MongoDB failed to connect.  Waiting %d s and trying '
                   'again.' % retryTime)
+            if sys.platform == 'win32':
+                os.system('net start MongoDB >NUL 2>NUL')
             time.sleep(retryTime)
 
 
@@ -198,17 +201,21 @@ def getKey(key):
     return KeyTable.get(key, key)
 
 
-def indexTrips():
+def indexTrips(uniqueTrips=False):
     """
     Drop and then create indices on the trips collection.
+
+    :param uniqueTrips: True to enforce (medallion, hack_license,
+                        pickup_datetime) tuple uniqueness.
     """
     client = getDbConnection()
     database = client.get_default_database()
     collection = database['trips']
     collection.drop_indexes()
-    collection.ensure_index(
-        [(getKey('medallion'), 1), (getKey('hack_license'), 1),
-         (getKey('pickup_datetime'), 1)], background=True)
+    if uniqueTrips:
+        collection.ensure_index(
+            [(getKey('medallion'), 1), (getKey('hack_license'), 1),
+             (getKey('pickup_datetime'), 1)], background=True)
     collection.ensure_index([(getKey('medallion'), 1)], background=True)
     collection.ensure_index([(getKey('hack_license'), 1)], background=True)
     collection.ensure_index([(getKey('pickup_datetime'), 1)], background=True)
@@ -233,11 +240,12 @@ def readFiles(opts={}, uniqueTrips=False):
     client = getDbConnection()
     database = client.get_default_database()
     collection = database['trips']
-    collection.drop()
-    indexTrips()
+    if not 'fromMonth' in opts:
+        collection.drop()
+        indexTrips()
     dcount = rcount = 0
     usedkeys = {}
-    for month in xrange(1, 13):
+    for month in xrange(opts.get('fromMonth', 1), opts.get('toMonth', 12)+1):
         data = zipfile.ZipFile('trip_data_%d.csv.zip' % month)
         data = csv.reader(data.open(data.namelist()[0]))
         dheader = [getKey(key.strip()) for key in data.next()]
@@ -351,6 +359,8 @@ if __name__ == '__main__':
             CollectionName = arg.split('=', 1)[1]
         elif arg == '--dehash':
             actions['dehash'] = True
+        elif arg.startswith('--from='):
+            opts['fromMonth'] = int(arg.split('=', 1)[1])
         elif arg == '--index':
             actions['index'] = True
         elif arg == '--random':
@@ -361,6 +371,8 @@ if __name__ == '__main__':
             opts['sampleRate'] = float(arg.split('=', 1)[1])
         elif arg.startswith('--seed='):
             seed = arg.split('=', 1)[1]
+        elif arg.startswith('--to='):
+            opts['toMonth'] = int(arg.split('=', 1)[1])
         else:
             help = True
     if help or not len(actions):
@@ -368,12 +380,15 @@ if __name__ == '__main__':
 
 Syntax: load_taxi.py --read --dehash --index --collection=(table)
                      --sample=(rate) --seed=(value) --random
+                     --from=(month) --to=(month)
 
 --read drops the 'trips' collection at mongodb://localhost:27017/taxi and reads
     it in from files in the local directory that are named
     trip_(data|fare)_{month}.csv.zip.
 --dehash creates collections called 'hacks' and 'medallions' which can be used
     to deanonymize the hack and medallion hashes.
+--from does not drop or reindex existing data, and loads from the specified
+    1-based month number onward.
 --index regenerates indices on the 'trips' collection.
 --collection specifies the collection (table) to use in mongo.  This defaults
     to 'taxi'.
@@ -381,13 +396,14 @@ Syntax: load_taxi.py --read --dehash --index --collection=(table)
 --sample picks a subset of rows.  Statistically, 1 row in (rate) is selected.
     The random seed affects which rows are selected.
 --seed specifies a random number seed.  Default is 0.  Blank for no explicit
-    seed."""
+    seed.
+--to stops loading after the specified 1-based month number (inclusive)."""
         sys.exit(0)
+    if 'index' in actions:
+        indexTrips()
     if 'read' in actions:
         if seed != '':
             random.seed(int(seed))
         readFiles(opts)
-    if 'index' in actions:
-        indexTrips()
     if 'dehash' in actions:
         dehash()
