@@ -29,6 +29,10 @@ geoapp.Map = function (arg) {
         m_animationOptions = {},
         m_animationData;
 
+    this.maximumMapPoints = 300000;
+    this.maximumDataPoints = null; /* defaults to maximumMapPoints */
+    this.pageDataPoints = null;    /* defaults to maximumDataPoints */
+
     /* Show a map with data.  If we have already shown the map, just update
      * the data and redraw the map.  The data is an object that contains:
      *   columns: a dictionary which has keys that reference the columns in
@@ -110,7 +114,7 @@ geoapp.Map = function (arg) {
             if (options.verbose) {
                 console.log(options);
             }
-            options.maxcount = 250000;
+            options.maxcount = this.maximumDataPoints || this.maximumMapPoints;
             options.params.offset = 0;
             options.params.format = 'list';
             options.data = null;
@@ -119,7 +123,8 @@ geoapp.Map = function (arg) {
             options.requestTime = options.showTime = 0;
         }
         if (!options.params.limit) {
-            options.params.limit = Math.min(250000, options.maxcount);
+            options.params.limit = Math.min(
+                this.pageDataPoints || options.maxcount, options.maxcount);
         }
         if (!options.params.fields) {
             options.params.fields = 'medallion, hack_license, ' +
@@ -231,16 +236,16 @@ geoapp.Map = function (arg) {
     this.prepareAnimation = function (options) {
         var i;
         var units = {
-            none: {format: 'MM-DD HH:mm'},
-            year: {format: 'MM-DD HH:mm'},
+            none: {format: 'ddd MM-DD HH:mm'},
+            year: {format: 'ddd MM-DD HH:mm'},
             month: {format: 'DD HH:mm'},
-            week: {format: 'ddd HH:mm', start: moment('2013-1-1').day(0)},
+            week: {format: 'ddd HH:mm', start: moment.utc('2013-1-1').day(0)},
             day: {format: 'HH:mm'},
             hour: {format: 'mm:ss'}
         };
         options = options || m_animationOptions;
+        m_animationOptions = options;
         m_animationData = null;
-        var params = {};
         if (!m_lastMapData || !m_lastMapData.data ||
                 !m_lastMapData.data.length) {
             return;
@@ -257,7 +262,7 @@ geoapp.Map = function (arg) {
         if (!units[cycle]) {
             cycle = 'none';
         }
-        var start = moment(units[cycle].start || '2013-01-01');
+        var start = units[cycle].start || moment.utc('2013-01-01');
         var range = moment.duration(1, cycle);
         if (cycle === 'none') {
             // DWM:: if a date range was specified in the query for the same
@@ -276,7 +281,15 @@ geoapp.Map = function (arg) {
             start = moment(start);
             range = moment.duration(moment(end) - moment(start) + 1);
         }
-        params.bins = [];
+        var params = {
+            numBins: numBins,
+            steps: steps,
+            substeps: substeps,
+            bins: [],
+            dataBin: new Int32Array(data.length),
+            opacity: options.opacity,
+            timestep: (options['cycle-steptime'] || 1000) / substeps
+        };
         var binWidth = moment.duration(
             (range.asMilliseconds() + numBins - 1) / numBins);
         var binStart = start;
@@ -286,76 +299,79 @@ geoapp.Map = function (arg) {
                 index: i,
                 start: binStart,
                 end: binEnd,
-                startDesc: binStart.format(units[cycle].format),
-                endDesc: binEnd.format(units[cycle].format)
+                startDesc: binStart.utcOffset(0).format(units[cycle].format),
+                endDesc: binEnd.utcOffset(0).format(units[cycle].format)
             };
             params.bins.push(bin);
             binStart = binEnd;
         }
-        params.dataBin = new Int32Array(data.length);
+        debugVal = params.bins; //DWM::
         for (i = 0; i < data.length; i += 1) {
             params.dataBin[i] = parseInt(
                 ((moment(data[i][dateColumn]) - start) % range) / binWidth);
         }
         m_animationData = params;
-        debugVal = [params, m_lastMapData, start, range, binWidth]; //DWM::
     };
 
     /* -- DWM:: -- */
     var animTimer = null;
 
-    this.animateCallback = function (options) {
+    this.animateFrame = function () {
         var view = this;
-        if (!m_lastMapData || !m_lastMapData.data) {
+        if (!m_lastMapData || !m_lastMapData.data || !m_animationData) {
             return;
         }
         var vpf = m_geoPoints.verticesPerFeature();
+        var options = m_animationData;
         if (!options.opac ||
                 options.opac.length != m_lastMapData.data.length * vpf) {
             options.opac = new Float32Array(m_lastMapData.data.length * vpf);
         }
-        var chunk = ((m_lastMapData.data.length + options.steps - 1) /
-            options.steps);
-        var startNum = chunk * vpf * options.step;
-        var endNum = startNum + chunk * vpf;
-        chunk *= vpf;
         var visOpac = (options.opacity || 0.1);
-        for (var i = 0; i < m_lastMapData.data.length * vpf; i++) {
-            var vis = (i >= startNum && i < endNum);
+        for (var i = 0; i < m_lastMapData.data.length; i++) {
+            var bin = options.dataBin[i];
+            var vis = ((bin >= options.step &&
+                bin < options.step + options.substeps) ||
+                bin + options.numBins < options.step + options.substeps);
             options.opac[i] = (vis ? visOpac : 0);
         }
         m_geoPoints.actors()[0].mapper().updateSourceBuffer(
             'fillOpacity', options.opac);
         m_geoMap.draw();
+        var desc = options.bins[options.step].startDesc + ' - ' +
+            options.bins[(options.step + options.substeps - 1) %
+            options.numBins].endDesc;
         var delay;
         do {
-            options.step = (options.step + 1) % options.steps;
-            options.lastStepTime += options.timestep;
-            delay = (options.lastStepTime + options.timestep -
-                     new Date().getTime());
+            options.step = (options.step + 1) % options.numBins;
+            options.nextStepTime += options.timestep;
+            delay = (options.nextStepTime - new Date().getTime());
         } while (delay < -options.timestep);
-        console.log([delay, options.timestep - delay, options.step]); //DWM::
-        animTimer = window.setTimeout(function () {
-            view.animateCallback(options);
-        }, delay <= 0 ? 1 : delay);
+        console.log([desc, delay, options.timestep - delay, options.step]); //DWM:
+        animTimer = window.setTimeout(
+            function () {
+                view.animateFrame();
+            }, delay <= 0 ? 1 : delay);
     };
 
     this.animate = function (options) {
         var view = this;
         if (animTimer) {
+            console.log('Stop animation'); //DWM::
             window.clearTimeout(animTimer);
             animTimer = null;
         }
-        if (!options || !options.steps || options.steps <= 1) {
+        if (options || !m_animationData) {
+            this.prepareAnimation(options);
+        }
+        if (!m_animationData) {
             return;
         }
-        options = $.extend({}, options);
-        options.step = 0;
-        options.timestep = options.timestep || 1000;
-        options.startTime = options.lastStepTime = new Date().getTime();
+        m_animationData.step = 0;
+        m_animationData.timestep = m_animationData.timestep || 1000;
+        m_animationData.startTime = m_animationData.nextStepTime =
+            new Date().getTime();
         console.log(options); //DWM::
-        animTimer = window.setTimeout(function () {
-            view.animateCallback(options);
-        }, options.timestep);
+        this.animateFrame();
     };
 };

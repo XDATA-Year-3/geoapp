@@ -146,7 +146,7 @@ class TaxiViaMongo():
         dt = datetime.datetime
         result = {'count': total, 'data': [{
             self.RevTable.get(k, k):
-            v if not isinstance(v, dt) else int((v-epoch).total_seconds())
+            v if not isinstance(v, dt) else int((v-epoch).total_seconds()*1000)
             for k, v in row.items() if k != '_id'}
             for row in cursor
         ]}
