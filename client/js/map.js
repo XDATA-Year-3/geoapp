@@ -288,7 +288,9 @@ geoapp.Map = function (arg) {
             bins: [],
             dataBin: new Int32Array(data.length),
             opacity: options.opacity,
-            timestep: (options['cycle-steptime'] || 1000) / substeps
+            timestep: (options['cycle-steptime'] || 1000) / substeps,
+            loops: options.loops,
+            statusElem: options.statusElem
         };
         var binWidth = moment.duration(
             (range.asMilliseconds() + numBins - 1) / numBins);
@@ -328,12 +330,14 @@ geoapp.Map = function (arg) {
             options.opac = new Float32Array(m_lastMapData.data.length * vpf);
         }
         var visOpac = (options.opacity || 0.1);
-        for (var i = 0; i < m_lastMapData.data.length; i++) {
+        for (var i = 0, v = 0, j; i < m_lastMapData.data.length; i++) {
             var bin = options.dataBin[i];
             var vis = ((bin >= options.step &&
                 bin < options.step + options.substeps) ||
                 bin + options.numBins < options.step + options.substeps);
-            options.opac[i] = (vis ? visOpac : 0);
+            for (j = 0; j < vpf; j += 1, v += 1) {
+                options.opac[v] = (vis ? visOpac : 0);
+            }
         }
         m_geoPoints.actors()[0].mapper().updateSourceBuffer(
             'fillOpacity', options.opac);
@@ -341,9 +345,17 @@ geoapp.Map = function (arg) {
         var desc = options.bins[options.step].startDesc + ' - ' +
             options.bins[(options.step + options.substeps - 1) %
             options.numBins].endDesc;
+        $(options.statusElem).text(desc);
         var delay;
         do {
             options.step = (options.step + 1) % options.numBins;
+            if (!options.step && options.loops) {
+                options.loops -= 1;
+                if (!options.loops) {
+                    console.log([desc]); //DWM:
+                    return;
+                }
+            }
             options.nextStepTime += options.timestep;
             delay = (options.nextStepTime - new Date().getTime());
         } while (delay < -options.timestep);

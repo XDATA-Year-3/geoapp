@@ -1,10 +1,10 @@
 #ga-main-map
 #ga-main-page
-  .panel-group#ga-settings-panel
+  .panel-group#ga-filter-settings-panel
     .panel.panel-default
       .panel-heading
-        a(data-toggle="collapse", data-parent="#ga-settings-panel",
-          href="#ga-settings")
+        a(data-toggle="collapse", data-parent="#ga-filter-settings-panel",
+          href="#ga-filter-settings")
           .panel-title
             b Filters
       #ga-filter-settings.panel-collapse.collapse.in
@@ -14,6 +14,7 @@
             select#ga-source.form-control.input-sm(title="Database source",
                 taxifield="source")
               option(value="mongo") Mongo 1/12
+              option(value="mongo12") Mongo 1/12 Compact
               option(value="mongofull") Mongo Full Data
               option(value="tangelo") Tangelo Service 1/12
           .form-group
@@ -54,11 +55,11 @@
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
               |  Filter
-  .panel-group#ga-display-panel
+  .panel-group#ga-display-settings-panel
     .panel.panel-default
       .panel-heading
-        a(data-toggle="collapse", data-parent="#ga-display-panel",
-          href="#ga-display")
+        a(data-toggle="collapse", data-parent="#ga-display-settings-panel",
+          href="#ga-display-settings")
           .panel-title
             b Display
       #ga-display-settings.panel-collapse.collapse.in
@@ -101,3 +102,6 @@
             button#ga-display-stop.btn.btn-default.btn-sm
               i.icon-stop
               |  Stop
+          .form-group
+            label(for="ga-cycle-steps") Current Display
+            p#ga-cycle-display.form-control.input-sm Full Data
