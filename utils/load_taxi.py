@@ -73,9 +73,37 @@ KeyTable = {
     'tip_amount': 'tip',
     'tolls_amount': 'toll',
     'total_amount': 'total',
+
+    'random': 'rnd'
+}
+CKeyTable = {
+    'medallion': 'm',
+    'hack_license': 'h',
+    'vendor_id': 'v',
+    'rate_code': 'c',
+    'store_and_fwd_flag': 'fw',
+    'pickup_datetime': 'pd',
+    'dropoff_datetime': 'dd',
+    'passenger_count': 'p',
+    'trip_time_in_secs': 's',
+    'trip_distance': 'd',
+    'pickup_longitude': 'px',
+    'pickup_latitude': 'py',
+    'dropoff_longitude': 'dx',
+    'dropoff_latitude': 'dy',
+    'payment_type': 'ty',
+    'fare_amount': 'f',
+    'surcharge': 'sr',
+    'mta_tax': 'tx',
+    'tip_amount': 'tp',
+    'tolls_amount': 'tl',
+    'total_amount': 't',
+
+    'random': 'r'
 }
 
 RevTable = {v: k for k, v in KeyTable.items()}
+CRevTable = {v: k for k, v in CKeyTable.items()}
 
 
 def dehash(medallions=None, hacks=None):
@@ -219,7 +247,9 @@ def indexTrips(uniqueTrips=False):
     collection.ensure_index([(getKey('medallion'), 1)], background=True)
     collection.ensure_index([(getKey('hack_license'), 1)], background=True)
     collection.ensure_index([(getKey('pickup_datetime'), 1)], background=True)
-    collection.ensure_index([('rnd', 1)], background=True)
+    collection.ensure_index(
+        [(getKey('random'), 1), (getKey('pickup_datetime'), 1)],
+        background=True)
 
 
 def readFiles(opts={}, uniqueTrips=False):
@@ -237,6 +267,7 @@ def readFiles(opts={}, uniqueTrips=False):
     :param uniqueTrips: True to enforce (medallion, hack_license,
                         pickup_datetime) tuple uniqueness.
     """
+    epoch = datetime.datetime.utcfromtimestamp(0)
     client = getDbConnection()
     database = client.get_default_database()
     collection = database['trips']
@@ -255,8 +286,8 @@ def readFiles(opts={}, uniqueTrips=False):
         linecount = 0
         for tripline in data:
             trip = dict(zip(dheader, [val.strip() for val in tripline]))
-            medallions[trip['med']] = True
-            hacks[trip['hack']] = True
+            medallions[trip[getKey('medallion')]] = True
+            hacks[trip[getKey('hack_license')]] = True
             linecount += 1
             if not linecount % 10000:
                 sys.stderr.write('%d %d %d %d\r' % (
@@ -275,35 +306,42 @@ def readFiles(opts={}, uniqueTrips=False):
         bulk = collection.initialize_unordered_bulk_op()
         for tripline in data:
             trip = dict(zip(dheader, [val.strip() for val in tripline]))
-            trip['med'] = medallionTable.get(trip['med'], trip['med'])
-            trip['hack'] = hackTable.get(trip['hack'], trip['hack'])
-            tripkey = (trip['med'], trip['hack'], trip['pdate'])
-            if (trip['med'] in usedkeys and
-                    trip['hack'] in usedkeys[trip['med']] and
-                    trip['pdate'] in usedkeys[trip['med']][trip['hack']]):
+            trip[getKey('medallion')] = medallionTable.get(
+                trip[getKey('medallion')], trip[getKey('medallion')])
+            trip[getKey('hack_license')] = hackTable.get(
+                trip[getKey('hack_license')], trip[getKey('hack_license')])
+            tripkey = (trip[getKey('medallion')], trip[getKey('hack_license')],
+                trip[getKey('pickup_datetime')])
+            if (trip[getKey('medallion')] in usedkeys and trip[getKey(
+                    'hack_license')] in usedkeys[trip[getKey('medallion')]] and
+                    trip[getKey('pickup_datetime')] in usedkeys[trip[getKey(
+                    'medallion')]][trip[getKey('hack_license')]]):
                 continue
             while tripkey not in triples:
                 fareline = fare.next()
                 if not fareline:
                     break
                 fdat = dict(zip(fheader, [val.strip() for val in fareline]))
-                fdat['med'] = medallionTable.get(fdat['med'], fdat['med'])
-                fdat['hack'] = hackTable.get(fdat['hack'], fdat['hack'])
-                fdatkey = (fdat['med'], fdat['hack'], fdat['pdate'])
+                fdat[getKey('medallion')] = medallionTable.get(
+                    fdat[getKey('medallion')], fdat[getKey('medallion')])
+                fdat[getKey('hack_license')] = hackTable.get(
+                    fdat[getKey('hack_license')], fdat[getKey('hack_license')])
+                fdatkey = (fdat[getKey('medallion')], fdat[getKey(
+                    'hack_license')], fdat[getKey('pickup_datetime')])
                 triples[fdatkey] = fdat
             if tripkey not in triples:
                 continue
             trip.update(triples[tripkey])
             del triples[tripkey]
             if uniqueTrips:
-                usedkeys.default(trip['med'], {}).default(
-                    trip['hack'], {})[trip['pdate']] = True
-            
+                usedkeys.default(trip[getKey('medallion')], {}).default(
+                    trip[getKey('hack_license')], {})[trip[getKey(
+                    'pickup_datetime')]] = True
             rcount += 1
             if (opts.get('sampleRate', None) and
                     random.random() * opts['sampleRate'] >= 1):
                 continue
-                
+
             for key in trip:
                 if trip[key] == '':
                     trip[key] = None
@@ -313,6 +351,9 @@ def readFiles(opts={}, uniqueTrips=False):
                         if dataType == 'date':
                             trip[key] = datetime.datetime.strptime(
                                 trip[key],'%Y-%m-%d %H:%M:%S')
+                            if opts.get('dateAsInt', False):
+                                trip[key] = int(
+                                    (trip[key]-epoch).total_seconds()*1000)
                         elif dataType == 'float':
                             trip[key] = float(trip[key])
                         elif dataType == 'int':
@@ -321,7 +362,7 @@ def readFiles(opts={}, uniqueTrips=False):
                         print 'ValueError', TypeTable[key], key, trip[key]
                         sys.exit(0)
             if opts.get('random', False):
-                trip['rnd'] = random.random()
+                trip[getKey('random')] = random.random()
             bulk.insert(trip)
             dcount += 1
             if not dcount % 1000:
@@ -357,12 +398,17 @@ if __name__ == '__main__':
     for arg in sys.argv[1:]:
         if arg.startswith('--collection='):
             CollectionName = arg.split('=', 1)[1]
+        elif arg == '--compact':
+            KeyTable = CKeyTable
+            RevTable = CRevTable
         elif arg == '--dehash':
             actions['dehash'] = True
         elif arg.startswith('--from='):
             opts['fromMonth'] = int(arg.split('=', 1)[1])
         elif arg == '--index':
             actions['index'] = True
+        elif arg == '--intdate':
+            opts['dateAsInt'] = True
         elif arg == '--random':
             opts['random'] = True
         elif arg == '--read':
@@ -380,19 +426,21 @@ if __name__ == '__main__':
 
 Syntax: load_taxi.py --read --dehash --index --collection=(table)
                      --sample=(rate) --seed=(value) --random
-                     --from=(month) --to=(month)
+                     --from=(month) --to=(month) --intdate --compact
 
---read drops the 'trips' collection at mongodb://localhost:27017/taxi and reads
-    it in from files in the local directory that are named
-    trip_(data|fare)_{month}.csv.zip.
+--collection specifies the collection (table) to use in mongo.  This defaults
+    to 'taxi'.
+--compact uses extra-compact keys for the database.
 --dehash creates collections called 'hacks' and 'medallions' which can be used
     to deanonymize the hack and medallion hashes.
 --from does not drop or reindex existing data, and loads from the specified
     1-based month number onward.
 --index regenerates indices on the 'trips' collection.
---collection specifies the collection (table) to use in mongo.  This defaults
-    to 'taxi'.
---random adds a random value from 0 to 1 to each row under the 'rnd' tag.    
+--intdate stores dates as integers.
+--random adds a random value from 0 to 1 to each row under the 'random' tag.
+--read drops the 'trips' collection at mongodb://localhost:27017/taxi and reads
+    it in from files in the local directory that are named
+    trip_(data|fare)_{month}.csv.zip.
 --sample picks a subset of rows.  Statistically, 1 row in (rate) is selected.
     The random seed affects which rows are selected.
 --seed specifies a random number seed.  Default is 0.  Blank for no explicit
