@@ -27,7 +27,8 @@ geoapp.Map = function (arg) {
         m_drawTimer,
         m_drawQueued,
         m_animationOptions = {},
-        m_animationData;
+        m_animationData,
+        m_animTimer;
 
     this.maximumMapPoints = 300000;
     this.maximumDataPoints = null; /* defaults to maximumMapPoints */
@@ -143,6 +144,12 @@ geoapp.Map = function (arg) {
         var xhr = geoapp.restRequest({
             path: 'taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
+            /* clear animation preparation, but don't clear current step. */
+            var animStartStep = 0;
+            if (m_animationData) {
+                animStartStep = m_animationData.step;
+            }
+            m_animationData = null;
             if (!options.data) {
                 options.data = resp;
             } else {
@@ -173,7 +180,7 @@ geoapp.Map = function (arg) {
                 options.params.offset += resp.datacount;
                 this.replaceMapData(options);
             }
-            //DWM:: update the animation, if appropriate
+            this.animate(undefined, animStartStep);
         }, this));
         xhr.girder = {mapdata: true};
     };
@@ -221,10 +228,18 @@ geoapp.Map = function (arg) {
      *  cycle-steptime: milliseconds per step (not substep).
      *
      * @param options: animation options.  See above.
+     * @param onlyUpdateOnChange: if true, only update if the options have
+     *                            changed.
      */
-    this.updateMapAnimation = function (options) {
+    this.updateMapAnimation = function (options, onlyUpdateOnChange) {
+        var different = !_.isEqual(m_animationOptions, options);
         m_animationOptions = options;
-        //DWM:: update the animation if appropriate. //DWM::
+        if (different) {
+            m_animationData = null;
+        }
+        if (different || !onlyUpdateOnChange) {
+            this.animate();
+        }
     };
 
     /* Calculate everything necessary to animate the map in an efficient
@@ -307,7 +322,6 @@ geoapp.Map = function (arg) {
             params.bins.push(bin);
             binStart = binEnd;
         }
-        debugVal = params.bins; //DWM::
         for (i = 0; i < data.length; i += 1) {
             params.dataBin[i] = parseInt(
                 ((moment(data[i][dateColumn]) - start) % range) / binWidth);
@@ -315,16 +329,17 @@ geoapp.Map = function (arg) {
         m_animationData = params;
     };
 
-    /* -- DWM:: -- */
-    var animTimer = null;
-
+    /* //DWM::
+     */
     this.animateFrame = function () {
         var view = this;
         if (!m_lastMapData || !m_lastMapData.data || !m_animationData) {
             return;
         }
-        var vpf = m_geoPoints.verticesPerFeature();
         var options = m_animationData;
+        options.step = (options.step + 1) % options.numBins;
+        options.renderedSteps = (options.renderedSteps || 0) + 1;
+        var vpf = m_geoPoints.verticesPerFeature();
         if (!options.opac ||
                 options.opac.length != m_lastMapData.data.length * vpf) {
             options.opac = new Float32Array(m_lastMapData.data.length * vpf);
@@ -346,32 +361,38 @@ geoapp.Map = function (arg) {
             options.bins[(options.step + options.substeps - 1) %
             options.numBins].endDesc;
         $(options.statusElem).text(desc);
-        var delay;
-        do {
+        var curTime = new Date().getTime();
+        var frameTime = parseInt(curTime - options.nextStepTime);
+        options.nextStepTime += options.timestep;
+        var delay = parseInt(options.nextStepTime - curTime);
+        //console.log([desc, delay, frameTime, options.step, options.nextStepTime, curTime]); //DWM:
+        while (delay < 0) {
+            /* We have to skip some frames */
             options.step = (options.step + 1) % options.numBins;
-            if (!options.step && options.loops) {
-                options.loops -= 1;
-                if (!options.loops) {
-                    console.log([desc]); //DWM:
-                    return;
-                }
-            }
             options.nextStepTime += options.timestep;
-            delay = (options.nextStepTime - new Date().getTime());
-        } while (delay < -options.timestep);
-        console.log([desc, delay, options.timestep - delay, options.step]); //DWM:
-        animTimer = window.setTimeout(
+            delay = parseInt(options.nextStepTime - curTime);
+        }
+        if (options.loops && options.renderedSteps >= options.loops *
+                options.numBins) {
+            return;
+        }
+        m_animTimer = window.setTimeout(
             function () {
                 view.animateFrame();
             }, delay <= 0 ? 1 : delay);
     };
 
-    this.animate = function (options) {
+    /* Start an animation.  See updateMapAnimation for option details.
+     *
+     * @param options: a dictionary of options.  If unset, use the last options
+     *                 passed to updateMapAnimation.
+     * @param startStep: step to start on within the animation.
+     */
+    this.animate = function (options, startStep) {
         var view = this;
-        if (animTimer) {
-            console.log('Stop animation'); //DWM::
-            window.clearTimeout(animTimer);
-            animTimer = null;
+        if (m_animTimer) {
+            window.clearTimeout(m_animTimer);
+            m_animTimer = null;
         }
         if (options || !m_animationData) {
             this.prepareAnimation(options);
@@ -379,11 +400,11 @@ geoapp.Map = function (arg) {
         if (!m_animationData) {
             return;
         }
-        m_animationData.step = 0;
+        m_animationData.step = (((startStep || 0) +
+            m_animationData.numBins - 1) % m_animationData.numBins);
         m_animationData.timestep = m_animationData.timestep || 1000;
         m_animationData.startTime = m_animationData.nextStepTime =
             new Date().getTime();
-        console.log(options); //DWM::
         this.animateFrame();
     };
 };

@@ -23,6 +23,8 @@ geoapp.App = geoapp.View.extend({
         geoapp.restRequest({
             path: 'user/me'
         }).done(_.bind(function (user) {
+            geoapp.eventStream = new geoapp.EventStream();
+
             this.globalNavView = new geoapp.views.LayoutGlobalNavView({
                 parentView: this
             });

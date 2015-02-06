@@ -18,8 +18,17 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'click #ga-controls-filter': function () {
             this.updateView(true, 'filter');
         },
-        'click #ga-display-settings-update': function () {
+        'click #ga-display-update': function () {
             this.updateView(true, 'display');
+        },
+        'click #ga-display-play': function () {
+            this.animationAction('playpause');
+        },
+        'click #ga-display-step': function () {
+            this.animationAction('step');
+        },
+        'click #ga-display-stop': function () {
+            this.animationAction('stop');
         }
     },
 
@@ -253,6 +262,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (updateNav) {
             geoapp.updateNavigation('mapview', 'display', navFields);
         }
+        params.statusElem = '#ga-cycle-display';
         return params;
     },
 

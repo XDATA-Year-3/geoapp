@@ -379,7 +379,6 @@ class Taxi(girder.api.rest.Resource):
                         for row in result['data']
                     ]
                 result['format'] = 'list'
-            print result['data'][0]  # ##DWM::
         else:
             if result.get('format', '') == 'list':
                 if 'data' in result:
@@ -391,7 +390,7 @@ class Taxi(girder.api.rest.Resource):
         # We could let Girder convert the results into JSON, but it is
         # margninally faster to dump the JSON ourselves, since we can exclude
         # sorting and reduce whitespace
-        #  return result
+        # return result
 
         def resultFunc():
             yield json.dumps(
