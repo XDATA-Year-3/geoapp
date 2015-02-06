@@ -71,6 +71,7 @@ geoapp.Map = function (arg) {
         }
         m_lastMapData = data;
         if (data && data.data) {
+            data.opacity = data.opacity || 0.05;
             if (!data.x_column) {
                 data.x_column = data.columns.pickup_longitude;
             }
@@ -80,7 +81,7 @@ geoapp.Map = function (arg) {
             m_geoPoints.data(data.data)
                 .style({
                     fillColor: 'black',
-                    fillOpacity: 0.05,
+                    fillOpacity: data.opacity,
                     stroke: false,
                     radius: 5
                 })
@@ -237,9 +238,20 @@ geoapp.Map = function (arg) {
         if (different) {
             m_animationData = null;
         }
+        if (m_animationData &&
+                m_animationData.playState != (options.playState || 'play')) {
+            m_animationData.playState = (options.playState || 'play');
+            different = true;
+        }
         if (different || !onlyUpdateOnChange) {
             this.animate();
         }
+    };
+
+    /* //DWM::
+     */
+    this.getAnimationOptions = function () {
+        return m_animationOptions;
     };
 
     /* Calculate everything necessary to animate the map in an efficient
@@ -262,7 +274,7 @@ geoapp.Map = function (arg) {
         m_animationOptions = options;
         m_animationData = null;
         if (!m_lastMapData || !m_lastMapData.data ||
-                !m_lastMapData.data.length) {
+                !m_lastMapData.data.length || options.playState === 'stop') {
             return;
         }
         var data = m_lastMapData.data;
@@ -305,7 +317,8 @@ geoapp.Map = function (arg) {
             opacity: options.opacity,
             timestep: (options['cycle-steptime'] || 1000) / substeps,
             loops: options.loops,
-            statusElem: options.statusElem
+            statusElem: options.statusElem,
+            playState: options.playState || 'play'
         };
         var binWidth = moment.duration(
             (range.asMilliseconds() + numBins - 1) / numBins);
@@ -345,7 +358,7 @@ geoapp.Map = function (arg) {
             options.opac = new Float32Array(m_lastMapData.data.length * vpf);
         }
         var visOpac = (options.opacity || 0.1);
-        for (var i = 0, v = 0, j; i < m_lastMapData.data.length; i++) {
+        for (var i = 0, v = 0, j; i < m_lastMapData.data.length; i += 1) {
             var bin = options.dataBin[i];
             var vis = ((bin >= options.step &&
                 bin < options.step + options.substeps) ||
@@ -373,7 +386,7 @@ geoapp.Map = function (arg) {
             delay = parseInt(options.nextStepTime - curTime);
         }
         if (options.loops && options.renderedSteps >= options.loops *
-                options.numBins) {
+                options.numBins || options.playState != 'play') {
             return;
         }
         m_animTimer = window.setTimeout(
@@ -406,5 +419,29 @@ geoapp.Map = function (arg) {
         m_animationData.startTime = m_animationData.nextStepTime =
             new Date().getTime();
         this.animateFrame();
+    };
+
+    /* Stop any current animation, returning the display to before animation
+     * was started.
+     */
+    this.stopAnimation = function () {
+        if (m_animTimer) {
+            window.clearTimeout(m_animTimer);
+            m_animTimer = null;
+        }
+        if (m_animationData) {
+            m_animationData.playState = 'stop';
+        }
+        if (!m_lastMapData || !m_lastMapData.data) {
+            return;
+        }
+        var vpf = m_geoPoints.verticesPerFeature();
+        var opac = new Float32Array(m_lastMapData.data.length * vpf);
+        for (var v = 0; v < m_lastMapData.data.length * vpf; v += 1) {
+            opac[v] = m_lastMapData.opacity;
+        }
+        m_geoPoints.actors()[0].mapper().updateSourceBuffer(
+            'fillOpacity', opac);
+        m_geoMap.draw();
     };
 };

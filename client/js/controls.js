@@ -19,6 +19,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             this.updateView(true, 'filter');
         },
         'click #ga-display-update': function () {
+            if ($('#ga-play').val() === 'stop') {
+                $('#ga-play').val('play');
+            }
             this.updateView(true, 'display');
         },
         'click #ga-display-play': function () {
@@ -296,6 +299,38 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }
                 break;
         }
+    },
+
+    /* Perform an action on the animation.  Available actions are
+     *  playpause: toggles between playing and paused state.
+     *  step: goes to the pause state.  If in the paused state, advance one
+     *      frame.
+     *  stop: resets to no-animation state.
+     *
+     * @param action: one of the actions listed above.
+     */
+    animationAction: function (action) {
+        var playState = action;
+        var options = geoapp.map.getAnimationOptions();
+
+        switch (action) {
+            //DWM::
+            case 'stop':
+                $('#ga-display-play').removeClass('pause').addClass('play');
+                $('#ga-cycle-display').text('Full Data');
+                geoapp.map.stopAnimation();
+                break;
+            default:
+                options = null;
+                break;
+        }
+        $('#ga-play').val(playState);
+        geoapp.updateNavigation(
+            'mapview', 'display', {'ga-play': playState}, true);
+//        if (options) {
+//            console.log($.extend({}, options)); //DWM::
+//            geoapp.map.updateMapAnimation(options);
+//        }
     }
 });
 

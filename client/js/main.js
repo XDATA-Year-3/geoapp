@@ -82,8 +82,10 @@ geoapp.App = geoapp.View.extend({
  * @param base: new base navigation if not null or undefined.
  * @param section: the base name of the query parameter.
  * @param params: a dictionary to encode.
+ * @param modify: if true, modify existing parameters.  Otherwise, the
+ *                specified section is replaced with the new parameters.
  */
-geoapp.updateNavigation = function (base, section, params) {
+geoapp.updateNavigation = function (base, section, params, modify) {
     var curRoute = Backbone.history.fragment || '',
         routeParts = geoapp.dialogs.splitRoute(curRoute),
         queryString = geoapp.parseQueryString(routeParts.name);
@@ -91,6 +93,10 @@ geoapp.updateNavigation = function (base, section, params) {
         base = routeParts.base;
     }
     if (queryString[section]) {
+        if (modify) {
+            params = $.extend(
+                geoapp.parseQueryString(queryString[section]), params);
+        }
         delete queryString[section];
     }
     if (params) {
