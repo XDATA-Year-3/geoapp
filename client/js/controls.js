@@ -17,15 +17,38 @@ geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-controls-filter': function () {
             this.updateView(true, 'filter');
+        },
+        'click #ga-display-update': function () {
+            if ($('#ga-play').val() === 'stop') {
+                $('#ga-play').val('play');
+            }
+            this.updateView(true, 'display');
+        },
+        'click #ga-play': function () {
+            this.animationAction('playpause');
+        },
+        'click #ga-display-step': function () {
+            this.animationAction('step');
+        },
+        'click #ga-display-stop': function () {
+            this.animationAction('stop');
         }
     },
 
+    /* Initialize the view.
+     *
+     * @params settings: the initial settings.  This can include defaults for
+     *                   the different control groups.
+     */
     initialize: function (settings) {
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
         this.render();
     },
 
+    /* Render the view.  This also prepares various controls if this is the
+     * first load.
+     */
     render: function () {
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
@@ -34,19 +57,25 @@ geoapp.views.ControlsView = geoapp.View.extend({
             if (view.initialSettings && !view.usedInitialSettings) {
                 settings = view.initialSettings;
                 view.usedInitialSettings = true;
-                if (settings.filter) {
-                    params = geoapp.parseQueryString(settings.filter);
-                    _.each(params, function (value, id) {
-                        try {
-                            if (value !== '' && value !== undefined) {
-                                $('#ga-settings #' + id).val(value);
-                                update = true;
-                            }
-                        } catch (err) { }
-                    });
-                }
+                var sections = {
+                    filter: '#ga-filter-settings #',
+                    display: '#ga-display-settings #'
+                };
+                _.each(sections, function (baseSelector, section) {
+                    if (settings[section]) {
+                        params = geoapp.parseQueryString(settings[section]);
+                        _.each(params, function (value, id) {
+                            try {
+                                if (value !== '' && value !== undefined) {
+                                    $(baseSelector + id).val(value);
+                                    update = true;
+                                }
+                            } catch (err) { }
+                        });
+                    }
+                });
             }
-            $('#ga-settings .ga-date-range').each(function () {
+            $('#ga-filter-settings .ga-date-range').each(function () {
                 var elem = $(this);
                 var params = {};
                 view.getDateRange(elem, params, 'date');
@@ -65,7 +94,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 view.updateView(false);
             }
         });
-        showMap([]);
+        geoapp.map.showMap([]);
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
         return this;
     },
@@ -73,6 +102,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     /* Get a range from a date range control.  The ranges are of the form
      * YYYY-MM-DD hh:mm:ss - YYYY-MM-DD hh:mm:ss .  Everything is optional.
      * The ranges must be separated by the string ' - '.
+     *
      * @param selector: selector for input control.
      * @param params: dictionary in which to store result.
      * @param baseKey: baseKey for which to store the value.  If there is no
@@ -100,6 +130,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     /* Get a floating-point range from a control.  The ranges are of the form
      * (min value) - (max value).  Everything is optional.  The ranges must be
      * separated by the string '-'.
+     *
      * @param selector: selector for input control.
      * @param params: dictionary in which to store result.
      * @param baseKey: baseKey for which to store the value.  If there is no
@@ -135,6 +166,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     /* Get an integer range from a control.  The ranges are of the form
      * (min value) - (max value).  Everything is optional.  The ranges must be
      * separated by the string '-'.
+     *
      * @param selector: selector for input control.
      * @param params: dictionary in which to store result.
      * @param baseKey: baseKey for which to store the value.  If there is no
@@ -167,49 +199,152 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
     },
 
+    /* Update some portion of the view.  This parses the specified section,
+     * and, if appropriate, updates the map or other details.
+     *
+     * @param updateNav: true to update the navigation route.
+     * @param updateSection: the section to update.  If not specified, update
+     *                       all sections.
+     */
     updateView: function (updateNav, updateSection) {
-        var view = this;
-        var newMapData = false;
+        var results = {};
         if (!updateSection || updateSection === 'filter') {
-            var params = {};
-            var navFields = {};
-            $('#ga-settings [taxifield]').each(function () {
-                var elem = $(this);
-                var value = elem.val();
-                if (value !== '') {
-                    navFields[elem.attr('id')] = value;
-                }
-                var ttype = elem.attr('taxitype');
-                switch (ttype) {
-                    case 'dateRange':
-                        view.getDateRange(elem, params,
-                                          elem.attr('taxifield'));
-                        break;
-                    case 'floatRange':
-                        view.getFloatRange(elem, params,
-                                           elem.attr('taxifield'));
-                        break;
-                    case 'intRange':
-                        view.getIntRange(elem, params, elem.attr('taxifield'));
-                        break;
-                    default:
-                        if (value.length > 0) {
-                            params[elem.attr('taxifield')] = elem.val();
-                        }
-                        break;
-                }
-            });
-            if (updateNav) {
-                geoapp.updateNavigation('mapview', 'filter', navFields);
+            results.newMapData = this.updateFilter(updateNav);
+        }
+        if (!updateSection || updateSection === 'display') {
+            results.newDisplayValues = this.updateDisplayValues(updateNav);
+        }
+        if (results.newMapData) {
+            geoapp.map.replaceMapData({params: results.newMapData});
+        }
+        if (results.newDisplayValues) {
+            geoapp.map.updateMapAnimation(results.newDisplayValues);
+        }
+    },
+
+    /* Update values associated with the filter controls.
+     *
+     * @param updateNav: true to update the navigation route.
+     * @return: the new map filter parameters.
+     */
+    updateFilter: function (updateNav) {
+        var view = this;
+        var params = {};
+        var navFields = {};
+        $('#ga-filter-settings [taxifield]').each(function () {
+            var elem = $(this);
+            var value = elem.val();
+            if (value !== '') {
+                navFields[elem.attr('id')] = value;
             }
-            newMapData = params;
+            view.getTaxiValue(elem, params);
+        });
+        if (updateNav) {
+            geoapp.updateNavigation('mapview', 'filter', navFields);
         }
-        if (newMapData !== false) {
-            replaceMapData({params: newMapData});
+        return params;
+    },
+
+    /* Update values associated with the display controls.
+     *
+     * @param updateNav: true to update the navigation route.
+     * @return: the new display parameters.
+     */
+    updateDisplayValues: function (updateNav, results) {
+        var view = this;
+        var params = {};
+        var navFields = {};
+        $('#ga-display-settings [taxifield]').each(function () {
+            var elem = $(this);
+            var value = elem.val();
+            if (value !== '') {
+                navFields[elem.attr('id')] = value;
+            }
+            view.getTaxiValue(elem, params);
+        });
+        if (updateNav) {
+            geoapp.updateNavigation('mapview', 'display', navFields);
         }
+        params.statusElem = '#ga-cycle-display';
+        return params;
+    },
+
+    /* Get an value or range of values from a control.  The type is stored in
+     * elem.attr('taxitype') and the key is stored in elem.attr('taxifield').
+     *
+     * @param selector: selector for input control.
+     * @param params: dictionary in which to store result.
+     */
+    getTaxiValue: function (selector, params) {
+        var elem = $(selector);
+        var value = elem.val();
+        var field = elem.attr('taxifield');
+        if (!field) {
+            return;
+        }
+        var ttype = elem.attr('taxitype');
+        switch (ttype) {
+            case 'dateRange':
+                this.getDateRange(elem, params, field);
+                break;
+            case 'floatRange':
+                this.getFloatRange(elem, params, field);
+                break;
+            case 'intRange':
+                this.getIntRange(elem, params, field);
+                break;
+            default:
+                if (value.length > 0) {
+                    params[field] = elem.val();
+                }
+                break;
+        }
+    },
+
+    /* Perform an action on the animation.  Available actions are
+     *  playpause: toggles between playing and paused state.
+     *  step: goes to the pause state.  If in the paused state, advance one
+     *      frame.
+     *  stop: resets to no-animation state.
+     *
+     * @param action: one of the actions listed above.
+     */
+    animationAction: function (action) {
+        var playState = action;
+
+        switch (action) {
+            case 'playpause':
+                if ($('#ga-play').val() !== 'play') {
+                    playState = 'play';
+                    geoapp.map.animationAction('play');
+                    break;
+                }
+                /* intentionally fall through to 'step' */
+                /* jshint -W086 */
+            case 'step':
+                var step = geoapp.map.animationAction('step');
+                if (step !== undefined) {
+                    playState = 'step' + step;
+                }
+                break;
+            case 'stop':
+                $('#ga-cycle-display').text('Full Data');
+                geoapp.map.animationAction('stop');
+                break;
+            default:
+                options = null;
+                break;
+        }
+        $('#ga-play').val(playState);
+        geoapp.updateNavigation(
+            'mapview', 'display', {'ga-play': playState}, true);
     }
 });
 
+/* Given an appropriate route, redirect to the ControlsView.
+ *
+ * @params params: query parameters specified as part of the route.
+ */
 function routeToControls(params) {
     geoapp.events.trigger(
         'ga:navigateTo', geoapp.views.ControlsView, _.extend({

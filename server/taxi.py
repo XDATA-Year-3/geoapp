@@ -22,6 +22,7 @@
 
 import cherrypy
 import collections
+import datetime
 import dateutil.parser
 import json
 import pymongo
@@ -141,8 +142,13 @@ class TaxiViaMongo():
         cursor = self.trips.find(spec=query, skip=offset, limit=limit,
                                  sort=sort, timeout=False, fields=fields)
         total = cursor.count()
-        result = {'count': total, 'data': [
-            {self.RevTable.get(k, k): v for k, v in row.items() if k != '_id'}
+        epoch = datetime.datetime.utcfromtimestamp(0)
+        dt = datetime.datetime
+        result = {'count': total, 'data': [{
+            self.RevTable.get(k, k):
+            v if not isinstance(v, dt) else int(
+                (v - epoch).total_seconds() * 1000)
+            for k, v in row.items() if k != '_id'}
             for row in cursor
         ]}
         return result
@@ -174,6 +180,101 @@ class TaxiViaMongo():
             return float(value)
         if dataType == 'date':
             return dateutil.parser.parse(value)
+        return value
+
+
+class TaxiViaMongoCompact(TaxiViaMongo):
+
+    KeyTable = {
+        'medallion': 'm',
+        'hack_license': 'h',
+        'vendor_id': 'v',
+        'rate_code': 'c',
+        'store_and_fwd_flag': 'fw',
+        'pickup_datetime': 'pd',
+        'dropoff_datetime': 'dd',
+        'passenger_count': 'p',
+        'trip_time_in_secs': 's',
+        'trip_distance': 'd',
+        'pickup_longitude': 'px',
+        'pickup_latitude': 'py',
+        'dropoff_longitude': 'dx',
+        'dropoff_latitude': 'dy',
+        'payment_type': 'ty',
+        'fare_amount': 'f',
+        'surcharge': 'sr',
+        'mta_tax': 'tx',
+        'tip_amount': 'tp',
+        'tolls_amount': 'tl',
+        'total_amount': 't',
+
+        'random': 'r',
+    }
+    RevTable = {v: k for k, v in KeyTable.items()}
+
+    epoch = datetime.datetime.utcfromtimestamp(0)
+
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
+        """
+        Get data from the mongo database.  Return each row in turn as a python
+        object with the default keys or the entire dataset as a list with
+        metadata.
+
+        :param params: a dictionary of query restrictions.  See the
+                       FieldTable.  For values that aren't of type 'text',
+                       we also support (field)_min and (field)_max parameters,
+                       which are inclusive and exclusive respectively.
+        :param limit: default limit for the data.
+        :param offset: default offset for the data.
+        :param sort: a tuple of the form (key, direction).
+        :param fields: a list of fields to return, or None for all fields.
+        :returns: a dictionary of results.
+        """
+        findParam = {}
+        for field in FieldTable:
+            if field in params:
+                value = self.getParamValue(field, params[field])
+                findParam[field] = value
+            if field + '_min' in params:
+                value = self.getParamValue(field, params[field + '_min'])
+                if field not in findParam:
+                    findParam[field] = {}
+                if isinstance(findParam[field], dict):
+                    findParam[field]['$gte'] = value
+            if field + '_max' in params:
+                value = self.getParamValue(field, params[field + '_max'])
+                if field not in findParam:
+                    findParam[field] = {}
+                if isinstance(findParam[field], dict):
+                    findParam[field]['$lt'] = value
+        query = {}
+        for key in findParam:
+            query[self.KeyTable.get(key, key)] = findParam[key]
+        sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        if fields:
+            fields = {self.KeyTable.get(key, key): 1 for key in fields}
+            fields['_id'] = 0
+        logger.info('Query %r', ((query, offset, limit, sort, fields), ))
+        cursor = self.trips.find(spec=query, skip=offset, limit=limit,
+                                 sort=sort, timeout=False, fields=fields)
+        total = cursor.count()
+        result = {'count': total, 'data': [{
+            self.RevTable.get(k, k): v for k, v in row.items() if k != '_id'}
+            for row in cursor
+        ]}
+        return result
+
+    def getParamValue(self, field, value):
+        if value == '':
+            return None
+        dataType = FieldTable[field][0]
+        if dataType == 'int':
+            return int(value)
+        if dataType == 'float':
+            return float(value)
+        if dataType == 'date':
+            return int((dateutil.parser.parse(value) - self.epoch)
+                       .total_seconds() * 1000)
         return value
 
 
@@ -240,7 +341,9 @@ class Taxi(girder.api.rest.Resource):
         self.route('GET', (), self.find)
         self.access = {
             'mongo': (TaxiViaMongo, {}),
-            'mongofull': (TaxiViaMongo, {
+            'mongo12': (TaxiViaMongoCompact, {
+                'dbUri': 'mongodb://parakon:27017/taxi12'}),
+            'mongofull': (TaxiViaMongoCompact, {
                 'dbUri': 'mongodb://parakon:27017/taxifull'}),
             'tangelo': (TaxiViaTangeloService, {}),
         }
@@ -265,7 +368,6 @@ class Taxi(girder.api.rest.Resource):
         result['datacount'] = len(result.get('data', []))
         if params.get('format', None) == 'list':
             if result.get('format', '') != 'list':
-                result['format'] = params['format']
                 if not fields:
                     fields = FieldTable.keys()
                 result['fields'] = fields
@@ -276,6 +378,7 @@ class Taxi(girder.api.rest.Resource):
                         [row.get(field, None) for field in fields]
                         for row in result['data']
                     ]
+                result['format'] = 'list'
         else:
             if result.get('format', '') == 'list':
                 if 'data' in result:
@@ -287,7 +390,7 @@ class Taxi(girder.api.rest.Resource):
         # We could let Girder convert the results into JSON, but it is
         # margninally faster to dump the JSON ourselves, since we can exclude
         # sorting and reduce whitespace
-        #  return result
+        # return result
 
         def resultFunc():
             yield json.dumps(

@@ -1,19 +1,20 @@
 #ga-main-map
 #ga-main-page
-  .panel-group#ga-settings-panel
+  .panel-group#ga-filter-settings-panel
     .panel.panel-default
       .panel-heading
-        a(data-toggle="collapse", data-parent="#ga-settings-panel",
-          href="#ga-settings")
+        a(data-toggle="collapse", data-parent="#ga-filter-settings-panel",
+          href="#ga-filter-settings")
           .panel-title
             b Filters
-      #ga-settings.panel-collapse.collapse.in
+      #ga-filter-settings.panel-collapse.collapse.in
         .panel-body
           .form-group
             label(for="ga-source") Data Source
             select#ga-source.form-control.input-sm(title="Database source",
                 taxifield="source")
               option(value="mongo") Mongo 1/12
+              option(value="mongo12") Mongo 1/12 Compact
               option(value="mongofull") Mongo Full Data
               option(value="tangelo") Tangelo Service 1/12
           .form-group
@@ -54,18 +55,19 @@
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
               |  Filter
-  .panel-group#ga-display-panel
+  .panel-group#ga-display-settings-panel
     .panel.panel-default
       .panel-heading
-        a(data-toggle="collapse", data-parent="#ga-display-panel",
-          href="#ga-display")
+        a(data-toggle="collapse", data-parent="#ga-display-settings-panel",
+          href="#ga-display-settings")
           .panel-title
             b Display
-      #ga-display.panel-collapse.collapse.in
+      #ga-display-settings.panel-collapse.collapse.in
         .panel-body
           .form-group
             label(for="ga-cycle") Cycle
-            select#ga-cycle.form-control.input-sm(title="Time cycle")
+            select#ga-cycle.form-control.input-sm(title="Time cycle",
+                taxifield="cycle")
               option(value="none") None
               option(value="hour") Hour
               option(value="day") Day
@@ -73,20 +75,37 @@
               option(value="month") Month
               option(value="year") Year
           .form-group
-            label(for="ga-cycle-parts") Cycle Steps
+            label(for="ga-cycle-steps") Cycle Steps
             input#ga-cycle-parts.form-control.input-sm(
               type="text", placeholder="#", title="Time cycle divisions",
-              taxifield="cycle-parts")
+              taxifield="cycle-steps")
+          .form-group
+            label(for="ga-cycle-substeps") Cycle Sub-steps
+            input#ga-cycle-subparts.form-control.input-sm(
+              type="text", placeholder="#", title="Time cycle sub-grouping",
+              taxifield="cycle-substeps")
+          .form-group
+            label(for="ga-cycle-steptime") Time per step
+            input#ga-cycle-steptime.form-control.input-sm(
+              type="text", placeholder="# ms", title="Milliseconds per Step",
+              taxifield="cycle-steptime")
           .form-group
             button#ga-display-update.btn.btn-default.btn-sm
               i.icon-cw
               |  Update
-            button#ga-display-play.btn.btn-default.btn-sm
-              i.icon-play
-              |  Play
+            button#ga-play.btn.btn-default.btn-sm(taxifield="playState")
+              span.canplay
+                i.icon-play
+                |  Play
+              span.canpause
+                i.icon-pause
+                |  Pause
             button#ga-display-step.btn.btn-default.btn-sm
               i.icon-to-end
               |  Step
             button#ga-display-stop.btn.btn-default.btn-sm
               i.icon-stop
               |  Stop
+          .form-group
+            label(for="ga-cycle-steps") Current Display
+            p#ga-cycle-display.form-control.input-sm Full Data
