@@ -341,11 +341,11 @@ class Taxi(girder.api.rest.Resource):
         self.route('GET', (), self.find)
         self.access = {
             'mongo': (TaxiViaMongo, {}),
-            'mongofull': (TaxiViaMongo, {
-                'dbUri': 'mongodb://parakon:27017/taxifull'}),
-            'tangelo': (TaxiViaTangeloService, {}),
             'mongo12': (TaxiViaMongoCompact, {
                 'dbUri': 'mongodb://parakon:27017/taxi12'}),
+            'mongofull': (TaxiViaMongoCompact, {
+                'dbUri': 'mongodb://parakon:27017/taxifull'}),
+            'tangelo': (TaxiViaTangeloService, {}),
         }
 
     @access.public

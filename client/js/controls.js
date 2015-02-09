@@ -24,7 +24,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             this.updateView(true, 'display');
         },
-        'click #ga-display-play': function () {
+        'click #ga-play': function () {
             this.animationAction('playpause');
         },
         'click #ga-display-step': function () {
@@ -311,14 +311,25 @@ geoapp.views.ControlsView = geoapp.View.extend({
      */
     animationAction: function (action) {
         var playState = action;
-        var options = geoapp.map.getAnimationOptions();
 
         switch (action) {
-            //DWM::
+            case 'playpause':
+                if ($('#ga-play').val() !== 'play') {
+                    playState = 'play';
+                    geoapp.map.animationAction('play');
+                    break;
+                }
+                /* intentionally fall through to 'step' */
+                /* jshint -W086 */
+            case 'step':
+                var step = geoapp.map.animationAction('step');
+                if (step !== undefined) {
+                    playState = 'step' + step;
+                }
+                break;
             case 'stop':
-                $('#ga-display-play').removeClass('pause').addClass('play');
                 $('#ga-cycle-display').text('Full Data');
-                geoapp.map.stopAnimation();
+                geoapp.map.animationAction('stop');
                 break;
             default:
                 options = null;
@@ -327,10 +338,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-play').val(playState);
         geoapp.updateNavigation(
             'mapview', 'display', {'ga-play': playState}, true);
-//        if (options) {
-//            console.log($.extend({}, options)); //DWM::
-//            geoapp.map.updateMapAnimation(options);
-//        }
     }
 });
 

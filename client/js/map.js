@@ -146,8 +146,9 @@ geoapp.Map = function (arg) {
             path: 'taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
             /* clear animation preparation, but don't clear current step. */
-            var animStartStep = 0;
-            if (m_animationData) {
+            var animStartStep;
+            if (m_animationData && m_animationData.playState &&
+                    m_animationData.playState.substr(0, 4) !== 'step') {
                 animStartStep = m_animationData.step;
             }
             m_animationData = null;
@@ -248,12 +249,6 @@ geoapp.Map = function (arg) {
         }
     };
 
-    /* //DWM::
-     */
-    this.getAnimationOptions = function () {
-        return m_animationOptions;
-    };
-
     /* Calculate everything necessary to animate the map in an efficient
      * manner.
      *
@@ -342,7 +337,8 @@ geoapp.Map = function (arg) {
         m_animationData = params;
     };
 
-    /* //DWM::
+    /* Draw a frame of an animation.  If the current playState is 'play', set
+     * a timer to play the next frame.
      */
     this.animateFrame = function () {
         var view = this;
@@ -378,15 +374,16 @@ geoapp.Map = function (arg) {
         var frameTime = parseInt(curTime - options.nextStepTime);
         options.nextStepTime += options.timestep;
         var delay = parseInt(options.nextStepTime - curTime);
-        //console.log([desc, delay, frameTime, options.step, options.nextStepTime, curTime]); //DWM:
+        //console.log([desc, delay, frameTime, options.step]); //DWM::
         while (delay < 0) {
             /* We have to skip some frames */
             options.step = (options.step + 1) % options.numBins;
             options.nextStepTime += options.timestep;
             delay = parseInt(options.nextStepTime - curTime);
+            options.skippedSteps = (options.skippedSteps || 0) + 1;
         }
         if (options.loops && options.renderedSteps >= options.loops *
-                options.numBins || options.playState != 'play') {
+                options.numBins || options.playState !== 'play') {
             return;
         }
         m_animTimer = window.setTimeout(
@@ -397,8 +394,8 @@ geoapp.Map = function (arg) {
 
     /* Start an animation.  See updateMapAnimation for option details.
      *
-     * @param options: a dictionary of options.  If unset, use the last options
-     *                 passed to updateMapAnimation.
+     * @param options: a dictionary of options.  If unset, use the last
+     *                 options passed to updateMapAnimation.
      * @param startStep: step to start on within the animation.
      */
     this.animate = function (options, startStep) {
@@ -413,6 +410,10 @@ geoapp.Map = function (arg) {
         if (!m_animationData) {
             return;
         }
+        if (startStep === undefined && m_animationData.playState &&
+                m_animationData.playState.substr(0, 4) === 'step') {
+            startStep = parseInt(m_animationData.playState.substr(4));
+        }
         m_animationData.step = (((startStep || 0) +
             m_animationData.numBins - 1) % m_animationData.numBins);
         m_animationData.timestep = m_animationData.timestep || 1000;
@@ -421,27 +422,58 @@ geoapp.Map = function (arg) {
         this.animateFrame();
     };
 
-    /* Stop any current animation, returning the display to before animation
-     * was started.
+    /* Stop, play, pause, or step the current animation.  Stop returns the
+     * display to before animation was started.
+     *
+     * @param action: one of 'stop', 'play', 'pause', or 'step'.
      */
-    this.stopAnimation = function () {
+    this.animationAction = function (action) {
+        var curPlayState = null, startStep;
+
         if (m_animTimer) {
             window.clearTimeout(m_animTimer);
             m_animTimer = null;
         }
         if (m_animationData) {
-            m_animationData.playState = 'stop';
+            curPlayState = m_animationData.playState;
+            if (action === curPlayState) {
+                return;
+            }
+            m_animationData.playState = action;
         }
         if (!m_lastMapData || !m_lastMapData.data) {
             return;
         }
-        var vpf = m_geoPoints.verticesPerFeature();
-        var opac = new Float32Array(m_lastMapData.data.length * vpf);
-        for (var v = 0; v < m_lastMapData.data.length * vpf; v += 1) {
-            opac[v] = m_lastMapData.opacity;
+        switch (action) {
+            case 'pause': case 'play': case 'step':
+                if (!m_animationData) {
+                    this.animate(undefined, startStep);
+                } else {
+                    if (curPlayState === 'stop') {
+                        m_animationData.step = -1;
+                    }
+                    m_animationData.nextStepTime = new Date().getTime();
+                    this.animateFrame();
+                }
+                break;
+            case 'stop':
+                var vpf = m_geoPoints.verticesPerFeature();
+                var opac = new Float32Array(m_lastMapData.data.length * vpf);
+                for (var v = 0; v < m_lastMapData.data.length * vpf; v += 1) {
+                    opac[v] = m_lastMapData.opacity;
+                }
+                m_geoPoints.actors()[0].mapper().updateSourceBuffer(
+                    'fillOpacity', opac);
+                m_geoMap.draw();
+                break;
         }
-        m_geoPoints.actors()[0].mapper().updateSourceBuffer(
-            'fillOpacity', opac);
-        m_geoMap.draw();
+        if (m_animationData) {
+            var lastStep = ((m_animationData.step + m_animationData.numBins -
+                             1) % m_animationData.numBins);
+            if (m_animationData.playState === 'step') {
+                m_animationData.playState = 'step' + lastStep;
+            }
+            return lastStep;
+        }
     };
 };

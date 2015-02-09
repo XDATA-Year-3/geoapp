@@ -56,13 +56,13 @@ a
     margin-right 5px
   #ga-pickup-date
     width 230px
-  #ga-display-play
+  #ga-play
     width 75px
-    span
+    span.canpause
       display none
-    &.play span.canplay
-      display inherit
-    &.pause span.canpause
+    &[value=play] span.canplay
+      display none
+    &[value=play] span.canpause
       display inherit
 
 .daterangepicker
