@@ -129,9 +129,9 @@ geoapp.Map = function (arg) {
                 this.pageDataPoints || options.maxcount, options.maxcount);
         }
         if (!options.params.fields) {
-            options.params.fields = 'medallion, hack_license, ' +
-                'pickup_datetime, pickup_longitude, pickup_latitude, ' +
-                'dropoff_datetime, dropoff_longitude, dropoff_latitude';
+            options.params.fields = '' + //'medallion,hack_license,' +
+                'pickup_datetime,pickup_longitude,pickup_latitude,' +
+                ''; //'dropoff_datetime,dropoff_longitude, dropoff_latitude';
             if (options.params.random || options.params.random_min ||
                     options.params.random_max) {
                 options.params.sort = 'random';

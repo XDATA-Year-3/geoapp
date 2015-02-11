@@ -252,16 +252,31 @@ class TaxiViaMongoCompact(TaxiViaMongo):
             query[self.KeyTable.get(key, key)] = findParam[key]
         sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
         if fields:
-            fields = {self.KeyTable.get(key, key): 1 for key in fields}
-            fields['_id'] = 0
-        logger.info('Query %r', ((query, offset, limit, sort, fields), ))
+            mfields = {self.KeyTable.get(key, key): 1 for key in fields}
+            mfields['_id'] = 0
+        logger.info('Query %r', ((query, offset, limit, sort, mfields), ))
         cursor = self.trips.find(spec=query, skip=offset, limit=limit,
-                                 sort=sort, timeout=False, fields=fields)
+                                 sort=sort, timeout=False, fields=mfields,
+                                 manipulate=False, slave_okay=True,
+                                 compile_re=False)
         total = cursor.count()
-        result = {'count': total, 'data': [{
-            self.RevTable.get(k, k): v for k, v in row.items() if k != '_id'}
-            for row in cursor
-        ]}
+        if fields:
+            columns = {fields[col]: col for col in xrange(len(fields))}
+            mcol = [self.KeyTable.get(fields[col], fields[col])
+                    for col in xrange(len(fields))]
+            result = {
+                'count': total,
+                'format': 'list',
+                'fields': fields,
+                'columns': columns,
+                'data': [[row[k] for k in mcol] for row in cursor]
+            }
+        else:
+            result = {'count': total, 'data': [{
+                self.RevTable.get(k, k): v for k, v in row.items()
+                if k != '_id'}
+                for row in cursor
+            ]}
         return result
 
     def getParamValue(self, field, value):
@@ -388,7 +403,7 @@ class Taxi(girder.api.rest.Resource):
                 result['format'] = 'dict'
                 del result['columns']
         # We could let Girder convert the results into JSON, but it is
-        # margninally faster to dump the JSON ourselves, since we can exclude
+        # marginally faster to dump the JSON ourselves, since we can exclude
         # sorting and reduce whitespace
         # return result
 
