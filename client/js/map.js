@@ -425,7 +425,7 @@ geoapp.Map = function (arg) {
     /* Stop, play, pause, or step the current animation.  Stop returns the
      * display to before animation was started.
      *
-     * @param action: one of 'stop', 'play', 'pause', or 'step'.
+     * @param action: one of 'stop', 'play', 'pause', 'step', or 'stepback'.
      */
     this.animationAction = function (action) {
         var curPlayState = null, startStep;
@@ -445,12 +445,16 @@ geoapp.Map = function (arg) {
             return;
         }
         switch (action) {
-            case 'pause': case 'play': case 'step':
+            case 'pause': case 'play': case 'step': case 'stepback':
                 if (!m_animationData) {
                     this.animate(undefined, startStep);
                 } else {
                     if (curPlayState === 'stop') {
                         m_animationData.step = -1;
+                    } else if (action == 'stepback') {
+                        m_animationData.step = ((m_animationData.step +
+                            m_animationData.numBins * 2 - 2) %
+                            m_animationData.numBins);
                     }
                     m_animationData.nextStepTime = new Date().getTime();
                     this.animateFrame();
@@ -470,7 +474,8 @@ geoapp.Map = function (arg) {
         if (m_animationData) {
             var lastStep = ((m_animationData.step + m_animationData.numBins -
                              1) % m_animationData.numBins);
-            if (m_animationData.playState === 'step') {
+            if (m_animationData.playState === 'step' ||
+                    m_animationData.playState === 'stepback') {
                 m_animationData.playState = 'step' + lastStep;
             }
             return lastStep;

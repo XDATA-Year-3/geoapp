@@ -27,6 +27,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'click #ga-play': function () {
             this.animationAction('playpause');
         },
+        'click #ga-display-step-back': function () {
+            this.animationAction('stepback');
+        },
         'click #ga-display-step': function () {
             this.animationAction('step');
         },
@@ -305,12 +308,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *  playpause: toggles between playing and paused state.
      *  step: goes to the pause state.  If in the paused state, advance one
      *      frame.
+     *  stepback: goes to the pause state.  If in the paused state, rewind one
+     *      frame.
      *  stop: resets to no-animation state.
      *
      * @param action: one of the actions listed above.
      */
     animationAction: function (action) {
-        var playState = action;
+        var playState = action, step;
 
         switch (action) {
             case 'playpause':
@@ -322,7 +327,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 /* intentionally fall through to 'step' */
                 /* jshint -W086 */
             case 'step':
-                var step = geoapp.map.animationAction('step');
+                step = geoapp.map.animationAction('step');
+                if (step !== undefined) {
+                    playState = 'step' + step;
+                }
+                break;
+            case 'stepback':
+                step = geoapp.map.animationAction('stepback');
                 if (step !== undefined) {
                     playState = 'step' + step;
                 }
