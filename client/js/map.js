@@ -28,7 +28,8 @@ geoapp.Map = function (arg) {
         m_drawQueued,
         m_animationOptions = {},
         m_animationData,
-        m_animTimer;
+        m_animTimer,
+        m_verbose = 1;
 
     this.maximumMapPoints = 300000;
     this.maximumDataPoints = null; /* defaults to maximumMapPoints */
@@ -111,9 +112,7 @@ geoapp.Map = function (arg) {
      */
     this.replaceMapData = function (options) {
         if (!options.maxcount) {
-            options.verbose = (options.verbose === undefined ? true :
-                options.verbose);
-            if (options.verbose) {
+            if (m_verbose >= 1) {
                 console.log(options);
             }
             options.maxcount = this.maximumDataPoints || this.maximumMapPoints;
@@ -138,7 +137,7 @@ geoapp.Map = function (arg) {
             }
         }
         options.requestTime -= new Date().getTime();
-        if (options.verbose) {
+        if (m_verbose >= 1) {
             console.log('request ' + (new Date().getTime() - options.startTime));
         }
         geoapp.cancelRestRequests('mapdata');
@@ -160,7 +159,7 @@ geoapp.Map = function (arg) {
             }
             options.requestTime += new Date().getTime();
             options.showTime -= new Date().getTime();
-            if (options.verbose) {
+            if (m_verbose >= 1) {
                 console.log('show ' + (new Date().getTime() - options.startTime));
             }
             this.showMap(options.data, options.callNumber);
@@ -170,7 +169,7 @@ geoapp.Map = function (arg) {
                 (resp.datacount == options.params.limit &&
                 options.data.count === undefined)) &&
                 options.data.datacount < options.maxcount);
-            if (options.verbose) {
+            if (m_verbose >= 1) {
                 console.log(
                     (callNext ? 'next ' : 'last ') +
                     (new Date().getTime() - options.startTime) + ' ' +
@@ -313,6 +312,7 @@ geoapp.Map = function (arg) {
             timestep: (options['cycle-steptime'] || 1000) / substeps,
             loops: options.loops,
             statusElem: options.statusElem,
+            sliderElem: options.sliderElem,
             playState: options.playState || 'play'
         };
         var binWidth = moment.duration(
@@ -366,15 +366,18 @@ geoapp.Map = function (arg) {
         m_geoPoints.actors()[0].mapper().updateSourceBuffer(
             'fillOpacity', options.opac);
         m_geoMap.draw();
-        var desc = options.bins[options.step].startDesc + ' - ' +
-            options.bins[(options.step + options.substeps - 1) %
-            options.numBins].endDesc;
+        var desc = this.getStepDescription(options.step);
         $(options.statusElem).text(desc);
+        $(options.sliderElem).slider('enable').slider(
+            'setAttribute', 'max', options.numBins - 1).slider(
+            'setValue', options.step);
         var curTime = new Date().getTime();
         var frameTime = parseInt(curTime - options.nextStepTime);
         options.nextStepTime += options.timestep;
         var delay = parseInt(options.nextStepTime - curTime);
-        //console.log([desc, delay, frameTime, options.step]); //DWM::
+        if (m_verbose >= 2) {
+            console.log([desc, delay, frameTime, options.step]);
+        }
         while (delay < 0) {
             /* We have to skip some frames */
             options.step = (options.step + 1) % options.numBins;
@@ -425,11 +428,18 @@ geoapp.Map = function (arg) {
     /* Stop, play, pause, or step the current animation.  Stop returns the
      * display to before animation was started.
      *
-     * @param action: one of 'stop', 'play', 'pause', or 'step'.
+     * @param action: one of 'stop', 'play', 'pause', 'step', 'stepback', or
+     *                'jump'.
+     * @param stepnum: if the action is 'jump', switch to this step number and
+     *                 maintain the current play state.
      */
-    this.animationAction = function (action) {
+    this.animationAction = function (action, stepnum) {
         var curPlayState = null, startStep;
 
+        if (action === 'jump' && m_animationData &&
+                m_animationData.step == stepnum) {
+            return;
+        }
         if (m_animTimer) {
             window.clearTimeout(m_animTimer);
             m_animTimer = null;
@@ -439,18 +449,37 @@ geoapp.Map = function (arg) {
             if (action === curPlayState) {
                 return;
             }
-            m_animationData.playState = action;
+            if (action !== 'jump') {
+                m_animationData.playState = action;
+            }
         }
         if (!m_lastMapData || !m_lastMapData.data) {
             return;
         }
         switch (action) {
-            case 'pause': case 'play': case 'step':
+            case 'jump':
+                if (curPlayState !== 'stop') {
+                    if (!m_animationData) {
+                        this.animate(undefined, stepnum);
+                    } else if (m_animationData.step != stepnum) {
+                        m_animationData.step = ((stepnum +
+                            m_animationData.numBins - 1) %
+                            m_animationData.numBins);
+                        m_animationData.nextStepTime = new Date().getTime();
+                        this.animateFrame();
+                    }
+                }
+                break;
+            case 'pause': case 'play': case 'step': case 'stepback':
                 if (!m_animationData) {
-                    this.animate(undefined, startStep);
+                    this.animate();
                 } else {
                     if (curPlayState === 'stop') {
                         m_animationData.step = -1;
+                    } else if (action == 'stepback') {
+                        m_animationData.step = ((m_animationData.step +
+                            m_animationData.numBins * 2 - 2) %
+                            m_animationData.numBins);
                     }
                     m_animationData.nextStepTime = new Date().getTime();
                     this.animateFrame();
@@ -465,15 +494,72 @@ geoapp.Map = function (arg) {
                 m_geoPoints.actors()[0].mapper().updateSourceBuffer(
                     'fillOpacity', opac);
                 m_geoMap.draw();
+                $(m_animationData.sliderElem).slider('disable').slider(
+                    'setValue', 0);
                 break;
         }
         if (m_animationData) {
             var lastStep = ((m_animationData.step + m_animationData.numBins -
                              1) % m_animationData.numBins);
-            if (m_animationData.playState === 'step') {
+            if (m_animationData.playState === 'step' ||
+                    m_animationData.playState === 'stepback') {
                 m_animationData.playState = 'step' + lastStep;
             }
             return lastStep;
         }
+    };
+
+    /* Return the description of the current step of an animation.
+     *
+     * @param step: 0-based step.  If undefined, then use the current step.
+     * @returns: description for the specified step.  If the animation is
+     *           stopped, then the description is 'Stopped'.
+     */
+    this.getStepDescription = function (step) {
+        if (!m_animationData || m_animationData.playState === 'stop') {
+            return 'Stopped';
+        }
+        if (step === undefined) {
+            step = m_animationData.step;
+        }
+        step = step % m_animationData.numBins;
+        var desc = m_animationData.bins[step].startDesc + ' - ' +
+            m_animationData.bins[(step + m_animationData.substeps - 1) %
+            m_animationData.numBins].endDesc;
+        return desc;
+    };
+
+    /* Set or get the current verbosity for console logging.
+     *
+     * @param verbose: if specified, set the verbosity to this integer.
+     * @returns: the current verbosity.
+     */
+    this.verbosity = function (verbose) {
+        if (verbose !== undefined) {
+            m_verbose = parseInt(verbose);
+        }
+        return m_verbose;
+    };
+
+    /* Return the current internal state of the map.
+     *
+     * @param key: the key of the object to fetch, or undefined for a
+     *             dictionary of objects.
+     * @returns: a dictionary of the current state, or one of the internal
+     *           state objects.
+     */
+    this.getInternalState = function (key) {
+        var state = {
+            geoMap: m_geoMap,
+            geoPoints: m_geoPoints,
+            lastMapData: m_lastMapData,
+            animationOptions: m_animationOptions,
+            animationData: m_animationData,
+            verbose: m_verbose
+        };
+        if (key) {
+            return state[key];
+        }
+        return state;
     };
 };

@@ -75,6 +75,17 @@ geoapp.App = geoapp.View.extend({
 
 });
 
+/* We have to replace the default girder route handling for closing modals and
+ * tooltips, because it would destroy the permament tooltips used by sliders.
+ */
+geoapp.router.off('route').on('route', function (route, params) {
+    if (!params.slice(-1)[0].dialog) {
+        $('.modal').girderModal('close');
+    }
+    /* get rid of tooltips, but not those from sliders */
+    $('.tooltip').not('.slider .tooltip').remove();
+});
+
 /* The navigation is of the form #(primary/route)?(section)=(params).  This
  * updates one of the query parameters to contain an encoded dictionary of
  * parameters.
