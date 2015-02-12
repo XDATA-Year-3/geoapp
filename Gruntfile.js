@@ -83,10 +83,10 @@ module.exports = function (grunt) {
 
         copy: {
             static: {
-                    expand: true,
-                    cwd: 'client/static',
-                    src: ['**/*'],
-                    dest: 'built'
+                expand: true,
+                cwd: 'client/static',
+                src: ['**/*'],
+                dest: 'built'
             },
             libs: {
                 expand: true,
@@ -102,7 +102,7 @@ module.exports = function (grunt) {
                     'built/app.min.css': [
                         'client/stylesheets/**/*.styl',
                         '!client/stylesheets/apidocs/*.styl'
-                    ],
+                    ]
                 }
             }
         },
@@ -112,8 +112,10 @@ module.exports = function (grunt) {
                 files: {
                     'built/libs.min.css': [
                         // daterangepicker
-                        'node_modules/daterangepicker/daterangepicker-bs3.css'
-                    ],
+                        'node_modules/daterangepicker/daterangepicker-bs3.css',
+                        // bootstrap-slider
+                        'node_modules/bootstrap-slider/dist/css/bootstrap-slider.css'
+                    ]
                 }
             }
         },
@@ -135,7 +137,7 @@ module.exports = function (grunt) {
                     stdout: false,
                     callback: setServerConfig
                 }
-            },
+            }
         },
 
         uglify: {
@@ -171,7 +173,9 @@ module.exports = function (grunt) {
                         'geojs/dist/built/geo.min.js',
                         /* daterangepicker */
                         'node_modules/moment/moment.js',
-                        'node_modules/daterangepicker/daterangepicker.js'
+                        'node_modules/daterangepicker/daterangepicker.js',
+                        /* bootstrap-slider */
+                        'node_modules/bootstrap-slider/js/bootstrap-slider.js'
                     ],
                     'built/testing.min.js': [
                         /*
@@ -201,7 +205,7 @@ module.exports = function (grunt) {
                 files: ['docs/*.rst'],
                 tasks: ['docs']
             }
-        },
+        }
     });
 
     if (['dev', 'prod'].indexOf(environment) === -1) {
@@ -248,20 +252,20 @@ module.exports = function (grunt) {
     */
 
     grunt.registerTask('version-info', [
-        'gitinfo',
+        'gitinfo'
     ]);
 
     grunt.registerTask('build-js', [
         'jade',
         'version-info',
-        'uglify:app',
+        'uglify:app'
 //        'shell:readServerConfig',
 //        'test-env-html'
     ]);
     grunt.registerTask('init', [
         'uglify:libs',
         'cssmin:libs',
-        'copy:libs',
+        'copy:libs'
 //        'shell:readServerConfig'
     ]);
     grunt.registerTask('docs', ['shell:sphinx']);

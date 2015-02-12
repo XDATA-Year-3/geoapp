@@ -35,6 +35,15 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'click #ga-display-stop': function () {
             this.animationAction('stop');
+        },
+        'slide #ga-step-slider': function (evt) {
+            this.animationAction('jump', evt.value);
+        },
+        'slideStart #ga-step-slider': function (evt) {
+            this.animationAction('jump', evt.value);
+        },
+        'slideStop #ga-step-slider': function (evt) {
+            this.animationAction('jump', evt.value);
         }
     },
 
@@ -93,6 +102,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     timePickerIncrement: 5
                 });
             });
+            $('[title]').tooltip();
+            $('#ga-step-slider').slider({
+                formatter: geoapp.map.getStepDescription
+            }).slider('disable');
             if (update) {
                 view.updateView(false);
             }
@@ -269,6 +282,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.updateNavigation('mapview', 'display', navFields);
         }
         params.statusElem = '#ga-cycle-display';
+        params.sliderElem = '#ga-step-slider';
         return params;
     },
 
@@ -305,6 +319,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
     },
 
     /* Perform an action on the animation.  Available actions are
+     *  jump: go to the specified stepnum, maintaining the current play or
+     *      paused state.
      *  playpause: toggles between playing and paused state.
      *  step: goes to the pause state.  If in the paused state, advance one
      *      frame.
@@ -313,10 +329,21 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *  stop: resets to no-animation state.
      *
      * @param action: one of the actions listed above.
+     * @param stepnum: the explicit step to go to, if specified.
      */
-    animationAction: function (action) {
+    animationAction: function (action, stepnum) {
         var playState = action, step;
 
+        if (stepnum !== undefined) {
+            step = geoapp.map.animationAction('jump', stepnum);
+            playState = $('#ga-play').val();
+            if ($('#ga-play').val() !== 'play') {
+                if (step !== undefined) {
+                    playState = 'step' + step;
+                }
+            }
+            action = 'none';
+        }
         switch (action) {
             case 'playpause':
                 if ($('#ga-play').val() !== 'play') {
@@ -341,9 +368,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
             case 'stop':
                 $('#ga-cycle-display').text('Full Data');
                 geoapp.map.animationAction('stop');
-                break;
-            default:
-                options = null;
                 break;
         }
         $('#ga-play').val(playState);

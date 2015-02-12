@@ -108,5 +108,11 @@
               i.icon-stop
               |  Stop
           .form-group
+            input#ga-step-slider.form-control.input-sm(
+                type="text", data-slider-min="0", data-slider-max="100",
+                data-slider-step="1", data-slider-value="0",
+                data-slider-handle="square", data-slider-tooltip="hide",
+                data-slider-id="ga-step-slider-ctl")
+          .form-group
             label(for="ga-cycle-steps") Current Display
-            p#ga-cycle-display.form-control.input-sm Full Data
+            span#ga-cycle-display.form-control.input-sm Full Data

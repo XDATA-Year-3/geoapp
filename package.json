@@ -30,7 +30,8 @@
     "underscore": "~1.7",
     "bootstrap": "~3.3",
     "moment": "~2.9",
-    "daterangepicker": "~0.0.3"
+    "daterangepicker": "~0.0.3",
+    "bootstrap-slider": "~4.4"
   },
   "devDependencies": {
     "jshint": "~2.6",
