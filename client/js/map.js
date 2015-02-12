@@ -472,6 +472,11 @@ geoapp.Map = function (arg) {
                 break;
             case 'pause': case 'play': case 'step': case 'stepback':
                 if (!m_animationData) {
+                    if (m_animationOptions &&
+                            m_animationOptions.playState === 'stop') {
+                        m_animationOptions.playState = (
+                            action === 'play' ? action : 'pause');
+                    }
                     this.animate();
                 } else {
                     if (curPlayState === 'stop') {
