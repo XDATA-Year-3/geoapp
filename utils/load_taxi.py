@@ -21,7 +21,6 @@ import csv
 import datetime
 import json
 import md5
-import mmap
 import pymongo
 import random
 import os
@@ -29,6 +28,13 @@ import sys
 import tempfile
 import time
 import zipfile
+
+win32file = None
+if sys.platform == 'win32':
+    try:
+        import win32file
+    except Exception:
+        pass
 
 
 DBName = 'taxi'
@@ -139,7 +145,7 @@ def copyDB(srcDB, destDB, opts={}):
     for f in xrange(numFiles):
         (fd, filename) = tempfile.mkstemp()
         os.close(fd)
-        fptr = open(filename, 'w+b')
+        fptr = OpenWithoutCaching(filename, 'wb')
         files.append({'name': filename, 'fptr': fptr, 'starts': [0]})
     processed = 0
     for row in rows:
@@ -174,17 +180,12 @@ def copyDB(srcDB, destDB, opts={}):
     (fd, filename) = tempfile.mkstemp('.json')
     print filename
     os.close(fd)
-    fptr = open(filename, 'w+b')
+    fptr = OpenWithoutCaching(filename, 'wb')
     processed = 0
-    usemmap = False
     for f in files:
         starts = f['starts']
-        if usemmap:
-            fd = os.open(f['name'], os.O_RDONLY)
-            data = mmap.mmap(fd, 0, access=mmap.ACCESS_READ)
-        else:
-            data = open(f['name']).read()
-            os.unlink(f['name'])
+        data = OpenWithoutCaching(f['name']).read()
+        os.unlink(f['name'])
         pickList = range(len(starts)-1)
         random.shuffle(pickList)
         for pick in pickList:
@@ -199,11 +200,6 @@ def copyDB(srcDB, destDB, opts={}):
                 sys.stdout.write('%d/%d %3.1fs  %3.1fs left  \r' % (
                     processed, numRows, elapsed, left))
                 sys.stdout.flush()
-        if usemmap:
-            data.close()
-            os.close(fd)
-            os.unlink(f['name'])
-            fd = None
         data = None
     fptr.close()
     
@@ -330,22 +326,16 @@ def getKey(key):
     return KeyTable.get(key, key)
 
 
-def indexTrips(opts={}, uniqueTrips=False):
+def indexTrips(opts={}):
     """
     Drop and then create indices on the trips collection.
 
     :param opts: options dictionary.  See readFiles().
-    :param uniqueTrips: True to enforce (medallion, hack_license,
-                        pickup_datetime) tuple uniqueness.
     """
     client = getDbConnection()
     database = client.get_default_database()
     collection = database['trips']
     collection.drop_indexes()
-    if uniqueTrips:
-        collection.ensure_index(
-            [(getKey('medallion'), 1), (getKey('hack_license'), 1),
-             (getKey('pickup_datetime'), 1)], background=True)
     collection.ensure_index([(getKey('medallion'), 1)], background=True)
     collection.ensure_index([(getKey('hack_license'), 1)], background=True)
     collection.ensure_index([(getKey('pickup_datetime'), 1)], background=True)
@@ -355,7 +345,7 @@ def indexTrips(opts={}, uniqueTrips=False):
             background=True)
 
 
-def readFiles(opts={}, uniqueTrips=False):
+def readFiles(opts={}):
     """
     Read the taxi data from files in the local directory that are named
     trip_(data|fare)_{month}.csv.zip and store the data in the 'trips'
@@ -374,8 +364,6 @@ def readFiles(opts={}, uniqueTrips=False):
         toMonth: stop loading after the specified 1-based month (inclusive).
 
     :param opts: options dictionary.  See above.
-    :param uniqueTrips: True to enforce (medallion, hack_license,
-                        pickup_datetime) tuple uniqueness.
     """
     epoch = datetime.datetime.utcfromtimestamp(0)
     client = getDbConnection()
@@ -392,14 +380,14 @@ def readFiles(opts={}, uniqueTrips=False):
     medallions = {}
     hacks = {}
     for month in xrange(opts.get('fromMonth', 1), opts.get('toMonth', 12)+1):
-        data = zipfile.ZipFile('trip_data_%d.csv.zip' % month)
-        data = csv.reader(data.open(data.namelist()[0]))
-        dheader = [key.strip() for key in data.next()]
-        columns = {dheader[col]: col for col in xrange(len(dheader))}
+        fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
+        fare = csv.reader(fare.open(fare.namelist()[0]))
+        fheader = [getKey(key.strip()) for key in fare.next()]
+        columns = {fheader[col]: col for col in xrange(len(fheader))}
         m_col = columns['medallion']
         h_col = columns['hack_license']
         linecount = 0
-        for tripline in data:
+        for tripline in fare:
             medallions[tripline[m_col]] = True
             hacks[tripline[h_col]] = True
             linecount += 1
@@ -443,10 +431,6 @@ def readFiles(opts={}, uniqueTrips=False):
                 continue
             trip.update(triples[tripkey])
             del triples[tripkey]
-            if uniqueTrips:
-                usedkeys.default(trip[getKey('medallion')], {}).default(
-                    trip[getKey('hack_license')], {})[trip[getKey(
-                    'pickup_datetime')]] = True
             rcount += 1
             if (opts.get('sampleRate', None) and
                     random.random() * opts['sampleRate'] >= 1):
@@ -510,6 +494,67 @@ def readFiles(opts={}, uniqueTrips=False):
         sys.stderr.write('Indexing\n')
         indexTrips(opts)
         sys.stderr.write('Indexed %3.1fs\n' % (time.time() - starttime, ))
+
+
+class OpenWithoutCaching():
+    def __init__(self, name, mode='rb'):
+        self.fptr = None
+        self.fileType = 'python'
+        if sys.platform == 'win32' and win32file:
+            if 'w' in mode or 'a' in mode:
+                self.fptr = win32file.CreateFile(
+                    name, win32file.GENERIC_WRITE, 0, None,
+                    win32file.CREATE_ALWAYS,
+                    win32file.FILE_FLAG_SEQUENTIAL_SCAN, 0)
+            else:
+                self.fptr = win32file.CreateFile(
+                    name, win32file.GENERIC_READ, 0, None, 
+                    win32file.OPEN_EXISTING,
+                    win32file.FILE_FLAG_SEQUENTIAL_SCAN, 0)
+            self.fileType = 'win32'
+        else:
+            self.fptr = open(name, mode)
+            # if linux, add fadvise here
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        if not self.fptr:
+            return
+        if self.fileType == 'win32':
+            self.fptr.Close()
+        else:
+            self.fptr.close()
+        self.fptr = None
+
+    def read(self, readlen=None):
+        if self.fileType == 'win32':
+            if readlen is None:
+                data = []
+                while True:
+                    rc, buffer = win32file.ReadFile(self.fptr, 1024 * 1024)
+                    if rc or not len(buffer):
+                        break
+                    data.append(buffer)
+                return "".join(data)
+            else:
+                return win32file.ReadFile(self.fptr, readlen)
+        else:
+            return self.fptr.read(readlen)
+    
+    def write(self, data):
+        if self.fileType == 'win32':
+            win32file.WriteFile(self.fptr, data)
+        else:
+            return self.fptr.write(data)
+
+    def tell(self):
+        if self.fileType == 'win32':
+            return win32file.SetFilePointer(self.fptr, 0, 
+                                            win32file.FILE_CURRENT)
+        else:
+            return self.fptr.tell()
 
 
 if __name__ == '__main__':
@@ -578,6 +623,7 @@ Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
     seed.
 --to stops loading after the specified 1-based month number (inclusive)."""
         sys.exit(0)
+    starttime = time.time()
     if 'index' in actions:
         indexTrips(opts)
     if seed != '':
@@ -586,3 +632,4 @@ Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
         readFiles(opts)
     if 'copy' in actions:
         copyDB(DBName, actions['copy'], opts)
+    print 'Total time %3.1fs' % (time.time() - starttime)
