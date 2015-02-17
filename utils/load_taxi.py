@@ -24,6 +24,7 @@ import md5
 import pymongo
 import random
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -117,8 +118,8 @@ CRevTable = {v: k for k, v in CKeyTable.items()}
 
 def copyDB(srcDB, destDB, opts={}):
     """
-    Copy one database's trips table to another, randomizing the order of the
-    rows.
+    Copy one database's trips table to another.  If shuffle is specified,
+    randomize the order of the rows.
 
     :param srcDB: the name of the source database.
     :param destDB: the name of the destination database.
@@ -129,33 +130,23 @@ def copyDB(srcDB, destDB, opts={}):
                  rows.  The opts dictionary also affects index creation on the
                  destination database.
     """
-    global DBName
-    DBName = destDB
-
     randKey = getKey('random')
     starttime = time.time()
     client = getDbConnection(srcDB)
     database = client.get_default_database()
     srcColl = database['trips']
     rows = srcColl.find(spec={}, sort=[('_id', 1)], slave_okay=True,
-                        complie_re=False, manipulate=False, timeout=False)
+                        compile_re=False, manipulate=False, timeout=False)
     numRows = rows.count()
-    numFiles = int(numRows / 1024 / 1024 / 2) + 1
-    files = []
-    for f in xrange(numFiles):
-        (fd, filename) = tempfile.mkstemp()
-        os.close(fd)
-        fptr = OpenWithoutCaching(filename, 'wb')
-        files.append({'name': filename, 'fptr': fptr, 'starts': [0]})
+
+    fileData = {'count': numRows}
     processed = 0
     for row in rows:
         if '_id' in row:
             del row['_id']
         if randKey in row:
             del row[randKey]
-        fnum = random.randint(0, numFiles-1)
-        files[fnum]['fptr'].write(json.dumps(row)+',\n')
-        files[fnum]['starts'].append(files[fnum]['fptr'].tell())
+        dataToFiles(fileData, opts, row)
         processed += 1
         if not processed % 10000:
             elapsed = time.time() - starttime
@@ -169,64 +160,52 @@ def copyDB(srcDB, destDB, opts={}):
         if False and processed == 250000:
             numRows = processed
             break
-    for f in files:
-        f['fptr'].close()
-                    
     if sys.platform == 'win32':
         os.system('net stop MongoDB >NUL 2>NUL')
         os.system('net start MongoDB >NUL 2>NUL')
+    importFiles(fileData, opts, destDB)
 
-    starttime = time.time()
-    (fd, filename) = tempfile.mkstemp('.json')
-    print filename
-    os.close(fd)
-    fptr = OpenWithoutCaching(filename, 'wb')
-    processed = 0
-    for f in files:
-        starts = f['starts']
-        data = OpenWithoutCaching(f['name']).read()
-        os.unlink(f['name'])
-        pickList = range(len(starts)-1)
-        random.shuffle(pickList)
-        for pick in pickList:
-            fptr.write(data[starts[pick]:starts[pick+1]])
-            processed += 1
-            if not processed % 1000:
-                elapsed = time.time() - starttime
-                if elapsed:
-                    left = (numRows - processed) * (elapsed / processed)
-                else:
-                    left = 0
-                sys.stdout.write('%d/%d %3.1fs  %3.1fs left  \r' % (
-                    processed, numRows, elapsed, left))
-                sys.stdout.flush()
-        data = None
-    fptr.close()
-    
-    client = getDbConnection(destDB)
-    database = client.get_default_database()
-    destColl = database['trips']
-    destColl.drop()
-    destColl.drop_indexes()
-    if not opts.get('dropIndex', False):
-        indexTrips(opts)
-    destColl = None
 
-    cmd = ('""c:\\Program Files\\MongoDB 2.6 Standard\\bin\\mongoimport.exe" ' 
-        '--db=%s --collection=trips --file="%s" --drop""' % (destDB, filename))
-    os.system(cmd)
-    os.unlink(filename)
-    
-    if opts.get('endIndex', False):
-        starttime = time.time()
-        sys.stderr.write('Indexing\n')
-        indexTrips(opts)
-        sys.stderr.write('Indexed %3.1fs\n' % (time.time() - starttime, ))
+def dataToFiles(fileData, opts={}, row=None):
+    """
+    Store a row of data in temporary files.  This allows importing the data
+    using mongoimport when we are done, and also will distribute the data
+    across multiple small files for quicker random shuffling if desired.
+
+    :param fileData: a dictionary of information to track the file usage.  The
+                     'count' key should be set to the approximate expected
+                     number of rows to facilitate shuffling.
+    :param opts: general command-line options.
+    :param row: if not None, the python document to store.
+    """
+    if not 'numFiles' in fileData:
+        if not 'count' in fileData or not opts.get('shuffle', False):
+            numFiles = 1
+        else:
+            numFiles = int(fileData['count'] / 1024 / 1024 / 2) + 1
+        files = []
+        for f in xrange(numFiles):
+            (fd, filename) = tempfile.mkstemp('.json')
+            os.close(fd)
+            fptr = OpenWithoutCaching(filename, 'wb')
+            files.append({'name': filename, 'fptr': fptr, 'starts': [0]})
+        fileData['numFiles'] = numFiles
+        fileData['files'] = files
+        fileData['numRows'] = 0
+    files = fileData['files']
+    if row is not None:
+        if fileData['numFiles'] > 1:
+            fnum = random.randint(0, fileData['numFiles'] - 1)
+        else:
+            fnum = 0
+        files[fnum]['fptr'].write(json.dumps(row)+',\n')
+        files[fnum]['starts'].append(files[fnum]['fptr'].tell())
+        fileData['numRows'] += 1
 
 
 def dehash(medallions=None, hacks=None):
     """
-    Create tables that can be used to deanonymize the hack and medallion 
+    Create tables that can be used to deanonymize the hack and medallion
     hashes.
 
     :param medallions: a list of known medallions.
@@ -254,9 +233,9 @@ def dehash(medallions=None, hacks=None):
                     key = md5.new(value).hexdigest().upper()
                     if key in medallions:
                         table[key] = value
-                        sys.stderr.write('%8s %d \r' % (
+                        sys.stdout.write('%8s %d \r' % (
                             value, len(table)))
-                        sys.stderr.flush()
+                        sys.stdout.flush()
         print 'Found %d medallion hashes out of %d' % (len(table),
                                                        len(medallions))
         medallionTable = table
@@ -278,8 +257,8 @@ def dehash(medallions=None, hacks=None):
                 key = md5.new(value).hexdigest().upper()
                 if key in hacks:
                     table[key] = value
-                    sys.stderr.write('%8s %d \r' % (value, len(table)))
-                    sys.stderr.flush()
+                    sys.stdout.write('%8s %d \r' % (value, len(table)))
+                    sys.stdout.flush()
         for key in hacks:
             if key not in table:
                 print 'Missing hack', key
@@ -323,7 +302,83 @@ def getDbConnection(db=None):
 
 
 def getKey(key):
+    """
+    Get the compact key from the key table.
+
+    :param key: the key to fetch
+    :returns: the preferred key to use.
+    """
     return KeyTable.get(key, key)
+
+
+def importFiles(fileData, opts={}, destDB=None):
+    """
+    Given data stored in temporary files, import the data into mongo.  If the
+    data should be shuffled, shuffle it first.
+
+    :param fileData: a dictionary of information that tracked file usage.
+    :param destDB: the name of the destination database.
+    :param opts: command line options.
+    """
+    global DBName
+    if destDB:
+        DBName = destDB
+    else:
+        destDB = DBName
+
+    files = fileData['files']
+    numRows = fileData['numRows']
+    for f in files:
+        f['fptr'].close()
+    starttime = time.time()
+    if opts.get('shuffle', False):
+        (fd, filename) = tempfile.mkstemp('combined.json')
+        print filename
+        os.close(fd)
+        fptr = OpenWithoutCaching(filename, 'wb')
+        processed = 0
+        for f in files:
+            starts = f['starts']
+            data = OpenWithoutCaching(f['name']).read()
+            os.unlink(f['name'])
+            pickList = range(len(starts)-1)
+            random.shuffle(pickList)
+            for pick in pickList:
+                fptr.write(data[starts[pick]:starts[pick+1]])
+                processed += 1
+                if not processed % 1000:
+                    elapsed = time.time() - starttime
+                    if elapsed:
+                        left = (numRows - processed) * (elapsed / processed)
+                    else:
+                        left = 0
+                    sys.stdout.write('%d/%d %3.1fs  %3.1fs left  \r' % (
+                        processed, numRows, elapsed, left))
+                    sys.stdout.flush()
+            data = None
+        fptr.close()
+    else:
+        filename = files[0]['name']
+
+    client = getDbConnection(destDB)
+    database = client.get_default_database()
+    destColl = database['trips']
+    destColl.drop()
+    destColl.drop_indexes()
+    if not opts.get('dropIndex', False):
+        indexTrips(opts)
+    destColl = None
+    cmd = ['mongoimport.exe', '--db=' + destDB, '--collection=trips',
+           '--file=' + filename, '--drop']
+    subprocess.call(cmd)
+    os.unlink(filename)
+    sys.stdout.write('Imported %3.1fs\n' % (time.time() - starttime, ))
+
+    if opts.get('endIndex', False):
+        starttime = time.time()
+        sys.stdout.write('Indexing\n')
+        indexTrips(opts)
+        sys.stdout.write('Indexed %3.1fs\n' % (time.time() - starttime, ))
 
 
 def indexTrips(opts={}):
@@ -366,23 +421,15 @@ def readFiles(opts={}):
     :param opts: options dictionary.  See above.
     """
     epoch = datetime.datetime.utcfromtimestamp(0)
-    client = getDbConnection()
-    database = client.get_default_database()
-    collection = database['trips']
-    if not 'fromMonth' in opts:
-        collection.drop()
-        collection.drop_indexes()
-        if not opts.get('dropIndex', False):
-            indexTrips(opts)
     dcount = rcount = 0
-    usedkeys = {}
     starttime = time.time()
     medallions = {}
     hacks = {}
+    numRows = 0
     for month in xrange(opts.get('fromMonth', 1), opts.get('toMonth', 12)+1):
         fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
         fare = csv.reader(fare.open(fare.namelist()[0]))
-        fheader = [getKey(key.strip()) for key in fare.next()]
+        fheader = [key.strip() for key in fare.next()]
         columns = {fheader[col]: col for col in xrange(len(fheader))}
         m_col = columns['medallion']
         h_col = columns['hack_license']
@@ -391,16 +438,21 @@ def readFiles(opts={}):
             medallions[tripline[m_col]] = True
             hacks[tripline[h_col]] = True
             linecount += 1
-            if not linecount % 10000:
-                sys.stderr.write('%d %d %d %d %3.1fs\r' % (
+            numRows += 1
+            if not linecount % 25000:
+                sys.stdout.write('%d %d %d %d %3.1fs\r' % (
                     month, linecount, len(medallions), len(hacks),
                     time.time() - starttime))
-                sys.stderr.flush()
-        sys.stderr.write('%d %d %d %d %3.1fs\n' % (
+                sys.stdout.flush()
+        sys.stdout.write('%d %d %d %d %3.1fs\n' % (
             month, linecount, len(medallions), len(hacks),
             time.time() - starttime))
-        sys.stderr.flush()
+        sys.stdout.flush()
     medallionTable, hackTable = dehash(medallions.keys(), hacks.keys())
+    sys.stdout.write('Dehashed %3.1fs\n' % (time.time() - starttime))
+    fileData = {'count': numRows}
+    if opts.get('sampleRate', None):
+        fileData['count'] = numRows / opts['sampleRate']
     for month in xrange(opts.get('fromMonth', 1), opts.get('toMonth', 12)+1):
         data = zipfile.ZipFile('trip_data_%d.csv.zip' % month)
         data = csv.reader(data.open(data.namelist()[0]))
@@ -408,17 +460,11 @@ def readFiles(opts={}):
         fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
         fare = csv.reader(fare.open(fare.namelist()[0]))
         fheader = [getKey(key.strip()) for key in fare.next()]
-        bulk = collection.initialize_unordered_bulk_op()
         triples = {}
         for tripline in data:
             trip = dict(zip(dheader, [val.strip() for val in tripline]))
             tripkey = (trip[getKey('medallion')], trip[getKey('hack_license')],
                 trip[getKey('pickup_datetime')])
-            if (trip[getKey('medallion')] in usedkeys and trip[getKey(
-                    'hack_license')] in usedkeys[trip[getKey('medallion')]] and
-                    trip[getKey('pickup_datetime')] in usedkeys[trip[getKey(
-                    'medallion')]][trip[getKey('hack_license')]]):
-                continue
             while tripkey not in triples:
                 fareline = fare.next()
                 if not fareline:
@@ -461,42 +507,29 @@ def readFiles(opts={}):
                         sys.exit(0)
             if opts.get('random', False):
                 trip[getKey('random')] = random.random()
-            bulk.insert(trip)
+            dataToFiles(fileData, opts, trip)
             dcount += 1
             if not dcount % 1000:
-                sys.stderr.write('%d %d %d %d %3.1fs \r' % (
+                sys.stdout.write('%d %d %d %d %3.1fs \r' % (
                     month, dcount, rcount, len(triples),
                     time.time() - starttime))
-                sys.stderr.flush()
-                bulk.execute()
-                # Reload the database connection
-                if not dcount % 1000000:
-                    sys.stderr.write('\n')
-                    collection = None
-                    database = None
-                    client = None
-                    if sys.platform == 'win32':
-                        os.system('net stop MongoDB >NUL 2>NUL')
-                        os.system('net start MongoDB >NUL 2>NUL')
-                    client = getDbConnection()
-                    database = client.get_default_database()
-                    collection = database['trips']
-                    sys.stderr.write('Restarted database\n')
-                bulk = collection.initialize_unordered_bulk_op()
-        bulk.execute()
+                sys.stdout.flush()
         data = None
-        sys.stderr.write('%d %d %d %d %3.1fs \n' % (
+        sys.stdout.write('%d %d %d %d %3.1fs \n' % (
             month, dcount, rcount, len(triples), time.time() - starttime))
-    sys.stderr.write('-- %d %d -- %3.1fs \n' % (
+    sys.stdout.write('-- %d %d -- %3.1fs \n' % (
         dcount, rcount, time.time() - starttime))
-    sys.stderr.flush()
-    if opts.get('endIndex', False):
-        sys.stderr.write('Indexing\n')
-        indexTrips(opts)
-        sys.stderr.write('Indexed %3.1fs\n' % (time.time() - starttime, ))
+    sys.stdout.flush()
+    importFiles(fileData, opts)
 
 
 class OpenWithoutCaching():
+    """
+    This mimics enough of the python file class to work with continuous read or
+    written files.  It marks the file to avoid caching in the operating system,
+    which speeds up access as it doesn't need to keep it in memory.  Use in
+    place of open(name[, mode]).
+    """
     def __init__(self, name, mode='rb'):
         self.fptr = None
         self.fileType = 'python'
@@ -508,7 +541,7 @@ class OpenWithoutCaching():
                     win32file.FILE_FLAG_SEQUENTIAL_SCAN, 0)
             else:
                 self.fptr = win32file.CreateFile(
-                    name, win32file.GENERIC_READ, 0, None, 
+                    name, win32file.GENERIC_READ, 0, None,
                     win32file.OPEN_EXISTING,
                     win32file.FILE_FLAG_SEQUENTIAL_SCAN, 0)
             self.fileType = 'win32'
@@ -542,7 +575,7 @@ class OpenWithoutCaching():
                 return win32file.ReadFile(self.fptr, readlen)
         else:
             return self.fptr.read(readlen)
-    
+
     def write(self, data):
         if self.fileType == 'win32':
             win32file.WriteFile(self.fptr, data)
@@ -551,7 +584,7 @@ class OpenWithoutCaching():
 
     def tell(self):
         if self.fileType == 'win32':
-            return win32file.SetFilePointer(self.fptr, 0, 
+            return win32file.SetFilePointer(self.fptr, 0,
                                             win32file.FILE_CURRENT)
         else:
             return self.fptr.tell()
@@ -589,6 +622,8 @@ if __name__ == '__main__':
             opts['sampleRate'] = float(arg.split('=', 1)[1])
         elif arg.startswith('--seed='):
             seed = arg.split('=', 1)[1]
+        elif arg == '--shuffle':
+            opts['shuffle'] = True
         elif arg.startswith('--to='):
             opts['toMonth'] = int(arg.split('=', 1)[1])
         else:
@@ -598,15 +633,15 @@ if __name__ == '__main__':
 
 Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
         --sample=(rate) --seed=(value) --random --dropindex --endindex
-        --from=(month) --to=(month) --intdate --compact
+        --from=(month) --to=(month) --intdate --compact --shuffle
 
 --db specifies the database to use in mongo.  This defaults to 'taxi'.
 --compact uses extra-compact keys for the database.
---copy copies the --db database to the --copy database using a random order.
-  The destination database will be indexed as per the --dropindex or --endindex
-  options.  If --random is not included, any random value will be stripped from
-  the database rows.  If included, a value will be added in the order the rows
-  are copied.
+--copy copies the --db database to the --copy database.  The destination
+  database will be indexed as per the --dropindex or --endindex options.  If
+  --shuffle is specified, the data is copied in a random order.  If --random is
+  not included, any random value will be stripped from the database rows.  If
+  included, a value will be added in the order the rows are copied.
 --dropindex to drop the indices and not recreate them.
 --endindex recreates the indices at the end of the read process.
 --from does not drop or reindex existing data, and loads from the specified
@@ -621,6 +656,7 @@ Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
     The random seed affects which rows are selected.
 --seed specifies a random number seed.  Default is 0.  Blank for no explicit
     seed.
+--shuffle shuffles the data import.
 --to stops loading after the specified 1-based month number (inclusive)."""
         sys.exit(0)
     starttime = time.time()
