@@ -110,7 +110,7 @@ class TaxiViaMongo():
                        which are inclusive and exclusive respectively.
         :param limit: default limit for the data.
         :param offset: default offset for the data.
-        :param sort: a tuple of the form (key, direction).
+        :param sort: a list of tuples of the form (key, direction).
         :param fields: a list of fields to return, or None for all fields.
         :returns: a dictionary of results.
         """
@@ -226,7 +226,7 @@ class TaxiViaMongoCompact(TaxiViaMongo):
                        which are inclusive and exclusive respectively.
         :param limit: default limit for the data.
         :param offset: default offset for the data.
-        :param sort: a tuple of the form (key, direction).
+        :param sort: a list of tuples of the form (key, direction).
         :param fields: a list of fields to return, or None for all fields.
         :returns: a dictionary of results.
         """
@@ -291,6 +291,17 @@ class TaxiViaMongoCompact(TaxiViaMongo):
             return int((dateutil.parser.parse(value) - self.epoch)
                        .total_seconds() * 1000)
         return value
+
+
+class TaxiViaMongoRandomized(TaxiViaMongoCompact):
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
+        if not sort:
+            sort = [('_id', 1)]
+        elif sort[0][0] == 'random':
+            sort[0] = ('_id', 1)
+        sort = [('_id', 1)]
+        return TaxiViaMongoCompact.find(self, params, limit, offset, sort,
+                                        fields)
 
 
 class TaxiViaTangeloService():
@@ -358,6 +369,8 @@ class Taxi(girder.api.rest.Resource):
             'mongo': (TaxiViaMongo, {}),
             'mongo12': (TaxiViaMongoCompact, {
                 'dbUri': 'mongodb://parakon:27017/taxi12'}),
+            'mongo12r': (TaxiViaMongoRandomized, {
+                'dbUri': 'mongodb://parakon:27017/taxi12r'}),
             'mongofull': (TaxiViaMongoCompact, {
                 'dbUri': 'mongodb://parakon:27017/taxifull'}),
             'tangelo': (TaxiViaTangeloService, {}),
