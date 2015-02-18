@@ -133,22 +133,6 @@ geoapp.parseJSON = function (jsonValue)  {
     }
 };
 
-/* I'd rather use the girder function, but as of girder 1.2.1, the function was
- * defective. */
-geoapp.parseQueryString = function (queryString) {
-    var params = {};
-    if (queryString) {
-        _.each(queryString.replace(/\+/g, ' ').split(/&/g), function (el, i) {
-            var aux = el.split('='), o = {}, val;
-            if (aux.length > 1) {
-                val = decodeURIComponent(el.substr(aux[0].length + 1));
-            }
-            params[decodeURIComponent(aux[0])] = val;
-        });
-    }
-    return params;
-};
-
 /* Run this when everything else is loaded */
 $(function () {
     girder.apiRoot = 'api/v1';

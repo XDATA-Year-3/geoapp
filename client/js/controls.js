@@ -311,7 +311,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 this.getIntRange(elem, params, field);
                 break;
             default:
-                if (value.length > 0) {
+                if (value !== null && value !== undefined && value.length > 0) {
                     params[field] = elem.val();
                 }
                 break;
