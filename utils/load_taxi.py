@@ -182,13 +182,19 @@ def dataToFiles(fileData, opts={}, row=None):
         if not 'count' in fileData or not opts.get('shuffle', False):
             numFiles = 1
         else:
-            numFiles = int(fileData['count'] / 1024 / 1024 / 2) + 1
+            # assume the first row is representative for data size
+            if row:
+                rowLen = len(json.dumps(row)) + 1
+            else:
+                rowLen = 256
+            roughFileSize = 256 * 1024 * 1024
+            numFiles = int(fileData['count'] * rowLen / roughFileSize) + 1
         files = []
         for f in xrange(numFiles):
             (fd, filename) = tempfile.mkstemp('.json')
             os.close(fd)
             fptr = OpenWithoutCaching(filename, 'wb')
-            files.append({'name': filename, 'fptr': fptr, 'starts': [0]})
+            files.append({'name': filename, 'fptr': fptr})
         fileData['numFiles'] = numFiles
         fileData['files'] = files
         fileData['numRows'] = 0
@@ -198,8 +204,7 @@ def dataToFiles(fileData, opts={}, row=None):
             fnum = random.randint(0, fileData['numFiles'] - 1)
         else:
             fnum = 0
-        files[fnum]['fptr'].write(json.dumps(row)+',\n')
-        files[fnum]['starts'].append(files[fnum]['fptr'].tell())
+        files[fnum]['fptr'].write(json.dumps(row) + '\n')
         fileData['numRows'] += 1
 
 
@@ -213,7 +218,7 @@ def dehash(medallions=None, hacks=None):
     :return medallionTable: a dictionary with md5sum keys and dehashed values.
     :return hackTable: a dictionary with md5sum keys and dehashed values.
     """
-    medallionTable = hackTable = None
+    medallionTable = hackTable = {}
 
     if medallions:
         MainKey = getKey('medallion')
@@ -338,13 +343,11 @@ def importFiles(fileData, opts={}, destDB=None):
         fptr = OpenWithoutCaching(filename, 'wb')
         processed = 0
         for f in files:
-            starts = f['starts']
-            data = OpenWithoutCaching(f['name']).read()
+            data = OpenWithoutCaching(f['name']).read().strip().split('\n')
             os.unlink(f['name'])
-            pickList = range(len(starts)-1)
-            random.shuffle(pickList)
-            for pick in pickList:
-                fptr.write(data[starts[pick]:starts[pick+1]])
+            random.shuffle(data)
+            for line in data:
+                fptr.write(line + '\n')
                 processed += 1
                 if not processed % 1000:
                     elapsed = time.time() - starttime
@@ -368,7 +371,7 @@ def importFiles(fileData, opts={}, destDB=None):
     if not opts.get('dropIndex', False):
         indexTrips(opts)
     destColl = None
-    cmd = ['mongoimport.exe', '--db=' + destDB, '--collection=trips',
+    cmd = ['mongoimport', '--db=' + destDB, '--collection=trips',
            '--file=' + filename, '--drop']
     subprocess.call(cmd)
     os.unlink(filename)
