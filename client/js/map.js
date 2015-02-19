@@ -60,6 +60,7 @@ geoapp.Map = function (arg) {
             });
             m_geoMap.createLayer('osm', {
                 baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
+                renderer: 'vgl',
                 //baseUrl: 'http://tile.openstreetmap.org/'
                 zoomDelta: 3.5
             });

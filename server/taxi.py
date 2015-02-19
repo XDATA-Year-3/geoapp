@@ -33,6 +33,8 @@ from girder import logger
 from girder.api import access
 from girder.api.describe import Description
 
+pgdb = None
+
 
 FieldTable = collections.OrderedDict([
     ('medallion', ('text', 'Taxi medallion')),
@@ -361,6 +363,89 @@ class TaxiViaTangeloService():
                 'columns': columns}
 
 
+class TaxiViaPostgres():
+
+    epoch = datetime.datetime.utcfromtimestamp(0)
+
+    def __init__(self, db='taxi12r'):
+        global pgdb
+        if not pgdb:
+            import pgdb
+        self.db = pgdb.connect(host='parakon', user='taxi', password='taxi#1',
+                               database=db)
+
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
+        """
+        Get data from the tangelo service.
+
+        :param params: a dictionary of query restrictions.  See the
+                       FieldTable.  For values that aren't of type 'text',
+                       we also support (field)_min and (field)_max parameters,
+                       which are inclusive and exclusive respectively.
+        :param limit: default limit for the data.
+        :param offset: default offset for the data.
+        :param sort: a tuple of the form (key, direction).  Not currently
+                     supported.
+        :param fields: a list of fields to return, or None for all fields.
+        :returns: a dictionary of results.
+        """
+        sql = ['SELECT']
+        if not fields:
+            fields = [field[0] for field in FieldTable[:-1]]
+        sql.append(','.join(fields))
+        sql.append('FROM trips WHERE true')
+        sqlval = []
+        for field in FieldTable:
+            for comp, suffix in [('=', ''), ('>=', '_min'), ('<', '_max')]:
+                if field + suffix not in params:
+                    continue
+                value = params[field + suffix]
+                dtype = FieldTable[field][0]
+                if dtype == 'date':
+                    value = int((dateutil.parser.parse(value) - self.epoch)
+                                .total_seconds() * 1000)
+                    sql.append('AND ' + field + comp + '%d')
+                elif dtype == 'int':
+                    value = int(value)
+                    sql.append('AND ' + field + comp + '%d')
+                elif dtype == 'float':
+                    value = float(value)
+                    sql.append('AND ' + field + comp + '%f')
+                else:
+                    value = str(value)
+                    sql.append('AND ' + field + comp + '%s')
+                sqlval.append(value)
+        if sort and False:
+            sql.append('ORDER BY')
+            sorts = []
+            for sortval in sort:
+                sortstr = '%s' % sortval[0]
+                if sortval[1] == -1:
+                    sortstr += ' DESC'
+                else:
+                    sortstr += ' ASC'
+                sorts.append(sortstr)
+            sql.append(','.join(sorts))
+        if limit:
+            sql.append('LIMIT %d' % limit)
+        if offset:
+            sql.append('OFFSET %d' % offset)
+        sql = ' '.join(sql)
+        print '%r %r' % (sql, sqlval)
+        logger.info('Query %r %r', sql, sqlval)
+        columns = {fields[col]: col for col in xrange(len(fields))}
+        c = self.db.cursor()
+        c.execute(sql, sqlval)
+        result = {
+            'format': 'list',
+            'fields': fields,
+            'columns': columns,
+            'data': c.fetchall()
+            }
+        c.close()
+        return result
+
+
 class Taxi(girder.api.rest.Resource):
     """API endpoint for taxi data."""
 
@@ -375,6 +460,7 @@ class Taxi(girder.api.rest.Resource):
                 'dbUri': 'mongodb://parakon:27017/taxi12r'}),
             'mongofull': (TaxiViaMongoRandomized, {
                 'dbUri': 'mongodb://parakon:27017/taxifull'}),
+            'postgres12': (TaxiViaPostgres, {'db': 'taxi12r'}),
             'tangelo': (TaxiViaTangeloService, {}),
         }
 

@@ -1,5 +1,7 @@
 cd ~/geoapp
 
+apt-get install postgresql-client postgresql-common libpq-dev
+
 git submodule update --init --recursive
 git submodule update --recursive
 cd geojs
@@ -11,7 +13,7 @@ npm install
 virtualenv env
 cd env
 source bin/activate
-pip install girder python-dateutil
+pip install girder python-dateutil PyGreSQL==4.1.1
 python -c "import bcrypt"
 girder-install web
 girder-install plugin
