@@ -98,6 +98,40 @@ class TaxiViaMongo():
         self.database = db_connection.get_default_database()
         self.trips = self.database['trips']
 
+    def processParams(self, params, sort, fields):
+        """
+        :param params: a dictionary of query restrictions.  See the
+                       FieldTable.  For values that aren't of type 'text',
+                       we also support (field)_min and (field)_max parameters,
+                       which are inclusive and exclusive respectively.
+        :param sort: a list of tuples of the form (key, direction).
+        :param fields: a list of fields to return, or None for all fields.
+        """
+        findParam = {}
+        for field in FieldTable:
+            if field in params:
+                value = self.getParamValue(field, params[field])
+                findParam[field] = value
+            if field + '_min' in params:
+                value = self.getParamValue(field, params[field + '_min'])
+                findParam.setdefault(field, {})
+                if isinstance(findParam[field], dict):
+                    findParam[field]['$gte'] = value
+            if field + '_max' in params:
+                value = self.getParamValue(field, params[field + '_max'])
+                findParam.setdefault(field, {})
+                if isinstance(findParam[field], dict):
+                    findParam[field]['$lt'] = value
+        query = {}
+        for key in findParam:
+            query[self.KeyTable.get(key, key)] = findParam[key]
+        if sort:
+            sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        if fields:
+            mfields = {self.KeyTable.get(key, key): 1 for key in fields}
+            mfields['_id'] = 0
+        return query, sort, mfields
+
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
         Get data from the mongo database.  Return each row in turn as a python
@@ -114,30 +148,7 @@ class TaxiViaMongo():
         :param fields: a list of fields to return, or None for all fields.
         :returns: a dictionary of results.
         """
-        findParam = {}
-        for field in FieldTable:
-            if field in params:
-                value = self.getParamValue(field, params[field])
-                findParam[field] = value
-            if field + '_min' in params:
-                value = self.getParamValue(field, params[field + '_min'])
-                if field not in findParam:
-                    findParam[field] = {}
-                if isinstance(findParam[field], dict):
-                    findParam[field]['$gte'] = value
-            if field + '_max' in params:
-                value = self.getParamValue(field, params[field + '_max'])
-                if field not in findParam:
-                    findParam[field] = {}
-                if isinstance(findParam[field], dict):
-                    findParam[field]['$lt'] = value
-        query = {}
-        for key in findParam:
-            query[self.KeyTable.get(key, key)] = findParam[key]
-        sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
-        if fields:
-            fields = {self.KeyTable.get(key, key): 1 for key in fields}
-            fields['_id'] = 0
+        query, sort, fields = self.processParams(params, sort, fields)
         logger.info('Query %r', ((query, offset, limit, sort, fields), ))
         cursor = self.trips.find(spec=query, skip=offset, limit=limit,
                                  sort=sort, timeout=False, fields=fields)
@@ -214,7 +225,8 @@ class TaxiViaMongoCompact(TaxiViaMongo):
 
     epoch = datetime.datetime.utcfromtimestamp(0)
 
-    def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
+             allowUnsorted=True):
         """
         Get data from the mongo database.  Return each row in turn as a python
         object with the default keys or the entire dataset as a list with
@@ -228,38 +240,28 @@ class TaxiViaMongoCompact(TaxiViaMongo):
         :param offset: default offset for the data.
         :param sort: a list of tuples of the form (key, direction).
         :param fields: a list of fields to return, or None for all fields.
+        :param allowUnsorted: if true, and the entire data set will be returned
+                              (rather than being restricted by limit), then
+                              return the data unsorted.
         :returns: a dictionary of results.
         """
-        findParam = {}
-        for field in FieldTable:
-            if field in params:
-                value = self.getParamValue(field, params[field])
-                findParam[field] = value
-            if field + '_min' in params:
-                value = self.getParamValue(field, params[field + '_min'])
-                if field not in findParam:
-                    findParam[field] = {}
-                if isinstance(findParam[field], dict):
-                    findParam[field]['$gte'] = value
-            if field + '_max' in params:
-                value = self.getParamValue(field, params[field + '_max'])
-                if field not in findParam:
-                    findParam[field] = {}
-                if isinstance(findParam[field], dict):
-                    findParam[field]['$lt'] = value
-        query = {}
-        for key in findParam:
-            query[self.KeyTable.get(key, key)] = findParam[key]
-        sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
-        if fields:
-            mfields = {self.KeyTable.get(key, key): 1 for key in fields}
-            mfields['_id'] = 0
+        query, sort, mfields = self.processParams(params, sort, fields)
         logger.info('Query %r', ((query, offset, limit, sort, mfields), ))
-        cursor = self.trips.find(spec=query, skip=offset, limit=limit,
-                                 sort=sort, timeout=False, fields=mfields,
-                                 manipulate=False, slave_okay=True,
-                                 compile_re=False)
-        total = cursor.count()
+        cursor = None
+        if not offset and sort is not None and allowUnsorted:
+            cursor = self.trips.find(spec=query, skip=offset, limit=limit,
+                                     sort=None, timeout=False, fields=mfields,
+                                     manipulate=False, slave_okay=True,
+                                     compile_re=False)
+            total = cursor.count()
+            if limit and total >= limit:
+                cursor = None
+        if not cursor:
+            cursor = self.trips.find(spec=query, skip=offset, limit=limit,
+                                     sort=sort, timeout=False, fields=mfields,
+                                     manipulate=False, slave_okay=True,
+                                     compile_re=False)
+            total = cursor.count()
         if fields:
             columns = {fields[col]: col for col in xrange(len(fields))}
             mcol = [self.KeyTable.get(fields[col], fields[col])
@@ -371,7 +373,7 @@ class Taxi(girder.api.rest.Resource):
                 'dbUri': 'mongodb://parakon:27017/taxi12'}),
             'mongo12r': (TaxiViaMongoRandomized, {
                 'dbUri': 'mongodb://parakon:27017/taxi12r'}),
-            'mongofull': (TaxiViaMongoCompact, {
+            'mongofull': (TaxiViaMongoRandomized, {
                 'dbUri': 'mongodb://parakon:27017/taxifull'}),
             'tangelo': (TaxiViaTangeloService, {}),
         }
