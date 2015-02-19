@@ -23,7 +23,8 @@ geoapp.Map = function (arg) {
 
     var m_geoMap,
         m_geoPoints,
-        m_lastMapData = null,
+        m_lastMapData,
+        m_lastQueryOptions,
         m_drawTimer,
         m_drawQueued,
         m_animationOptions = {},
@@ -162,6 +163,7 @@ geoapp.Map = function (arg) {
             if (m_verbose >= 1) {
                 console.log('show ' + (new Date().getTime() - options.startTime));
             }
+            m_lastQueryOptions = $.extend({}, options, {data: null});
             this.showMap(options.data, options.callNumber);
             options.callNumber += 1;
             options.showTime += new Date().getTime();
@@ -286,17 +288,30 @@ geoapp.Map = function (arg) {
         var start = units[cycle].start || moment.utc('2013-01-01');
         var range = moment.duration(1, cycle);
         if (cycle === 'none') {
-            // DWM:: if a date range was specified in the query for the same
-            // dates that we are animating by, then use the query ranges.  If
-            // not, use the full range
-            start = data[0][dateColumn];
-            var end = data[0][dateColumn];
-            for (i = 1; i < data.length; i += 1) {
-                if (data[i][dateColumn] < start) {
-                    start = data[i][dateColumn];
+            var end = null;
+            if (m_lastQueryOptions && m_lastQueryOptions.params) {
+                /* This will need to change if we use something other than
+                 * pickup date */
+                var query = m_lastQueryOptions.params;
+                start = moment.utc('2013-01-01');
+                end = moment.utc('2014-01-01');
+                if (query.pickup_datetime_min) {
+                    start = moment.utc(query.pickup_datetime_min);
                 }
-                if (data[i][dateColumn] > end) {
-                    end = data[i][dateColumn];
+                if (query.pickup_datetime_max) {
+                    end = moment.utc(query.pickup_datetime_max);
+                }
+            }
+            if (!end) {
+                start = data[0][dateColumn];
+                end = data[0][dateColumn];
+                for (i = 1; i < data.length; i += 1) {
+                    if (data[i][dateColumn] < start) {
+                        start = data[i][dateColumn];
+                    }
+                    if (data[i][dateColumn] > end) {
+                        end = data[i][dateColumn];
+                    }
                 }
             }
             start = moment(start);
@@ -501,6 +516,9 @@ geoapp.Map = function (arg) {
                 m_geoMap.draw();
                 $(m_animationData.sliderElem).slider('disable').slider(
                     'setValue', 0);
+                if (m_animationOptions) {
+                    m_animationOptions.playState = 'stop';
+                }
                 break;
         }
         if (m_animationData) {
@@ -558,6 +576,7 @@ geoapp.Map = function (arg) {
             geoMap: m_geoMap,
             geoPoints: m_geoPoints,
             lastMapData: m_lastMapData,
+            lastQueryOptions: m_lastQueryOptions,
             animationOptions: m_animationOptions,
             animationData: m_animationData,
             verbose: m_verbose
