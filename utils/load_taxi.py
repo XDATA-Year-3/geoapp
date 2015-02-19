@@ -374,7 +374,8 @@ def importFiles(fileData, opts={}, destDB=None):
     cmd = ['mongoimport', '--db=' + destDB, '--collection=trips',
            '--file=' + filename, '--drop']
     subprocess.call(cmd)
-    os.unlink(filename)
+    if not opts.get('keepFiles', False):
+        os.unlink(filename)
     sys.stdout.write('Imported %3.1fs\n' % (time.time() - starttime, ))
 
     if opts.get('endIndex', False):
@@ -617,6 +618,8 @@ if __name__ == '__main__':
             actions['index'] = True
         elif arg == '--intdate':
             opts['dateAsInt'] = True
+        elif arg == '--keep':
+            opts['keepFiles'] = True
         elif arg == '--random':
             opts['random'] = True
         elif arg == '--read':
@@ -636,7 +639,7 @@ if __name__ == '__main__':
 
 Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
         --sample=(rate) --seed=(value) --random --dropindex --endindex
-        --from=(month) --to=(month) --intdate --compact --shuffle
+        --from=(month) --to=(month) --intdate --compact --shuffle --keep
 
 --db specifies the database to use in mongo.  This defaults to 'taxi'.
 --compact uses extra-compact keys for the database.
@@ -651,6 +654,7 @@ Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
     1-based month number onward.
 --index regenerates indices on the 'trips' collection.
 --intdate stores dates as integers.
+--keep keeps the json file used with mongoimport.
 --random adds a random value from 0 to 1 to each row under the 'random' tag.
 --read drops the 'trips' collection at mongodb://localhost:27017/taxi and reads
     it in from files in the local directory that are named
