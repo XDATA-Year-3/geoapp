@@ -516,6 +516,9 @@ geoapp.Map = function (arg) {
                 m_geoMap.draw();
                 $(m_animationData.sliderElem).slider('disable').slider(
                     'setValue', 0);
+                if (m_animationOptions) {
+                    m_animationOptions.playState = 'stop';
+                }
                 break;
         }
         if (m_animationData) {
