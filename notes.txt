@@ -13,7 +13,7 @@ npm install
 virtualenv env
 cd env
 source bin/activate
-pip install girder python-dateutil PyGreSQL==4.1.1
+pip install girder python-dateutil PyGreSQL==4.1.1 psycopg2
 python -c "import bcrypt"
 girder-install web
 girder-install plugin

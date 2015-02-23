@@ -26,6 +26,7 @@ import datetime
 import dateutil.parser
 import json
 import pymongo
+import time
 import urllib
 
 import girder.api.rest
@@ -368,11 +369,26 @@ class TaxiViaPostgres():
     epoch = datetime.datetime.utcfromtimestamp(0)
 
     def __init__(self, db='taxi12r'):
+        self.dbname = db
+        self.connect()
+
+    def connect(self):
+        """
+        Connect to the database.
+        """
         global pgdb
         if not pgdb:
-            import pgdb
+            # We can use either psycopg2 or pgdb.  Provided one only uses %s
+            # formatting, the interface is equiavlent.  psycopg2 starts much
+            # slower than pgdb (seemingly, the first connection takes 5 seconds
+            # for some reason).  psycopg2 converts data to native python
+            # formats substantially faster, though.  If we were to use a custom
+            # results-to-json format, then I don't know which would be faster.
+            # Import either library as pgdb, and that library will be used.
+            # import pgdb
+            import psycopg2 as pgdb
         self.db = pgdb.connect(host='parakon', user='taxi', password='taxi#1',
-                               database=db)
+                               database=self.dbname)
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
@@ -389,33 +405,18 @@ class TaxiViaPostgres():
         :param fields: a list of fields to return, or None for all fields.
         :returns: a dictionary of results.
         """
+        starttime = time.time()
+        # shuffled order
+        sort = [('_id', 1)]
         sql = ['SELECT']
         if not fields:
             fields = [field[0] for field in FieldTable[:-1]]
         sql.append(','.join(fields))
         sql.append('FROM trips WHERE true')
         sqlval = []
-        for field in FieldTable:
-            for comp, suffix in [('=', ''), ('>=', '_min'), ('<', '_max')]:
-                if field + suffix not in params:
-                    continue
-                value = params[field + suffix]
-                dtype = FieldTable[field][0]
-                if dtype == 'date':
-                    value = int((dateutil.parser.parse(value) - self.epoch)
-                                .total_seconds() * 1000)
-                    sql.append('AND ' + field + comp + '%d')
-                elif dtype == 'int':
-                    value = int(value)
-                    sql.append('AND ' + field + comp + '%d')
-                elif dtype == 'float':
-                    value = float(value)
-                    sql.append('AND ' + field + comp + '%f')
-                else:
-                    value = str(value)
-                    sql.append('AND ' + field + comp + '%s')
-                sqlval.append(value)
-        if sort and False:
+        self.params_to_sql(params, sql, sqlval)
+
+        if sort:
             sql.append('ORDER BY')
             sorts = []
             for sortval in sort:
@@ -431,19 +432,57 @@ class TaxiViaPostgres():
         if offset:
             sql.append('OFFSET %d' % offset)
         sql = ' '.join(sql)
-        print '%r %r' % (sql, sqlval)
-        logger.info('Query %r %r', sql, sqlval)
+        logger.info('Query: %s' % (sql % tuple(sqlval)))
         columns = {fields[col]: col for col in xrange(len(fields))}
-        c = self.db.cursor()
-        c.execute(sql, sqlval)
+        # TODO: If this fails, try to reconnect to the database
+        try:
+            c = self.db.cursor()
+            c.execute(sql, sqlval)
+        except pgdb.Error as exc:
+            logger.info('Database error %s', str(exc))
+            self.connect()
+            c = self.db.cursor()
+            c.execute(sql, sqlval)
+        logger.info('Query execution took %5.3fs', time.time() - starttime)
         result = {
             'format': 'list',
             'fields': fields,
             'columns': columns,
             'data': c.fetchall()
             }
+        logger.info('Fetching data (%5.3fs including query execution)',
+                    time.time() - starttime)
         c.close()
         return result
+
+    def params_to_sql(self, params, sql, sqlval):
+        """
+        Convert params to sql.
+
+        :param params: a dictionary of query restrictions.
+        :param sql: a list of sql statement fragments.  Modified.
+        :param sqlval: a list of sql values to escape.  Modified.
+        """
+        for field in FieldTable:
+            for comp, suffix in [('=', ''), ('>=', '_min'), ('<', '_max')]:
+                if field + suffix not in params:
+                    continue
+                value = params[field + suffix]
+                dtype = FieldTable[field][0]
+                if dtype == 'date':
+                    value = int((dateutil.parser.parse(value) - self.epoch)
+                                .total_seconds() * 1000)
+                    sql.append('AND ' + field + comp + '%d' % value)
+                elif dtype == 'int':
+                    value = int(value)
+                    sql.append('AND ' + field + comp + '%d' % value)
+                elif dtype == 'float':
+                    value = float(value)
+                    sql.append('AND ' + field + comp + '%f' % value)
+                else:
+                    value = str(value)
+                    sql.append('AND ' + field + comp + '%s')
+                    sqlval.append(value)
 
 
 class Taxi(girder.api.rest.Resource):
@@ -461,6 +500,7 @@ class Taxi(girder.api.rest.Resource):
             'mongofull': (TaxiViaMongoRandomized, {
                 'dbUri': 'mongodb://parakon:27017/taxifull'}),
             'postgres12': (TaxiViaPostgres, {'db': 'taxi12r'}),
+            'postgresfull': (TaxiViaPostgres, {'db': 'taxifull'}),
             'tangelo': (TaxiViaTangeloService, {}),
         }
 

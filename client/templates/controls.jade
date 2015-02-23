@@ -17,6 +17,7 @@
               option(value="mongo") Mongo 1/12
               option(value="mongofull") Mongo Full Data
               option(value="postgres12") Postgres 1/12 Randomized
+              option(value="postgresfull") Postgres Full Randomized
               option(value="tangelo") Tangelo Service 1/12
           .form-group
             label(for="ga-medallion") Medallion
@@ -46,12 +47,13 @@
               type="text", placeholder="# - #",
               title="Number of passengers",
               taxifield="passenger_count", taxitype="intRange")
-          .form-group
-            label(for="ga-random") Random Selector
-            input#ga-random.form-control.input-sm(
-              type="text", placeholder="#.### - #.###",
-              title="Random Selector",
-              taxifield="random", taxitype="floatRange")
+          //
+            .form-group
+              label(for="ga-random") Random Selector
+              input#ga-random.form-control.input-sm(
+                type="text", placeholder="#.### - #.###",
+                title="Random Selector",
+                taxifield="random", taxitype="floatRange")
           .form-group
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
