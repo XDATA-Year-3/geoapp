@@ -63,6 +63,7 @@ geoapp.Map = function (arg) {
         }
         if (!m_geoMap || baseUrl != m_baseUrl) {
             var geoLayer;
+            m_baseUrl = baseUrl;
             $('#ga-main-map').empty();
             m_geoMap = geo.map({
                 node: '#ga-main-map',
