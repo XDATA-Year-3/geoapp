@@ -23,6 +23,8 @@ geoapp.Map = function (arg) {
 
     var m_geoMap,
         m_geoPoints,
+        m_geoLines,
+        m_mapLayer,
         m_lastMapData,
         m_lastQueryOptions,
         m_drawTimer,
@@ -30,10 +32,14 @@ geoapp.Map = function (arg) {
         m_animationOptions = {},
         m_animationData,
         m_animTimer,
+        m_baseUrl,
         m_verbose = 1;
 
     this.maximumMapPoints = 300000;
-    this.maximumDataPoints = null; /* defaults to maximumMapPoints */
+    this.maximumVectors = 100000;
+    /* maximumDataPoints defaults to the maximum of maximumMapPoints and
+     * maximumVectors */
+    this.maximumDataPoints = null;
     this.pageDataPoints = null;    /* defaults to maximumDataPoints */
 
     /* Show a map with data.  If we have already shown the map, just update
@@ -49,7 +55,15 @@ geoapp.Map = function (arg) {
      * @param data: the data to draw on the map (see above).
      */
     this.showMap = function (data) {
-        if (!m_geoMap) {
+        var baseUrl = 'http://otile1.mqcdn.com/tiles/1.0.0/map/';
+        if (data['display-tile-set'] === 'openstreetmap') {
+            baseUrl = 'http://tile.openstreetmap.org/';
+        } else if (data['display-tile-set'] === 'tonerlite') {
+            baseUrl = 'http://tile.stamen.com/toner-lite/';
+        }
+        if (!m_geoMap || baseUrl != m_baseUrl) {
+            var geoLayer;
+            $('#ga-main-map').empty();
             m_geoMap = geo.map({
                 node: '#ga-main-map',
                 center: {
@@ -58,16 +72,22 @@ geoapp.Map = function (arg) {
                 },
                 zoom: 10
             });
-            m_geoMap.createLayer('osm', {
-                baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
+            m_mapLayer = m_geoMap.createLayer('osm', {
+                baseUrl: baseUrl,
                 renderer: 'vgl',
-                //baseUrl: 'http://tile.openstreetmap.org/'
                 zoomDelta: 3.5
             });
-            var geoLayer = m_geoMap.createLayer('feature', {
+            geoLayer = m_geoMap.createLayer('feature', {
                 renderer: 'vgl'
             });
             m_geoPoints = geoLayer.createFeature('point', {
+                selectionAPI: false,
+                dynamicDraw: true
+            });
+            geoLayer = m_geoMap.createLayer('feature', {
+                renderer: 'vgl'
+            });
+            m_geoLines = geoLayer.createFeature('line', {
                 selectionAPI: false,
                 dynamicDraw: true
             });
@@ -75,25 +95,62 @@ geoapp.Map = function (arg) {
         m_lastMapData = data;
         if (data && data.data) {
             data.opacity = data.opacity || 0.05;
-            if (!data.x_column) {
-                data.x_column = data.columns.pickup_longitude;
+            if (data['display-type'] !== 'vector') {
+                if (data['display-type'] === 'dropoff') {
+                    data.x_column = data.columns.dropoff_longitude;
+                    data.y_column = data.columns.dropoff_latitude;
+                } else {
+                    data.x_column = data.columns.pickup_longitude;
+                    data.y_column = data.columns.pickup_latitude;
+                }
+                m_geoPoints.data(data.data.slice(0, this.maximumMapPoints))
+                    .style({
+                        fillColor: 'black',
+                        fillOpacity: data.opacity,
+                        stroke: false,
+                        radius: 5
+                    })
+                    .position(function (d) {
+                        return {
+                            x: d[data.x_column],
+                            y: d[data.y_column]
+                        };
+                    });
+            } else {
+                m_geoPoints.data([]);
             }
-            if (!data.y_column) {
-                data.y_column = data.columns.pickup_latitude;
+            if (data['display-type'] === 'vector') {
+                if (!data.x1_column) {
+                    data.x1_column = data.columns.pickup_longitude;
+                    data.y1_column = data.columns.pickup_latitude;
+                    data.x2_column = data.columns.dropoff_longitude;
+                    data.y2_column = data.columns.dropoff_latitude;
+                }
+                m_geoLines.data(data.data.slice(0, this.maximumVectors))
+                    .line(function (d) {
+                        return [{
+                            x: d[data.x1_column],
+                            y: d[data.y1_column],
+                            c: '#0000FF'
+                        }, {
+                            x: d[data.x2_column],
+                            y: d[data.y2_column],
+                            c: '#FFFF00'
+                        }];
+                    })
+                    .position(function (d) {
+                        return d;
+                    })
+                    .style({
+                        strokeColor: function (d) {
+                            return d.c;
+                        },
+                        strokeWidth: 5,
+                        strokeOpacity: 0.05
+                    });
+            } else {
+                m_geoLines.data([]);
             }
-            m_geoPoints.data(data.data)
-                .style({
-                    fillColor: 'black',
-                    fillOpacity: data.opacity,
-                    stroke: false,
-                    radius: 5
-                })
-                .position(function (d) {
-                    return {
-                        x: d[data.x_column],
-                        y: d[data.y_column]
-                    };
-                });
         }
         m_geoMap.draw();
     };
@@ -117,7 +174,8 @@ geoapp.Map = function (arg) {
             if (m_verbose >= 1) {
                 console.log(options);
             }
-            options.maxcount = this.maximumDataPoints || this.maximumMapPoints;
+            options.maxcount = this.maximumDataPoints || Math.max(
+                this.maximumMapPoints, this.maximumVectors);
             options.params.offset = 0;
             options.params.format = 'list';
             options.data = null;
@@ -132,7 +190,7 @@ geoapp.Map = function (arg) {
         if (!options.params.fields) {
             options.params.fields = '' + //'medallion,hack_license,' +
                 'pickup_datetime,pickup_longitude,pickup_latitude,' +
-                ''; //'dropoff_datetime,dropoff_longitude, dropoff_latitude';
+                'dropoff_datetime,dropoff_longitude, dropoff_latitude';
             if (options.params.random || options.params.random_min ||
                     options.params.random_max) {
                 options.params.sort = 'random';
@@ -165,6 +223,13 @@ geoapp.Map = function (arg) {
                 console.log('show ' + (new Date().getTime() - options.startTime));
             }
             m_lastQueryOptions = $.extend({}, options, {data: null});
+            if (options.params) {
+                _.each(options.params, function (value, key) {
+                    if (key.substr(0, 8) === 'display-') {
+                        options.data[key] = value;
+                    }
+                });
+            }
             this.showMap(options.data, options.callNumber);
             options.callNumber += 1;
             options.showTime += new Date().getTime();
@@ -575,7 +640,9 @@ geoapp.Map = function (arg) {
     this.getInternalState = function (key) {
         var state = {
             geoMap: m_geoMap,
+            mapLayer: m_mapLayer,
             geoPoints: m_geoPoints,
+            geoLines: m_geoLines,
             lastMapData: m_lastMapData,
             lastQueryOptions: m_lastQueryOptions,
             animationOptions: m_animationOptions,
