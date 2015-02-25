@@ -61,7 +61,7 @@ geoapp.Map = function (arg) {
         } else if (data['display-tile-set'] === 'tonerlite') {
             baseUrl = 'http://tile.stamen.com/toner-lite/';
         }
-        if (!m_geoMap || baseUrl != m_baseUrl) {
+        if (!m_geoMap) {
             var geoLayer;
             m_baseUrl = baseUrl;
             $('#ga-main-map').empty();
@@ -75,8 +75,7 @@ geoapp.Map = function (arg) {
             });
             m_mapLayer = m_geoMap.createLayer('osm', {
                 baseUrl: baseUrl,
-                renderer: 'vgl',
-                zoomDelta: 3.5
+                renderer: 'vgl'
             });
             geoLayer = m_geoMap.createLayer('feature', {
                 renderer: 'vgl'
@@ -92,6 +91,10 @@ geoapp.Map = function (arg) {
                 selectionAPI: false,
                 dynamicDraw: true
             });
+        }
+        if (baseUrl != m_baseUrl) {
+            m_mapLayer.updateBaseUrl(baseUrl);
+            m_baseUrl = baseUrl;
         }
         m_lastMapData = data;
         if (data && data.data) {
@@ -129,7 +132,7 @@ geoapp.Map = function (arg) {
                 }
                 m_geoLines.data(data.data.slice(0, this.maximumVectors))
                     .line(function (d) {
-                        return [{
+                        var lineData = [{
                             x: d[data.x1_column],
                             y: d[data.y1_column],
                             c: '#0000FF'
@@ -138,6 +141,13 @@ geoapp.Map = function (arg) {
                             y: d[data.y2_column],
                             c: '#FFFF00'
                         }];
+                        if (lineData[0].x < -80 || lineData[0].y < 30 ||
+                                lineData[1].x < -80 || lineData[1].y < 30 ||
+                                lineData[0].x > -60 || lineData[0].y > 50 ||
+                                lineData[1].x > -60 || lineData[1].y > 50) {
+                            lineData[0].o = lineData[1].o = 0;
+                        }
+                        return lineData;
                     })
                     .position(function (d) {
                         return d;
@@ -147,7 +157,9 @@ geoapp.Map = function (arg) {
                             return d.c;
                         },
                         strokeWidth: 5,
-                        strokeOpacity: 0.05
+                        strokeOpacity: function (d) {
+                            return d.o !== undefined ? d.o : 0.05;
+                        }
                     });
             } else {
                 m_geoLines.data([]);
@@ -269,10 +281,11 @@ geoapp.Map = function (arg) {
             }
         }
         if (!m_drawTimer) {
+            var view = this;
             m_geoMap.draw();
             m_drawQueued = false;
             m_drawTimer = window.setTimeout(function () {
-                this.triggerDraw(true);
+                view.triggerDraw(true);
             }, 100);
             return;
         } else {

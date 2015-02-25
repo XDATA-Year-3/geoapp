@@ -387,6 +387,11 @@ class TaxiViaPostgres():
             # Import either library as pgdb, and that library will be used.
             # import pgdb
             import psycopg2 as pgdb
+        if getattr(self, 'db', None):
+            try:
+                self.db.close()
+            except Exception:
+                pass
         self.db = pgdb.connect(host='parakon', user='taxi', password='taxi#1',
                                database=self.dbname)
 
