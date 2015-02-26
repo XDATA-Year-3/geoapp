@@ -25,7 +25,8 @@ geoapp.Map = function (arg) {
         m_geoPoints,
         m_geoLines,
         m_mapLayer,
-        m_lastMapData,
+        m_mapData,
+        m_mapParams,
         m_lastQueryOptions,
         m_drawTimer,
         m_drawQueued,
@@ -53,12 +54,17 @@ geoapp.Map = function (arg) {
      *      Otherwise, use columns.pickup_latitude.
      *
      * @param data: the data to draw on the map (see above).
+     * @param params: a set of parameters that affect the map.  Currently, only
+     *                display-tile-set and display-type are used.
      */
-    this.showMap = function (data) {
+    this.showMap = function (data, params) {
+        data = data || [];
+        params = params || (m_lastQueryOptions ? m_lastQueryOptions.params ||
+                            {} : {});
         var baseUrl = 'http://otile1.mqcdn.com/tiles/1.0.0/map/';
-        if (data['display-tile-set'] === 'openstreetmap') {
+        if (params['display-tile-set'] === 'openstreetmap') {
             baseUrl = 'http://tile.openstreetmap.org/';
-        } else if (data['display-tile-set'] === 'tonerlite') {
+        } else if (params['display-tile-set'] === 'tonerlite') {
             baseUrl = 'http://tile.stamen.com/toner-lite/';
         }
         if (!m_geoMap) {
@@ -96,11 +102,15 @@ geoapp.Map = function (arg) {
             m_mapLayer.updateBaseUrl(baseUrl);
             m_baseUrl = baseUrl;
         }
-        m_lastMapData = data;
+        m_mapData = data;
+        m_mapParams = params;
         if (data && data.data) {
-            data.opacity = data.opacity || 0.05;
-            if (data['display-type'] !== 'vector') {
-                if (data['display-type'] === 'dropoff') {
+            params.opacity = params.opacity || 0.05;
+            if (params['display-type'] !== 'vector') {
+                data.numPoints = Math.min(data.data.length,
+                                          this.maximumMapPoints);
+                data.numLines = 0;
+                if (params['display-type'] === 'dropoff') {
                     data.x_column = data.columns.dropoff_longitude;
                     data.y_column = data.columns.dropoff_latitude;
                 } else {
@@ -110,7 +120,7 @@ geoapp.Map = function (arg) {
                 m_geoPoints.data(data.data.slice(0, this.maximumMapPoints))
                     .style({
                         fillColor: 'black',
-                        fillOpacity: data.opacity,
+                        fillOpacity: params.opacity,
                         stroke: false,
                         radius: 5
                     })
@@ -123,30 +133,41 @@ geoapp.Map = function (arg) {
             } else {
                 m_geoPoints.data([]);
             }
-            if (data['display-type'] === 'vector') {
+            if (params['display-type'] === 'vector') {
+                data.numPoints = 0;
+                data.numLines = Math.min(data.data.length,
+                                         this.maximumVectors);
                 if (!data.x1_column) {
                     data.x1_column = data.columns.pickup_longitude;
                     data.y1_column = data.columns.pickup_latitude;
                     data.x2_column = data.columns.dropoff_longitude;
                     data.y2_column = data.columns.dropoff_latitude;
                 }
+                var x1, y1, x2, y2, item;
+                for (var i = 0; i < data.data.length; i += 1) {
+                    item = data.data[i];
+                    x1 = item[data.x1_column];
+                    y1 = item[data.y1_column];
+                    x2 = item[data.x2_column];
+                    y2 = item[data.y2_column];
+                    if (x1 < -80 || x1 > -60 || y1 < 30 || y1 > 50 ||
+                            x2 < -80 || x2 > -60 || y2 < 30 || y2 > 50) {
+                        item.hide = true;
+                    }
+                }
                 m_geoLines.data(data.data.slice(0, this.maximumVectors))
                     .line(function (d) {
                         var lineData = [{
                             x: d[data.x1_column],
                             y: d[data.y1_column],
-                            c: '#0000FF'
+                            c: '#0000FF',
+                            h: d.hide
                         }, {
                             x: d[data.x2_column],
                             y: d[data.y2_column],
-                            c: '#FFFF00'
+                            c: '#FFFF00',
+                            h: d.hide
                         }];
-                        if (lineData[0].x < -80 || lineData[0].y < 30 ||
-                                lineData[1].x < -80 || lineData[1].y < 30 ||
-                                lineData[0].x > -60 || lineData[0].y > 50 ||
-                                lineData[1].x > -60 || lineData[1].y > 50) {
-                            lineData[0].o = lineData[1].o = 0;
-                        }
                         return lineData;
                     })
                     .position(function (d) {
@@ -158,7 +179,7 @@ geoapp.Map = function (arg) {
                         },
                         strokeWidth: 5,
                         strokeOpacity: function (d) {
-                            return d.o !== undefined ? d.o : 0.05;
+                            return d.h ? -1 : params.opacity;
                         }
                     });
             } else {
@@ -236,14 +257,7 @@ geoapp.Map = function (arg) {
                 console.log('show ' + (new Date().getTime() - options.startTime));
             }
             m_lastQueryOptions = $.extend({}, options, {data: null});
-            if (options.params) {
-                _.each(options.params, function (value, key) {
-                    if (key.substr(0, 8) === 'display-') {
-                        options.data[key] = value;
-                    }
-                });
-            }
-            this.showMap(options.data, options.callNumber);
+            this.showMap(options.data, options.params);
             options.callNumber += 1;
             options.showTime += new Date().getTime();
             var callNext = ((options.data.datacount < options.data.count ||
@@ -349,12 +363,12 @@ geoapp.Map = function (arg) {
         options = options || m_animationOptions;
         m_animationOptions = options;
         m_animationData = null;
-        if (!m_lastMapData || !m_lastMapData.data ||
-                !m_lastMapData.data.length || options.playState === 'stop') {
+        if (!m_mapData || !m_mapData.data ||
+                !m_mapData.data.length || options.playState === 'stop') {
             return;
         }
-        var data = m_lastMapData.data;
-        var dateColumn = m_lastMapData.columns.pickup_datetime;
+        var data = m_mapData.data;
+        var dateColumn = m_mapData.columns.pickup_datetime;
         var steps = parseInt(options['cycle-steps'] || 1);
         var substeps = parseInt(options['cycle-substeps'] || 1);
         var numBins = steps * substeps;
@@ -436,30 +450,53 @@ geoapp.Map = function (arg) {
      * a timer to play the next frame.
      */
     this.animateFrame = function () {
-        var view = this;
-        if (!m_lastMapData || !m_lastMapData.data || !m_animationData) {
+        var view = this, vpf, bin, vis, i, j, v;
+        if (!m_mapData || !m_mapData.data || !m_animationData) {
             return;
         }
         var options = m_animationData;
         options.step = (options.step + 1) % options.numBins;
         options.renderedSteps = (options.renderedSteps || 0) + 1;
-        var vpf = m_geoPoints.verticesPerFeature();
-        if (!options.opac ||
-                options.opac.length != m_lastMapData.data.length * vpf) {
-            options.opac = new Float32Array(m_lastMapData.data.length * vpf);
-        }
         var visOpac = (options.opacity || 0.1);
-        for (var i = 0, v = 0, j; i < m_lastMapData.data.length; i += 1) {
-            var bin = options.dataBin[i];
-            var vis = ((bin >= options.step &&
-                bin < options.step + options.substeps) ||
-                bin + options.numBins < options.step + options.substeps);
-            for (j = 0; j < vpf; j += 1, v += 1) {
-                options.opac[v] = (vis ? visOpac : 0);
+        if (m_mapData.numPoints) {
+            vpf = m_geoPoints.verticesPerFeature();
+            if (!options.pointsOpac ||
+                    options.pointsOpac.length != m_mapData.numPoints * vpf) {
+                options.pointsOpac = new Float32Array(m_mapData.numPoints *
+                                                      vpf);
             }
+            for (i = 0, v = 0; i < m_mapData.numPoints; i += 1) {
+                bin = options.dataBin[i];
+                vis = ((bin >= options.step &&
+                    bin < options.step + options.substeps) ||
+                    bin + options.numBins < options.step + options.substeps);
+                vis = (vis ? visOpac : 0);
+                for (j = 0; j < vpf; j += 1, v += 1) {
+                    options.pointsOpac[v] = vis;
+                }
+            }
+            m_geoPoints.actors()[0].mapper().updateSourceBuffer(
+                'fillOpacity', options.pointsOpac);
         }
-        m_geoPoints.actors()[0].mapper().updateSourceBuffer(
-            'fillOpacity', options.opac);
+        if (m_mapData.numLines) {
+            vpf = m_geoLines.verticesPerFeature();
+            if (!options.linesOpac ||
+                    options.linesOpac.length != m_mapData.numLines * vpf) {
+                options.linesOpac = new Float32Array(m_mapData.numLines * vpf);
+            }
+            for (i = 0, v = 0; i < m_mapData.numLines; i += 1) {
+                bin = options.dataBin[i];
+                vis = ((bin >= options.step &&
+                    bin < options.step + options.substeps) ||
+                    bin + options.numBins < options.step + options.substeps);
+                vis = (vis && !m_mapData.data[i].hide ? visOpac : -1);
+                for (j = 0; j < vpf; j += 1, v += 1) {
+                    options.linesOpac[v] = vis;
+                }
+            }
+            m_geoLines.actors()[0].mapper().updateSourceBuffer(
+                'strokeOpacity', options.linesOpac);
+        }
         m_geoMap.draw();
         var desc = this.getStepDescription(options.step);
         $(options.statusElem).text(desc);
@@ -468,6 +505,7 @@ geoapp.Map = function (arg) {
             'setValue', options.step);
         var curTime = new Date().getTime();
         var frameTime = parseInt(curTime - options.nextStepTime);
+        options.totalFrameTime = (options.totalFrameTime || 0) + frameTime;
         options.nextStepTime += options.timestep;
         var delay = parseInt(options.nextStepTime - curTime);
         if (m_verbose >= 2) {
@@ -548,7 +586,7 @@ geoapp.Map = function (arg) {
                 m_animationData.playState = action;
             }
         }
-        if (!m_lastMapData || !m_lastMapData.data) {
+        if (!m_mapData || !m_mapData.data) {
             return;
         }
         switch (action) {
@@ -586,13 +624,28 @@ geoapp.Map = function (arg) {
                 }
                 break;
             case 'stop':
-                var vpf = m_geoPoints.verticesPerFeature();
-                var opac = new Float32Array(m_lastMapData.data.length * vpf);
-                for (var v = 0; v < m_lastMapData.data.length * vpf; v += 1) {
-                    opac[v] = m_lastMapData.opacity;
+                var vpf, opac, v;
+                if (m_mapData.numPoints) {
+                    vpf = m_geoPoints.verticesPerFeature();
+                    opac = new Float32Array(m_mapData.numPoints * vpf);
+                    for (v = 0; v < m_mapData.numPoints * vpf; v += 1) {
+                        opac[v] = m_mapParams.opacity;
+                    }
+                    m_geoPoints.actors()[0].mapper().updateSourceBuffer(
+                        'fillOpacity', opac);
                 }
-                m_geoPoints.actors()[0].mapper().updateSourceBuffer(
-                    'fillOpacity', opac);
+                if (m_mapData.numLines) {
+                    vpf = m_geoLines.verticesPerFeature();
+                    opac = new Float32Array(m_mapData.numLines * vpf);
+                    for (var i = 0, j = 0; i < m_mapData.numLines; i += 1) {
+                        for (v = 0; v < vpf; v += 1, j += 1) {
+                            opac[j] = (m_mapData.data[i].hide ? 0 :
+                                       m_mapParams.opacity);
+                        }
+                    }
+                    m_geoLines.actors()[0].mapper().updateSourceBuffer(
+                        'strokeOpacity', opac);
+                }
                 m_geoMap.draw();
                 $(m_animationData.sliderElem).slider('disable').slider(
                     'setValue', 0);
@@ -657,12 +710,31 @@ geoapp.Map = function (arg) {
             mapLayer: m_mapLayer,
             geoPoints: m_geoPoints,
             geoLines: m_geoLines,
-            lastMapData: m_lastMapData,
+            mapData: m_mapData,
+            mapParams: m_mapParams,
             lastQueryOptions: m_lastQueryOptions,
             animationOptions: m_animationOptions,
             animationData: m_animationData,
             verbose: m_verbose
         };
+        if (m_animationData && m_animationData.renderedSteps) {
+            var rate = {
+                framesRendered: m_animationData.renderedSteps,
+                framesSkipped: m_animationData.skippedSteps || 0,
+                totalRenderTime: m_animationData.totalFrameTime,
+                avgRenderTime: (m_animationData.totalFrameTime /
+                                m_animationData.renderedSteps)
+            };
+            rate.framesTotal = rate.framesRendered + rate.framesSkipped;
+            if (m_animationData.timestep) {
+                rate.targetRate = Math.round(
+                    1000000.0 / m_animationData.timestep) / 1000;
+                rate.actualRate = (rate.targetRate * rate.framesRendered /
+                                   rate.framesTotal);
+                rate.maxRate = 1000.0 / (rate.avgRenderTime || 1);
+            }
+            state.animationRate = rate;
+        }
         if (key) {
             return state[key];
         }
