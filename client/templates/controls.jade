@@ -12,12 +12,12 @@
             label(for="ga-source") Data Source
             select#ga-source.form-control.input-sm(title="Database source",
                 taxifield="source")
-              option(value="mongo12") Mongo 1/12 Compact
-              option(value="mongo12r") Mongo 1/12 Randomized
-              option(value="mongo") Mongo 1/12
-              option(value="mongofull") Mongo Full Data
-              option(value="postgres12") Postgres 1/12 Randomized
-              option(value="postgresfull") Postgres Full Randomized
+              option(value="mongo12") Mongo 1/12 Random Value
+              option(value="mongo12r") Mongo 1/12 Shuffled
+              option(value="mongo") Mongo 1/12 Dates
+              option(value="mongofull") Mongo Full Shuffled
+              option(value="postgres12") Postgres 1/12 Shuffled
+              option(value="postgresfull") Postgres Full Shuffled
               option(value="tangelo") Tangelo Service 1/12
           .form-group
             label(for="ga-medallion") Medallion
@@ -47,13 +47,26 @@
               type="text", placeholder="# - #",
               title="Number of passengers",
               taxifield="passenger_count", taxitype="intRange")
-          //
-            .form-group
-              label(for="ga-random") Random Selector
-              input#ga-random.form-control.input-sm(
-                type="text", placeholder="#.### - #.###",
-                title="Random Selector",
-                taxifield="random", taxitype="floatRange")
+          .form-group
+            label(for="ga-random") Random Selector
+            input#ga-random.form-control.input-sm(
+              type="text", placeholder="#.### - #.###",
+              title="Random Selector",
+              taxifield="random", taxitype="floatRange")
+          .form-group
+            label(for="ga-display-type") Display Type
+            select#ga-display-type.form-control.input-sm(title="Display Type",
+                taxifield="display-type")
+              option(value="pickup") Pickup Locations
+              option(value="dropoff") Dropoff Locations
+              option(value="vector") Pickup - Dropoff Vectors
+          .form-group
+            label(for="ga-tile-set") Tile Set
+            select#ga-tile-set.form-control.input-sm(title="Tile Set",
+                taxifield="display-tile-set")
+              option(value="mapquest") MapQuest tiles
+              option(value="openstreetmap") OpenStreetMap
+              option(value="tonerlite") Stamen Toner Lite
           .form-group
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok

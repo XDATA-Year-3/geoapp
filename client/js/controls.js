@@ -55,6 +55,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     initialize: function (settings) {
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
+        this.firstRender = true;
         this.render();
     },
 
@@ -106,11 +107,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
             $('#ga-step-slider').slider({
                 formatter: geoapp.map.getStepDescription
             }).slider('disable');
+            if (view.firstRender) {
+                view.firstRender = false;
+                geoapp.map.showMap([], view.updateFilter(false));
+            }
             if (update) {
                 view.updateView(false);
             }
         });
-        geoapp.map.showMap([]);
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
         return this;
     },
@@ -225,13 +229,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
     updateView: function (updateNav, updateSection) {
         var results = {};
         if (!updateSection || updateSection === 'filter') {
-            results.newMapData = this.updateFilter(updateNav);
+            results.newMapParams = this.updateFilter(updateNav);
         }
         if (!updateSection || updateSection === 'display') {
             results.newDisplayValues = this.updateDisplayValues(updateNav);
         }
-        if (results.newMapData) {
-            geoapp.map.replaceMapData({params: results.newMapData});
+        if (results.newMapParams) {
+            geoapp.map.replaceMapData({params: results.newMapParams});
         }
         if (results.newDisplayValues) {
             geoapp.map.updateMapAnimation(results.newDisplayValues);
