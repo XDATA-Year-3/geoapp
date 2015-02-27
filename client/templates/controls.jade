@@ -6,6 +6,8 @@
           href="#ga-filter-settings")
           .panel-title
             b Filters
+            i.icon-info-circled(data-placement="bottom", data-container="body",
+              title="Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data from the database.")
       #ga-filter-settings.panel-collapse.collapse.in
         .panel-body
           .form-group
@@ -47,12 +49,28 @@
               type="text", placeholder="# - #",
               title="Number of passengers",
               taxifield="passenger_count", taxitype="intRange")
+          //
+            .form-group
+              label(for="ga-random") Random Selector
+              input#ga-random.form-control.input-sm(
+                type="text", placeholder="#.### - #.###",
+                title="Random Selector",
+                taxifield="random", taxitype="floatRange")
           .form-group
-            label(for="ga-random") Random Selector
-            input#ga-random.form-control.input-sm(
-              type="text", placeholder="#.### - #.###",
-              title="Random Selector",
-              taxifield="random", taxitype="floatRange")
+            button#ga-controls-filter.btn.btn-default.btn-sm
+              i.icon-ok
+              |  Filter
+  .panel-group#ga-display-settings-panel
+    .panel.panel-default
+      .panel-heading
+        a(data-toggle="collapse", data-parent="#ga-display-settings-panel",
+          href="#ga-display-settings")
+          .panel-title
+            b Display
+            i.icon-info-circled(data-placement="bottom", data-container="body",
+              title="These parameters update the display as soon as they are changed.  The do not affect what data is used, only how it appears.")
+      #ga-display-settings.panel-collapse.collapse.in
+        .panel-body
           .form-group
             label(for="ga-display-type") Display Type
             select#ga-display-type.form-control.input-sm(title="Display Type",
@@ -67,18 +85,16 @@
               option(value="mapquest") MapQuest tiles
               option(value="openstreetmap") OpenStreetMap
               option(value="tonerlite") Stamen Toner Lite
-          .form-group
-            button#ga-controls-filter.btn.btn-default.btn-sm
-              i.icon-ok
-              |  Filter
-  .panel-group#ga-display-settings-panel
+  .panel-group#ga-anim-settings-panel
     .panel.panel-default
       .panel-heading
-        a(data-toggle="collapse", data-parent="#ga-display-settings-panel",
-          href="#ga-display-settings")
+        a(data-toggle="collapse", data-parent="#ga-anim-settings-panel",
+          href="#ga-anim-settings")
           .panel-title
-            b Display
-      #ga-display-settings.panel-collapse.collapse.in
+            b Animation
+            i.icon-info-circled(data-placement="bottom", data-container="body",
+              title="After changing animation parameters, select Update to use the new values.")
+      #ga-anim-settings.panel-collapse.collapse.in
         .panel-body
           .form-group
             label(for="ga-cycle") Cycle
@@ -106,7 +122,7 @@
               type="text", placeholder="# ms", title="Milliseconds per Step",
               taxifield="cycle-steptime")
           .form-group
-            button#ga-display-update.btn.btn-default.btn-sm
+            button#ga-anim-update.btn.btn-default.btn-sm
               i.icon-cw
               |  Update
             button#ga-play.btn.btn-default.btn-sm(taxifield="playState")
@@ -116,11 +132,11 @@
               span.canpause
                 i.icon-pause
                 |  Pause
-            button#ga-display-step-back.btn.btn-default.btn-sm(title="Step back")
+            button#ga-anim-step-back.btn.btn-default.btn-sm(title="Step back")
               i.icon-to-start
-            button#ga-display-step.btn.btn-default.btn-sm(title="Step forward")
+            button#ga-anim-step.btn.btn-default.btn-sm(title="Step forward")
               i.icon-to-end
-            button#ga-display-stop.btn.btn-default.btn-sm
+            button#ga-anim-stop.btn.btn-default.btn-sm
               i.icon-stop
               |  Stop
           .form-group
@@ -131,4 +147,4 @@
                 data-slider-id="ga-step-slider-ctl")
           .form-group
             label(for="ga-cycle-steps") Current Display
-            span#ga-cycle-display.form-control.input-sm Full Data
+            span#ga-cycle-anim.form-control.input-sm Full Data

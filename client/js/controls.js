@@ -18,22 +18,25 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'click #ga-controls-filter': function () {
             this.updateView(true, 'filter');
         },
-        'click #ga-display-update': function () {
+        'click #ga-anim-update': function () {
             if ($('#ga-play').val() === 'stop') {
                 $('#ga-play').val('play');
             }
+            this.updateView(true, 'anim');
+        },
+        'change #ga-display-settings select': function () {
             this.updateView(true, 'display');
         },
         'click #ga-play': function () {
             this.animationAction('playpause');
         },
-        'click #ga-display-step-back': function () {
+        'click #ga-anim-step-back': function () {
             this.animationAction('stepback');
         },
-        'click #ga-display-step': function () {
+        'click #ga-anim-step': function () {
             this.animationAction('step');
         },
-        'click #ga-display-stop': function () {
+        'click #ga-anim-stop': function () {
             this.animationAction('stop');
         },
         'slide #ga-step-slider': function (evt) {
@@ -72,7 +75,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 view.usedInitialSettings = true;
                 var sections = {
                     filter: '#ga-filter-settings #',
-                    display: '#ga-display-settings #'
+                    display: '#ga-display-settings #',
+                    anim: '#ga-anim-settings #'
                 };
                 _.each(sections, function (baseSelector, section) {
                     if (settings[section]) {
@@ -109,7 +113,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }).slider('disable');
             if (view.firstRender) {
                 view.firstRender = false;
-                geoapp.map.showMap([], view.updateFilter(false));
+                geoapp.map.showMap([], view.updateSection('display', false));
             }
             if (update) {
                 view.updateView(false);
@@ -229,29 +233,41 @@ geoapp.views.ControlsView = geoapp.View.extend({
     updateView: function (updateNav, updateSection) {
         var results = {};
         if (!updateSection || updateSection === 'filter') {
-            results.newMapParams = this.updateFilter(updateNav);
+            results.filter = this.updateSection('filter', updateNav);
         }
         if (!updateSection || updateSection === 'display') {
-            results.newDisplayValues = this.updateDisplayValues(updateNav);
+            results.display = this.updateSection('display', updateNav);
         }
-        if (results.newMapParams) {
-            geoapp.map.replaceMapData({params: results.newMapParams});
+        if (!updateSection || updateSection === 'anim') {
+            results.anim = this.updateAnimValues(updateNav);
         }
-        if (results.newDisplayValues) {
-            geoapp.map.updateMapAnimation(results.newDisplayValues);
+        if (results.filter) {
+            if (!results.display) {
+                results.display = this.updateSection('filter', false);
+            }
+            geoapp.map.replaceMapData(
+                {params: results.filter, display: results.display});
+        } else if (results.display) {
+            geoapp.map.updateMapParams(results.display);
+        }
+        if (results.anim) {
+            geoapp.map.updateMapAnimation(results.anim);
         }
     },
 
-    /* Update values associated with the filter controls.
+    /* Update values associated with a section of the controls.
      *
+     * @param section: the name of the section to update.  One of 'filter',
+     *                 'anim', or 'display'.
      * @param updateNav: true to update the navigation route.
      * @return: the new map filter parameters.
      */
-    updateFilter: function (updateNav) {
+    updateSection: function (section, updateNav) {
         var view = this;
+        var selector = 'ga-' + section + '-settings';
         var params = {};
         var navFields = {};
-        $('#ga-filter-settings [taxifield]').each(function () {
+        $('#' + selector + ' [taxifield]').each(function () {
             var elem = $(this);
             var value = elem.val();
             if (value !== '') {
@@ -260,32 +276,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
             view.getTaxiValue(elem, params);
         });
         if (updateNav) {
-            geoapp.updateNavigation('mapview', 'filter', navFields);
+            geoapp.updateNavigation('mapview', section, navFields);
         }
         return params;
     },
 
-    /* Update values associated with the display controls.
+    /* Update values associated with the animation controls.
      *
      * @param updateNav: true to update the navigation route.
-     * @return: the new display parameters.
+     * @return: the new animation parameters.
      */
-    updateDisplayValues: function (updateNav, results) {
-        var view = this;
-        var params = {};
-        var navFields = {};
-        $('#ga-display-settings [taxifield]').each(function () {
-            var elem = $(this);
-            var value = elem.val();
-            if (value !== '') {
-                navFields[elem.attr('id')] = value;
-            }
-            view.getTaxiValue(elem, params);
-        });
-        if (updateNav) {
-            geoapp.updateNavigation('mapview', 'display', navFields);
-        }
-        params.statusElem = '#ga-cycle-display';
+    updateAnimValues: function (updateNav, results) {
+        var params = this.updateSection('anim', updateNav);
+        params.statusElem = '#ga-cycle-anim';
         params.sliderElem = '#ga-step-slider';
         return params;
     },
@@ -370,13 +373,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }
                 break;
             case 'stop':
-                $('#ga-cycle-display').text('Full Data');
+                $('#ga-cycle-anim').text('Full Data');
                 geoapp.map.animationAction('stop');
                 break;
         }
         $('#ga-play').val(playState);
         geoapp.updateNavigation(
-            'mapview', 'display', {'ga-play': playState}, true);
+            'mapview', 'anim', {'ga-play': playState}, true);
     }
 });
 

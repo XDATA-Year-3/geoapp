@@ -54,22 +54,17 @@ geoapp.Map = function (arg) {
      *      Otherwise, use columns.pickup_latitude.
      *
      * @param data: the data to draw on the map (see above).
-     * @param params: a set of parameters that affect the map.  Currently, only
-     *                display-tile-set and display-type are used.
+     * @param params: a set of parameters that affect the map but not what data
+     *                was loaded.
+     * @param display: a set of parameters that
      */
     this.showMap = function (data, params) {
         data = data || [];
-        params = params || (m_lastQueryOptions ? m_lastQueryOptions.params ||
-                            {} : {});
-        var baseUrl = 'http://otile1.mqcdn.com/tiles/1.0.0/map/';
-        if (params['display-tile-set'] === 'openstreetmap') {
-            baseUrl = 'http://tile.openstreetmap.org/';
-        } else if (params['display-tile-set'] === 'tonerlite') {
-            baseUrl = 'http://tile.stamen.com/toner-lite/';
-        }
+        var displayInfo = this.updateMapParams(params, false);
+
         if (!m_geoMap) {
             var geoLayer;
-            m_baseUrl = baseUrl;
+            m_baseUrl = displayInfo.baseUrl;
             $('#ga-main-map').empty();
             m_geoMap = geo.map({
                 node: '#ga-main-map',
@@ -80,7 +75,7 @@ geoapp.Map = function (arg) {
                 zoom: 10
             });
             m_mapLayer = m_geoMap.createLayer('osm', {
-                baseUrl: baseUrl,
+                baseUrl: displayInfo.baseUrl,
                 renderer: 'vgl'
             });
             geoLayer = m_geoMap.createLayer('feature', {
@@ -98,14 +93,142 @@ geoapp.Map = function (arg) {
                 dynamicDraw: true
             });
         }
-        if (baseUrl != m_baseUrl) {
-            m_mapLayer.updateBaseUrl(baseUrl);
-            m_baseUrl = baseUrl;
-        }
         m_mapData = data;
+        this.updateMapParams(params, 'always');
+    };
+
+    /* Replace or add to the data used for the current map.  The options
+     * consist of
+     *  params: a list of parameters to pass to the rest call.  If they are
+     *      not set, the limit and fields keys in this dictionary are set.
+     *  maxcount: unset to auto-pick values, otherwise the maximum number of
+     *      points to retrieve.
+     *  data: the data that has been fetched.  This is extended as more data
+     *      arrives.
+     *  startTime: the epoch in ms when the first call to this function was
+     *      made.
+     *  display: a list of parameters that affect the display but not the
+     *      selected data.
+     *
+     * @param: options: a dictionary with the parameters to use for fetching
+     *                  data and the state of the process.  See above.
+     */
+    this.replaceMapData = function (options) {
+        if (!options.maxcount) {
+            if (m_verbose >= 1) {
+                console.log(options);
+            }
+            options.maxcount = this.maximumDataPoints || Math.max(
+                this.maximumMapPoints, this.maximumVectors);
+            options.params.offset = 0;
+            options.params.format = 'list';
+            options.data = null;
+            options.startTime = new Date().getTime();
+            options.callNumber = 0;
+            options.requestTime = options.showTime = 0;
+        }
+        if (!options.params.limit) {
+            options.params.limit = Math.min(
+                this.pageDataPoints || options.maxcount, options.maxcount);
+        }
+        if (!options.params.fields) {
+            options.params.fields = '' + //'medallion,hack_license,' +
+                'pickup_datetime,pickup_longitude,pickup_latitude,' +
+                'dropoff_datetime,dropoff_longitude, dropoff_latitude';
+            if (options.params.random || options.params.random_min ||
+                    options.params.random_max) {
+                options.params.sort = 'random';
+            }
+        }
+        options.requestTime -= new Date().getTime();
+        if (m_verbose >= 1) {
+            console.log('request ' + (new Date().getTime() - options.startTime));
+        }
+        geoapp.cancelRestRequests('mapdata');
+        var xhr = geoapp.restRequest({
+            path: 'taxi', type: 'GET', data: options.params
+        }).done(_.bind(function (resp) {
+            if (!options.data) {
+                options.data = resp;
+            } else {
+                $.merge(options.data.data, resp.data);
+                options.data.datacount += resp.datacount;
+            }
+            options.requestTime += new Date().getTime();
+            options.showTime -= new Date().getTime();
+            if (m_verbose >= 1) {
+                console.log('show ' + (new Date().getTime() - options.startTime));
+            }
+            m_lastQueryOptions = $.extend({}, options, {data: null});
+            this.showMap(options.data, options.display);
+            options.callNumber += 1;
+            options.showTime += new Date().getTime();
+            var callNext = ((options.data.datacount < options.data.count ||
+                (resp.datacount == options.params.limit &&
+                options.data.count === undefined)) &&
+                options.data.datacount < options.maxcount);
+            if (m_verbose >= 1) {
+                console.log(
+                    (callNext ? 'next ' : 'last ') +
+                    (new Date().getTime() - options.startTime) + ' ' +
+                    options.data.datacount + ' ' + options.data.count +
+                    ' requestTime ' + options.requestTime + ' showTime ' +
+                    options.showTime);
+            }
+            if (callNext) {
+                options.params.offset += resp.datacount;
+                this.replaceMapData(options);
+            }
+        }, this));
+        xhr.girder = {mapdata: true};
+    };
+
+    /* Update parameters that affect how a map is displayed but not what data
+     *  is used for the display.  Values that are updated include:
+     *    display-tile-set: a short name for the map tile layer.
+     *    display-type: 'pickup', 'dropoff', 'both', or 'vector'.
+     *    opacity: the opacity used for non-animated points and lines.
+     *
+     * @param params: a dictionary of display values.  See above.
+     * @param update: undefined or true to update an existing map if the
+     *                parameters have changed.  false to not update.  'always'
+     *                to update even if the parameters haven't changed.
+     * @returns: a dictionary of internal information based on the parameters.
+     */
+    this.updateMapParams = function (params, update) {
+        params = params || (m_lastQueryOptions ? m_lastQueryOptions.display ||
+                            {} : {});
+        params.opacity = params.opacity || 0.05;
+        var origParams = m_mapParams || {};
+        var results = {
+            baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/'
+        };
+        if (params['display-tile-set'] === 'openstreetmap') {
+            results.baseUrl = 'http://tile.openstreetmap.org/';
+        } else if (params['display-tile-set'] === 'tonerlite') {
+            results.baseUrl = 'http://tile.stamen.com/toner-lite/';
+        }
         m_mapParams = params;
-        if (data && data.data) {
-            params.opacity = params.opacity || 0.05;
+        if (update === false ||
+            (update !== 'always' && !_.isEqual(params, m_mapParams))) {
+            return results;
+        }
+        if (results.baseUrl != m_baseUrl) {
+            m_mapLayer.updateBaseUrl(results.baseUrl);
+            m_baseUrl = results.baseUrl;
+        }
+        var animStartStep;
+        var data = m_mapData;
+        var changed = (data && data.data && (
+            params['display-type'] != origParams['display-type'] ||
+            update === 'always'));
+        if (changed) {
+            /* clear animation preparation, but don't clear current step. */
+            if (m_animationData && m_animationData.playState &&
+                    m_animationData.playState.substr(0, 4) !== 'step') {
+                animStartStep = m_animationData.step;
+            }
+            m_animationData = null;
             if (params['display-type'] !== 'vector') {
                 data.numPoints = Math.min(data.data.length,
                                           this.maximumMapPoints);
@@ -170,9 +293,6 @@ geoapp.Map = function (arg) {
                         }];
                         return lineData;
                     })
-                    .position(function (d) {
-                        return d;
-                    })
                     .style({
                         strokeColor: function (d) {
                             return d.c;
@@ -187,98 +307,10 @@ geoapp.Map = function (arg) {
             }
         }
         m_geoMap.draw();
-    };
-
-    /* Replace or add to the data used for the current map.  The options
-     * consist of
-     *  params: a list of parameters to pass to the rest call.  If they are
-     *      not set, the limit and fields keys in this dictionary are set.
-     *  maxcount: unset to auto-pick values, otherwise the maximum number of
-     *      points to retrieve.
-     *  data: the data that has been fetched.  This is extended as more data
-     *      arrives.
-     *  startTime: the epoch in ms when the first call to this function was
-     *      made.
-     *
-     * @param: options: a dictionary with the parameters to use for fetching
-     *                  data and the state of the process.  See above.
-     */
-    this.replaceMapData = function (options) {
-        if (!options.maxcount) {
-            if (m_verbose >= 1) {
-                console.log(options);
-            }
-            options.maxcount = this.maximumDataPoints || Math.max(
-                this.maximumMapPoints, this.maximumVectors);
-            options.params.offset = 0;
-            options.params.format = 'list';
-            options.data = null;
-            options.startTime = new Date().getTime();
-            options.callNumber = 0;
-            options.requestTime = options.showTime = 0;
-        }
-        if (!options.params.limit) {
-            options.params.limit = Math.min(
-                this.pageDataPoints || options.maxcount, options.maxcount);
-        }
-        if (!options.params.fields) {
-            options.params.fields = '' + //'medallion,hack_license,' +
-                'pickup_datetime,pickup_longitude,pickup_latitude,' +
-                'dropoff_datetime,dropoff_longitude, dropoff_latitude';
-            if (options.params.random || options.params.random_min ||
-                    options.params.random_max) {
-                options.params.sort = 'random';
-            }
-        }
-        options.requestTime -= new Date().getTime();
-        if (m_verbose >= 1) {
-            console.log('request ' + (new Date().getTime() - options.startTime));
-        }
-        geoapp.cancelRestRequests('mapdata');
-        var xhr = geoapp.restRequest({
-            path: 'taxi', type: 'GET', data: options.params
-        }).done(_.bind(function (resp) {
-            /* clear animation preparation, but don't clear current step. */
-            var animStartStep;
-            if (m_animationData && m_animationData.playState &&
-                    m_animationData.playState.substr(0, 4) !== 'step') {
-                animStartStep = m_animationData.step;
-            }
-            m_animationData = null;
-            if (!options.data) {
-                options.data = resp;
-            } else {
-                $.merge(options.data.data, resp.data);
-                options.data.datacount += resp.datacount;
-            }
-            options.requestTime += new Date().getTime();
-            options.showTime -= new Date().getTime();
-            if (m_verbose >= 1) {
-                console.log('show ' + (new Date().getTime() - options.startTime));
-            }
-            m_lastQueryOptions = $.extend({}, options, {data: null});
-            this.showMap(options.data, options.params);
-            options.callNumber += 1;
-            options.showTime += new Date().getTime();
-            var callNext = ((options.data.datacount < options.data.count ||
-                (resp.datacount == options.params.limit &&
-                options.data.count === undefined)) &&
-                options.data.datacount < options.maxcount);
-            if (m_verbose >= 1) {
-                console.log(
-                    (callNext ? 'next ' : 'last ') +
-                    (new Date().getTime() - options.startTime) + ' ' +
-                    options.data.datacount + ' ' + options.data.count +
-                    ' requestTime ' + options.requestTime + ' showTime ' +
-                    options.showTime);
-            }
-            if (callNext) {
-                options.params.offset += resp.datacount;
-                this.replaceMapData(options);
-            }
+        if (changed) {
             this.animate(undefined, animStartStep);
-        }, this));
-        xhr.girder = {mapdata: true};
+        }
+        return results;
     };
 
     /* Redraw the map, but not too often.  When we redraw the map, set a timer
