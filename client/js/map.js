@@ -134,7 +134,7 @@ geoapp.Map = function (arg) {
         if (!options.params.fields) {
             options.params.fields = '' + //'medallion,hack_license,' +
                 'pickup_datetime,pickup_longitude,pickup_latitude,' +
-                'dropoff_datetime,dropoff_longitude, dropoff_latitude';
+                'dropoff_datetime,dropoff_longitude,dropoff_latitude';
             if (options.params.random || options.params.random_min ||
                     options.params.random_max) {
                 options.params.sort = 'random';
@@ -196,6 +196,7 @@ geoapp.Map = function (arg) {
      * @returns: a dictionary of internal information based on the parameters.
      */
     this.updateMapParams = function (params, update) {
+        var startTime = new Date().getTime();
         params = params || (m_lastQueryOptions ? m_lastQueryOptions.display ||
                             {} : {});
         params.opacity = params.opacity || 0.05;
@@ -306,9 +307,18 @@ geoapp.Map = function (arg) {
                 m_geoLines.data([]);
             }
         }
+        var loadTime = new Date().getTime();
         m_geoMap.draw();
+        var drawTime = new Date().getTime();
         if (changed) {
             this.animate(undefined, animStartStep);
+        }
+        var animTime = new Date().getTime();
+        if (m_verbose >= 1) {
+            console.log(
+                'updateMapParams load ' + (loadTime - startTime) + ' draw ' +
+                (drawTime - loadTime) + ' anim ' + (animTime - drawTime) +
+                ' total ' + (animTime - startTime));
         }
         return results;
     };
@@ -482,7 +492,7 @@ geoapp.Map = function (arg) {
      * a timer to play the next frame.
      */
     this.animateFrame = function () {
-        var view = this, vpf, bin, vis, i, j, v;
+        var view = this, vpf, bin, vis, i, j, v, opac;
         if (!m_mapData || !m_mapData.data || !m_animationData) {
             return;
         }
@@ -492,11 +502,8 @@ geoapp.Map = function (arg) {
         var visOpac = (options.opacity || 0.1);
         if (m_mapData.numPoints) {
             vpf = m_geoPoints.verticesPerFeature();
-            if (!options.pointsOpac ||
-                    options.pointsOpac.length != m_mapData.numPoints * vpf) {
-                options.pointsOpac = new Float32Array(m_mapData.numPoints *
-                                                      vpf);
-            }
+            opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
+                'fillOpacity');
             for (i = 0, v = 0; i < m_mapData.numPoints; i += 1) {
                 bin = options.dataBin[i];
                 vis = ((bin >= options.step &&
@@ -504,18 +511,15 @@ geoapp.Map = function (arg) {
                     bin + options.numBins < options.step + options.substeps);
                 vis = (vis ? visOpac : 0);
                 for (j = 0; j < vpf; j += 1, v += 1) {
-                    options.pointsOpac[v] = vis;
+                    opac[v] = vis;
                 }
             }
-            m_geoPoints.actors()[0].mapper().updateSourceBuffer(
-                'fillOpacity', options.pointsOpac);
+            m_geoPoints.actors()[0].mapper().updateSourceBuffer('fillOpacity');
         }
         if (m_mapData.numLines) {
             vpf = m_geoLines.verticesPerFeature();
-            if (!options.linesOpac ||
-                    options.linesOpac.length != m_mapData.numLines * vpf) {
-                options.linesOpac = new Float32Array(m_mapData.numLines * vpf);
-            }
+            opac = m_geoLines.actors()[0].mapper().getSourceBuffer(
+                'strokeOpacity');
             for (i = 0, v = 0; i < m_mapData.numLines; i += 1) {
                 bin = options.dataBin[i];
                 vis = ((bin >= options.step &&
@@ -523,11 +527,11 @@ geoapp.Map = function (arg) {
                     bin + options.numBins < options.step + options.substeps);
                 vis = (vis && !m_mapData.data[i].hide ? visOpac : -1);
                 for (j = 0; j < vpf; j += 1, v += 1) {
-                    options.linesOpac[v] = vis;
+                    opac[v] = vis;
                 }
             }
             m_geoLines.actors()[0].mapper().updateSourceBuffer(
-                'strokeOpacity', options.linesOpac);
+                'strokeOpacity');
         }
         m_geoMap.draw();
         var desc = this.getStepDescription(options.step);
@@ -659,16 +663,18 @@ geoapp.Map = function (arg) {
                 var vpf, opac, v;
                 if (m_mapData.numPoints) {
                     vpf = m_geoPoints.verticesPerFeature();
-                    opac = new Float32Array(m_mapData.numPoints * vpf);
+                    opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
+                        'fillOpacity');
                     for (v = 0; v < m_mapData.numPoints * vpf; v += 1) {
                         opac[v] = m_mapParams.opacity;
                     }
                     m_geoPoints.actors()[0].mapper().updateSourceBuffer(
-                        'fillOpacity', opac);
+                        'fillOpacity');
                 }
                 if (m_mapData.numLines) {
                     vpf = m_geoLines.verticesPerFeature();
-                    opac = new Float32Array(m_mapData.numLines * vpf);
+                    opac = m_geoLines.actors()[0].mapper().getSourceBuffer(
+                        'strokeOpacity');
                     for (var i = 0, j = 0; i < m_mapData.numLines; i += 1) {
                         for (v = 0; v < vpf; v += 1, j += 1) {
                             opac[j] = (m_mapData.data[i].hide ? 0 :
@@ -676,7 +682,7 @@ geoapp.Map = function (arg) {
                         }
                     }
                     m_geoLines.actors()[0].mapper().updateSourceBuffer(
-                        'strokeOpacity', opac);
+                        'strokeOpacity');
                 }
                 m_geoMap.draw();
                 $(m_animationData.sliderElem).slider('disable').slider(
