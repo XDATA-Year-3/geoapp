@@ -32,10 +32,21 @@ import urllib
 import girder.api.rest
 from girder import logger
 from girder.api import access
+from girder.constants import AccessType
 from girder.api.describe import Description
+from girder.api.rest import RestException
 
 pgdb = None
 
+
+GeoappUser = {
+    'login': 'geoapp',
+    'password': 'geoapp#1',
+    'firstName': 'geoapp',
+    'lastName': 'geoapp',
+    'email': 'noemail@noemail.com',
+    'admin': False
+}
 
 FieldTable = collections.OrderedDict([
     ('medallion', ('text', 'Taxi medallion')),
@@ -496,6 +507,8 @@ class Taxi(girder.api.rest.Resource):
     def __init__(self):
         self.resourceName = 'taxi'
         self.route('GET', (), self.find)
+        self.route('PUT', ('reporttest', ), self.storeTestResults)
+        self.route('PUT', ('reporttest', ':id'), self.updateTestResults)
         self.access = {
             'mongo': (TaxiViaMongo, {}),
             'mongo12': (TaxiViaMongoCompact, {
@@ -508,6 +521,41 @@ class Taxi(girder.api.rest.Resource):
             'postgresfull': (TaxiViaPostgres, {'db': 'taxifull'}),
             'tangelo': (TaxiViaTangeloService, {}),
         }
+
+    def getUserAndFolder(self):
+        user = self.model('user').findOne({'login': GeoappUser['login']})
+        # if we don't have our expected user, try to create it
+        if user is None:
+            user = self.model('user').createUser(**GeoappUser)
+        coll = self.model('collection').findOne({'name': 'geoapp'})
+        if coll is None:
+            coll = self.model('collection').createCollection('geoapp', user,
+                                                             public=True)
+        folderName = 'Test Results'
+        folder = self.model('folder').findOne({
+            'name': folderName,
+            'parentId': coll['_id'],
+            'parentCollection': 'collection'})
+        if not folder:
+            folder = self.model('folder').createFolder(
+                coll, folderName, parentType='collection', public=True,
+                creator=user)
+        return user, folder
+
+    def getMetadataFromBody(self):
+        try:
+            metadata = json.load(cherrypy.request.body)
+        except ValueError:
+            raise RestException('Invalid JSON passed in request body.')
+        for k in metadata:
+            if not len(k):
+                raise RestException('Key names must be at least one character '
+                                    'long.')
+            if '.' in k or k[0] == '$':
+                raise RestException(u'The key name {} must not contain a '
+                                    'period or begin with a dollar sign.'
+                                    .format(k))
+        return metadata
 
     @access.public
     def find(self, params):
@@ -591,6 +639,40 @@ class Taxi(girder.api.rest.Resource):
             find.description.param(
                 field+'_max', 'Maximum value (exclusive) of ' + fieldDesc,
                 required=False, dataType=dataType)
+
+    @access.public
+    def storeTestResults(self, params):
+        user, folder = self.getUserAndFolder()
+        name = params.get('name', 'Results')
+        item = self.model('item').createItem(name, user, folder)
+        metadata = self.getMetadataFromBody()
+        return self.model('item').setMetadata(item, metadata)
+    storeTestResults.description = (
+        Description('Submit new test results.')
+        .responseClass('Item')
+        .param('body', 'A JSON object containing metadata with the test '
+               'results.', paramType='body')
+        .param('name', 'Name for the item.', required=False)
+        .errorResponse('Invalid JSON passed in request body.')
+        .errorResponse('Metadata key name was invalid.'))
+
+    @access.public
+    def updateTestResults(self, id, params):
+        user, folder = self.getUserAndFolder()
+        item = self.model('item').load(id=id, level=AccessType.WRITE,
+                                       user=user)
+        metadata = self.getMetadataFromBody()
+        return self.model('item').setMetadata(item, metadata)
+    updateTestResults.description = (
+        Description('Update existing test results.')
+        .responseClass('Item')
+        .param('id', 'The ID of a test result item to update',
+               paramType='path', required=False)
+        .param('body', 'A JSON object containing metadata with the test '
+               'results.', paramType='body')
+        .errorResponse('ID was invalid.')
+        .errorResponse('Invalid JSON passed in request body.')
+        .errorResponse('Metadata key name was invalid.'))
 
 
 def load(info):

@@ -685,8 +685,10 @@ geoapp.Map = function (arg) {
                         'strokeOpacity');
                 }
                 m_geoMap.draw();
-                $(m_animationData.sliderElem).slider('disable').slider(
-                    'setValue', 0);
+                if (m_animationData) {
+                    $(m_animationData.sliderElem).slider('disable').slider(
+                        'setValue', 0);
+                }
                 if (m_animationOptions) {
                     m_animationOptions.playState = 'stop';
                 }

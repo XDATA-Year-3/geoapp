@@ -14,12 +14,13 @@
  */
 
 geoapp.views.SpeedTestView = geoapp.View.extend({
+    testVersion: 1,
     sizeFactors: [1, 1.5, 2, 3, 5, 7.5],
     tests: [
-        {type: 'pickup', phase: 'load'},
-        {type: 'pickup', phase: 'anim'},
-        {type: 'vector', phase: 'load'},
-        {type: 'vector', phase: 'anim'}
+        {name: 'pload', type: 'pickup', phase: 'load'},
+        {name: 'panim', type: 'pickup', phase: 'anim'},
+        {name: 'lload', type: 'vector', phase: 'load'},
+        {name: 'lanim', type: 'vector', phase: 'anim'}
     ],
 
     events: {
@@ -28,7 +29,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         },
         'click #ga-stop-speed-test': function () {
             this.stopTests('stop');
-        },
+        }
     },
 
     /* Initialize the view.
@@ -90,7 +91,11 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             sizePower: 4,  /* initial # of data points is 10^(sizePower) */
             sizeIndex: 0,  /* index within sizeFactors */
             times: [],
-            results: {}
+            results: {
+                detailed: {},
+                userAgent: navigator.userAgent,
+                version: this.testVersion
+            }
         };
         var view = this;
         window.setTimeout(function () { view.nextTest(); }, 1);
@@ -136,10 +141,12 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             window.setTimeout(function () { view.nextTest(); }, 0);
             return;
         }
-        if (!params.results[params.testNum]) {
-            params.results[params.testNum] = {};
+        if (!params.results[params.numPts]) {
+            params.results[params.numPts] = {};
+            params.results.detailed[params.numPts] = {};
         }
-        params.results[params.testNum][params.numPts] = results;
+        params.results[params.numPts][test.name] = results.display;
+        params.results.detailed[params.numPts][test.name] = results;
         if (!$('#ga-speed-test-results tr[numpts=' + params.numPts +
                ']').length) {
             $('#ga-speed-test-results table tbody').append(
@@ -161,8 +168,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 params.sizePower += 1;
             }
         }
-        //DWM:: log the results
-        window.setTimeout(function () { view.nextTest(); }, 1);
+        this.logTestResults(function () { view.nextTest(); });
     },
 
     /* Test how long it takes for showMap to render the a set of points or
@@ -264,8 +270,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
 
     /* Stop the tests if they are running.
      *
-     * @param reason: 'stop' if user clicked stop,  'blur' if lost window
-     *                focus, 'done' if finished. */
+     * @param reason: 'stop' if user clicked stop, 'blur' if lost window focus,
+     *                'done' if finished.
+     */
     stopTests: function (reason) {
         if (!this.testParams || this.testParams.state !== 'running') {
             return;
@@ -273,8 +280,39 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         $('#ga-run-speed-test').prop('disabled', false);
         $('#ga-stop-speed-test').prop('disabled', true);
         this.testParams.state = reason || 'stop';
-        //DWM:: log that the tests were stopped.
-        console.log(this.testParams.state); //DWM::
+        this.logTestResults();
+    },
+
+    /* Store the current test results into a girder item.  After we get a
+     * receipt, optionally call another function.
+     *
+     * @param callback: function to call when we know the results have been
+     *                  stored.
+     */
+    logTestResults: function (callback) {
+        var view = this,
+            path = 'taxi/reporttest',
+            params = {};
+
+        if (this.testParams.logId) {
+            path += '/' + this.testParams.logId;
+        } else {
+            params.name = 'Speed Test ' +
+                moment().format('YYYY-MM-DD HH:mm:ss');
+        }
+        var metadata = this.testParams.results;
+        metadata.state = this.testParams.state;
+        geoapp.restRequest({
+            path: path + '?' + $.param(params),
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(metadata)
+        }).done(function (item) {
+            view.testParams.logId = item._id;
+            if (callback) {
+                callback();
+            }
+        });
     }
 });
 
