@@ -21,6 +21,11 @@
             label(for="ga-test-comment") Comment
             input#ga-test-comment.form-control.input-sm(
               type="text", title="A comment makes it easier for reviewers to determine what is distinct about this test.", data-placement="bottom")
+          .form-group
+            label(for="ga-test-maximum") Maximum Trips
+            input#ga-test-maximum.form-control.input-sm(
+              type="text", title="The maximum number of trips to test.  If this is blank, tests will continue until the browser throws an error or crashes.",
+              data-placement="bottom", value="1000000")
           .form-group(title="Select which tests are run.",
               data-placement="bottom")
             label#ga-test-enable-header Selected tests:

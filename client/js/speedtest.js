@@ -85,8 +85,8 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         }
         $('#ga-speed-test-results tr').slice(2).remove();
         $('#ga-speed-test-results').removeClass('hidden');
-        $('#ga-run-speed-test,#ga-test-comment,.ga-test-enable').prop(
-            'disabled', true);
+        $('#ga-run-speed-test,#ga-test-comment,#ga-test-maximum,' +
+            '.ga-test-enable').prop('disabled', true);
         $('#ga-stop-speed-test').prop('disabled', false);
         geoapp.map.animationAction('stop');
         var testsToRun = [];
@@ -113,6 +113,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 version: this.testVersion
             },
             comment: $('#ga-test-comment').val(),
+            maxPts: parseInt($('#ga-test-maximum').val()),
             testsToRun: testsToRun
         };
         var view = this;
@@ -142,6 +143,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 }
                 try {
                     results = this.loadTest();
+                    /* gl.getError is slow, but it is outside of our timing
+                     * loop, and it sometimes lets us not kill a browser quite
+                     * so thoroughly. */
                     if (gl.getError()) {
                         console.log('gl error');
                         done = true;
@@ -217,6 +221,10 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         if (!params.times.length) {
             params.numPts = (Math.pow(10, params.sizePower) *
                       this.sizeFactors[params.sizeIndex]);
+            if (params.numPts > params.maxPts && params.maxPts) {
+                this.stopTests('done');
+                return;
+            }
             data = {
                 format: this.data.format,
                 columns: this.data.columns,
@@ -311,8 +319,8 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         if (!this.testParams || this.testParams.state !== 'running') {
             return;
         }
-        $('#ga-run-speed-test,#ga-test-comment,.ga-test-enable').prop(
-            'disabled', false);
+        $('#ga-run-speed-test,#ga-test-comment,#ga-test-maximum,' +
+            '.ga-test-enable').prop('disabled', false);
         $('#ga-stop-speed-test').prop('disabled', true);
         this.testParams.state = reason || 'stop';
         this.logTestResults();

@@ -523,6 +523,13 @@ class Taxi(girder.api.rest.Resource):
         }
 
     def getUserAndFolder(self):
+        """
+        Get the geoapp user and test results folder.  If the geoapp user,
+        collection, or folder do not exist, create them.
+
+        :return: the geoapp user.
+        :return: the geoapp test results folder.
+        """
         user = self.model('user').findOne({'login': GeoappUser['login']})
         # if we don't have our expected user, try to create it
         if user is None:
@@ -542,7 +549,14 @@ class Taxi(girder.api.rest.Resource):
                 creator=user)
         return user, folder
 
-    def getMetadataFromBody(self):
+    def getMetadataFromBody(self, addRequestInfo=True):
+        """
+        Extract metadata from the request body and validate the keys.
+
+        :param addRequestInfo: if true, add information about this request to
+                               the metadata under the key 'requestInfo'.
+        :returns: metadata dictionary.
+        """
         try:
             metadata = json.load(cherrypy.request.body)
         except ValueError:
@@ -555,6 +569,15 @@ class Taxi(girder.api.rest.Resource):
                 raise RestException(u'The key name {} must not contain a '
                                     'period or begin with a dollar sign.'
                                     .format(k))
+        if addRequestInfo:
+            base = cherrypy.request.base
+            altbase = cherrypy.request.headers.get('X-Forwarded-Host', '')
+            if altbase:
+                base = '%s://%s' % (cherrypy.request.scheme, altbase)
+            metadata['requestInfo'] = {
+                'base': base,
+                'remote_ip': cherrypy.request.remote.ip,
+            }
         return metadata
 
     @access.public
