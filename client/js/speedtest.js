@@ -80,11 +80,20 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
 
     /* Run tests. */
     runTests: function () {
+        if ($('.ga-test-enable:not(:checked)').length == this.tests.length) {
+            return;
+        }
         $('#ga-speed-test-results tr').slice(2).remove();
         $('#ga-speed-test-results').removeClass('hidden');
-        $('#ga-run-speed-test').prop('disabled', true);
+        $('#ga-run-speed-test,#ga-test-comment,.ga-test-enable').prop(
+            'disabled', true);
         $('#ga-stop-speed-test').prop('disabled', false);
         geoapp.map.animationAction('stop');
+        var testsToRun = [];
+        for (var i = 0; i < this.tests.length; i += 1) {
+            testsToRun.push($('.ga-test-enable[ga-test-num=' + i + ']').is(
+                ':not(:checked)') ? false : true);
+        }
         this.testParams = {
             state: 'running',
             testNum: 0,     /* type index */
@@ -94,8 +103,17 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             results: {
                 detailed: {},
                 userAgent: navigator.userAgent,
+                browserData: {
+                    screenSize: {width: screen.width, height: screen.height},
+                    windowSize: {
+                        width: $(window).width(),
+                        height: $(window).height()
+                    }
+                },
                 version: this.testVersion
-            }
+            },
+            comment: $('#ga-test-comment').val(),
+            testsToRun: testsToRun
         };
         var view = this;
         window.setTimeout(function () { view.nextTest(); }, 1);
@@ -107,7 +125,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         var params = this.testParams,
             test = this.tests[params.testNum],
             view = this,
-            row, done = false;
+            row, results, skip = false, done = false;
 
         if (document.hidden === true) {
             this.stopTests('blur');
@@ -115,8 +133,13 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         if (params.state !== 'running') {
             return;
         }
+        skip = !params.testsToRun[params.testNum];
         switch (test.phase) {
             case 'load':
+                if (skip && (!params.testsToRun[params.testNum + 1] ||
+                        params.times.length)) {
+                    break;
+                }
                 try {
                     results = this.loadTest();
                     if (gl.getError()) {
@@ -126,6 +149,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                     }
                 } catch (err) {
                     console.error('Caught error');
+                    console.log(err);
                     done = true;
                 }
                 if (done) {
@@ -134,31 +158,36 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 }
                 break;
             case 'anim':
+                if (skip) {
+                    break;
+                }
                 results = this.animationTest();
                 break;
         }
-        if (!results) {
+        if (!results && !skip) {
             window.setTimeout(function () { view.nextTest(); }, 0);
             return;
         }
-        if (!params.results[params.numPts]) {
-            params.results[params.numPts] = {};
-            params.results.detailed[params.numPts] = {};
-        }
-        params.results[params.numPts][test.name] = results.display;
-        params.results.detailed[params.numPts][test.name] = results;
-        if (!$('#ga-speed-test-results tr[numpts=' + params.numPts +
-               ']').length) {
-            $('#ga-speed-test-results table tbody').append(
-                '<tr numpts="' + params.numPts + '"><td>' + params.numPts +
-                '</td></tr>');
-        }
-        row = $('#ga-speed-test-results tr[numpts=' + params.numPts + ']');
+        if (results) {
+            if (!params.results[params.numPts]) {
+                params.results[params.numPts] = {};
+                params.results.detailed[params.numPts] = {};
+            }
+            params.results[params.numPts][test.name] = results.display;
+            params.results.detailed[params.numPts][test.name] = results;
+            if (!$('#ga-speed-test-results tr[numpts=' + params.numPts +
+                   ']').length) {
+                $('#ga-speed-test-results table tbody').append(
+                    '<tr numpts="' + params.numPts + '"><td>' + params.numPts +
+                    '</td></tr>');
+            }
+            row = $('#ga-speed-test-results tr[numpts=' + params.numPts + ']');
 
-        while ($('td', row).length <= params.testNum + 1) {
-            row.append('<td/>');
+            while ($('td', row).length <= params.testNum + 1) {
+                row.append('<td/>');
+            }
+            $('td', row).eq(params.testNum + 1).text(results.display);
         }
-        $('td', row).eq(params.testNum + 1).text(results.display);
         params.times = [];
         params.testNum = (params.testNum + 1) % this.tests.length;
         if (!params.testNum) {
@@ -168,7 +197,11 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 params.sizePower += 1;
             }
         }
-        this.logTestResults(function () { view.nextTest(); });
+        if (results) {
+            this.logTestResults(function () { view.nextTest(); });
+        } else {
+            window.setTimeout(function () { view.nextTest(); }, 1);
+        }
     },
 
     /* Test how long it takes for showMap to render the a set of points or
@@ -220,6 +253,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         totaltime /= params.times.length;
         return {
             value: totaltime,
+            microsecPerPoint: totaltime * 1000 / params.numPts,
             times: params.times,
             display: sprintf('%5.3f s', totaltime / 1000)
         };
@@ -277,7 +311,8 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         if (!this.testParams || this.testParams.state !== 'running') {
             return;
         }
-        $('#ga-run-speed-test').prop('disabled', false);
+        $('#ga-run-speed-test,#ga-test-comment,.ga-test-enable').prop(
+            'disabled', false);
         $('#ga-stop-speed-test').prop('disabled', true);
         this.testParams.state = reason || 'stop';
         this.logTestResults();
@@ -294,14 +329,18 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             path = 'taxi/reporttest',
             params = {};
 
+        var metadata = this.testParams.results;
+        metadata.state = this.testParams.state;
+        metadata.comment = this.testParams.comment;
         if (this.testParams.logId) {
             path += '/' + this.testParams.logId;
         } else {
             params.name = 'Speed Test ' +
                 moment().format('YYYY-MM-DD HH:mm:ss');
+            if (this.testParams.comment) {
+                params.name += ' - ' + this.testParams.comment;
+            }
         }
-        var metadata = this.testParams.results;
-        metadata.state = this.testParams.state;
         geoapp.restRequest({
             path: path + '?' + $.param(params),
             type: 'PUT',

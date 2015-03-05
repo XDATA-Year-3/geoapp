@@ -17,8 +17,28 @@
             button#ga-stop-speed-test.btn.btn-default.btn-sm
               i.icon-stop
               |  Stop
+          .form-group
+            label(for="ga-test-comment") Comment
+            input#ga-test-comment.form-control.input-sm(
+              type="text", title="A comment makes it easier for reviewers to determine what is distinct about this test.", data-placement="bottom")
+          .form-group(title="Select which tests are run.",
+              data-placement="bottom")
+            label#ga-test-enable-header Selected tests:
+            label Points
+            input#ga-test-enable-pt-load.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=0)
+            label(for="ga-test-enable-pt-load") Load
+            input#ga-test-enable-pt-fps.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=1)
+            label(for="ga-test-enable-pt-fps") FPS
+            label &nbsp;&nbsp;&nbsp;&nbsp; Lines
+            input#ga-test-enable-line-load.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=2)
+            label(for="ga-test-enable-line-load") Load
+            input#ga-test-enable-line-fps.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=3)
+            label(for="ga-test-enable-line-fps") FPS
           .form-group#ga-speed-test-results.hidden
-            label Test Results
             table
               tr
                 th(rowspan=2) Trips
