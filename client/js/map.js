@@ -241,7 +241,11 @@ geoapp.Map = function (arg) {
                     data.x_column = data.columns.pickup_longitude;
                     data.y_column = data.columns.pickup_latitude;
                 }
-                m_geoPoints.data(data.data.slice(0, this.maximumMapPoints))
+                var pointData = data.data;
+                if (pointData.lengh > this.maximumMapPoints) {
+                    pointData = data.data.slice(0, this.maximumMapPoints);
+                }
+                m_geoPoints.data(pointData)
                     .style({
                         fillColor: 'black',
                         fillOpacity: params.opacity,
@@ -279,28 +283,37 @@ geoapp.Map = function (arg) {
                         item.hide = true;
                     }
                 }
-                m_geoLines.data(data.data.slice(0, this.maximumVectors))
-                    .line(function (d) {
-                        var lineData = [{
-                            x: d[data.x1_column],
-                            y: d[data.y1_column],
-                            c: '#0000FF',
-                            h: d.hide
-                        }, {
-                            x: d[data.x2_column],
-                            y: d[data.y2_column],
-                            c: '#FFFF00',
-                            h: d.hide
-                        }];
-                        return lineData;
+                var lineRecord = [{
+                    x_column: data.x1_column,
+                    y_column: data.y1_column,
+                    strokeColor: geo.util.convertColor('#0000FF')
+                }, {
+                    x_column: data.x2_column,
+                    y_column: data.y2_column,
+                    strokeColor: geo.util.convertColor('#FFFF00')
+                }];
+                var lineData = data.data;
+                if (lineData.lengh > this.maximumVectors) {
+                    lineData = data.data.slice(0, this.maximumVectors);
+                }
+                m_geoLines.data(lineData)
+                    .line(function () {
+                        return lineRecord;
+                    })
+                    .position(function (d, didx, item, iidx) {
+                        var dat = lineData[iidx];
+                        return {
+                            x: dat[d.x_column],
+                            y: dat[d.y_column]
+                        };
                     })
                     .style({
                         strokeColor: function (d) {
-                            return d.c;
+                            return d.strokeColor;
                         },
                         strokeWidth: 5,
-                        strokeOpacity: function (d) {
-                            return d.h ? -1 : params.opacity;
+                        strokeOpacity: function (d, didx, item, iidx) {
+                            return lineData[iidx].hide ? -1 : params.opacity;
                         }
                     });
             } else {
