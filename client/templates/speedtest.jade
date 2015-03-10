@@ -1,0 +1,59 @@
+#ga-main-page
+  .panel-group#ga-speed-test-panel
+    .panel.panel-default
+      .panel-heading
+        a(data-toggle="collapse", data-parent="#ga-speed-test-panel",
+          href="#ga-speed-test")
+          .panel-title
+            b Speed Test
+            i.icon-info-circled(data-placement="bottom", data-container="body",
+              title="Load increasing amounts of data and animate it to determine local hardware limitations.  This will run increasingly heavy tests until an error occurs.  You may not want to run it while you have important data in other browser tabs.")
+      #ga-speed-test.panel-collapse.collapse.in
+        .panel-body
+          .form-group
+            button#ga-run-speed-test.btn.btn-default.btn-sm
+              i.icon-ok
+              |  Test
+            button#ga-stop-speed-test.btn.btn-default.btn-sm
+              i.icon-stop
+              |  Stop
+          .form-group
+            label(for="ga-test-comment") Comment
+            input#ga-test-comment.form-control.input-sm(
+              type="text", title="A comment makes it easier for reviewers to determine what is distinct about this test.", data-placement="bottom")
+          .form-group
+            label(for="ga-test-maximum") Maximum Trips
+            input#ga-test-maximum.form-control.input-sm(
+              type="text", title="The maximum number of trips to test.  If this is blank, tests will continue until the browser throws an error or crashes.",
+              data-placement="bottom", value="1000000")
+          .form-group(title="Select which tests are run.",
+              data-placement="bottom")
+            label#ga-test-enable-header Selected tests:
+            label Points
+            input#ga-test-enable-pt-load.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=0)
+            label(for="ga-test-enable-pt-load") Load
+            input#ga-test-enable-pt-fps.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=1)
+            label(for="ga-test-enable-pt-fps") FPS
+            label &nbsp;&nbsp;&nbsp;&nbsp; Lines
+            input#ga-test-enable-line-load.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=2)
+            label(for="ga-test-enable-line-load") Load
+            input#ga-test-enable-line-fps.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=3)
+            label(for="ga-test-enable-line-fps") FPS
+          .form-group#ga-speed-test-results.hidden
+            table
+              tr
+                th(rowspan=2) Trips
+                th(colspan=2) Points
+                th(colspan=2) Lines
+              tr
+                th Load
+                th FPS
+                th Load
+                th FPS
+          .form-group#ga-speed-test-error.hidden
+            label Error
+            b.error-message
