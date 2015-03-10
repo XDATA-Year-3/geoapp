@@ -86,22 +86,43 @@ system cache was flushed, and the service was restarted.
 
 Times are in seconds (lower is better).
 
-============ ===== ==== ==== ==== ==== ==== ====  === === ===== ====  ========
-Test         State M2A  M2B  M2C  M3C  PgC  PyC   M2D M3D PgD   PyD   Comments
-============ ===== ==== ==== ==== ==== ==== ====  === === ===== ====  ========
-Week in Feb. Cold  18.0 19.3  3.3  3.7 38.0 30.2           28.3 27.0  297107 trips, 2013-2-17 - 2013-2-24
---           Warm   5.0  3.0  3.1  4.0  5.7  5.0            8.8  8.0
+============ ===== ==== ==== ==== ==== ==== ====  === === ===== ====
+Test         State M2A  M2B  M2C  M3C  PgC  PyC   M2D M3D PgD   PyD
+============ ===== ==== ==== ==== ==== ==== ====  === === ===== ====
+Week in Feb. Cold  18.0 19.3  3.3  3.7 38.0 30.2           28.3 27.0
+"            Warm   5.0  3.0  3.1  4.0  5.7  5.0            8.8  8.0
 All of Feb.  Cold  29.8 39.3 99.5 47.1 12.9 12.0           13.7 12.6
---           Warm   5.1 35.6 22.5 28.9  4.8  4.0            4.8  4.1
+"            Warm   5.1 35.6 22.5 28.9  4.8  4.0            4.8  4.1
 Entire data  Cold  31.5  3.5 10.4  9.2  9.3  8.3            9.4  8.4
---           Warm   4.9  3.5  3.0  3.3  3.3  2.6            3.3  2.5
+"            Warm   4.9  3.5  3.0  3.3  3.3  2.6            3.3  2.5
 9Y64 Med.    Cold  31.0 12.9 13.8  8.4 13.6 13.3          103.9 92.4
---           Warm   1.0  1.0  1.0  1.0  1.0  1.0            1.3  1.2
-============ ===== ==== ==== ==== ==== ==== ====  === === ===== ====  ========
+"            Warm   1.0  1.0  1.0  1.0  1.0  1.0            1.3  1.2
+============ ===== ==== ==== ==== ==== ==== ====  === === ===== ====
 
 
 Memory Comparison
 =================
+
+The perceived memory usage between Mongo 2, Mongo 3, and Postgres are very
+different.
+
+Mongo 2 memory maps all of its database files.  The host OS loads the accessed
+portion of these files into memory as they are used.  Because the files are
+larger than the physical memory, and Mongo doesn't provide hinting as to the
+order that parts of the files will be used, seeks are especially costly.
+Eventually, Mongo will consume most of the memory on the machine.  This plays
+plays poorly with other processes.
+
+Mongo 3 can use the Mongo 2 file store and memory map.  When using the new
+WiredTiger data store, it allegedly only loads the parts of the files that it
+needs, letting the OS cache files as needed.  In practice, it still uses a
+significant amount of memory for the Mongo process, and still wants to be the
+only significant process on the machine.
+
+Postgres relies entirely on the OS's file cache for disk efficiency.  It uses a
+comparatively tiny amount of memory, even when forming large queries.  Although
+having other disk-intensive processes will slow it down, it has a much smaller
+footprint than Mongo.
 
 
 Load Time Comparison
@@ -135,7 +156,7 @@ M2D - week
 M3D - week   
 PgD - week 29.6, 27.6, 27.5  8.6, 8.9, 8.8, 8.8, 8.8
 PyD - week 29.3, 28.1, 25.9  8.0, 8.0, 7.9, 8.1, 8.2
----------- ----------------- ----------------------------
+.. 
 M2A - feb  19.9, 41.2, 28.4  5.2, 5.1, 5.2, 5.2, 5.1
 M2B - feb  64.1, 24.6, 29.4  27,0, 35.7, 39.5, 48.7, 26.9
 M2C - feb  107.7, 94.9, 95.7 26.2, 21.8, 22.5, 21.5, 20.5
@@ -146,7 +167,7 @@ M2D - feb
 M3D - feb     
 PgD - feb  14.0, 13.3, 13.9  4.7, 4.8, 4.8, 4.8, 4.8
 PyD - feb  12.8, 12.3, 12.6  4.6, 4.0, 4.1, 4.0, 4.0
----------- ----------------- ----------------------------
+..
 M2A - full 28.2, 29.6, 36.6  4.9, 4.7, 5.0, 4.8, 4.9
 M2B - full 3.5, 3.5, 3.5     3.8, 3.5, 3.4, 3.5, 3.4
 M2C - full 9.8, 10.3, 11.2   3.0, 3.0, 3.0, 3.0, 3.0
@@ -157,7 +178,7 @@ M2D - full
 M3D - full    
 PgD - full 9.4, 9.4, 9.4     3.3, 3.3, 3.3, 3.3, 3.2
 PyD - full 8.5, 8.3, 8.4     2.5, 2.5, 2.5, 2.4, 2.4
----------- ----------------- ----------------------------
+..
 M2A - med  50.6, 22.6, 19.8  1.1, 1.0, 1.0, 1.0, 1.0
 M2B - med    
 M2C - med    
