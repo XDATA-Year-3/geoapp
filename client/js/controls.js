@@ -80,7 +80,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 };
                 _.each(sections, function (baseSelector, section) {
                     if (settings[section]) {
-                        params = geoapp.parseQueryString(settings[section]);
+                        var params = geoapp.parseQueryString(settings[section]);
                         _.each(params, function (value, id) {
                             try {
                                 if (value !== '' && value !== undefined) {

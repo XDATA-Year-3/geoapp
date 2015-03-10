@@ -34,6 +34,8 @@ geoapp.Map = function (arg) {
         m_animationData,
         m_animTimer,
         m_baseUrl,
+        m_pickupColor = geo.util.convertColor('#0000FF'),
+        m_dropoffColor = geo.util.convertColor('#FFFF00'),
         m_verbose = 1;
 
     this.maximumMapPoints = 300000;
@@ -230,94 +232,19 @@ geoapp.Map = function (arg) {
                 animStartStep = m_animationData.step;
             }
             m_animationData = null;
-            if (params['display-type'] !== 'vector') {
-                data.numPoints = Math.min(data.data.length,
-                                          this.maximumMapPoints);
-                data.numLines = 0;
-                if (params['display-type'] === 'dropoff') {
-                    data.x_column = data.columns.dropoff_longitude;
-                    data.y_column = data.columns.dropoff_latitude;
-                } else {
-                    data.x_column = data.columns.pickup_longitude;
-                    data.y_column = data.columns.pickup_latitude;
-                }
-                var pointData = data.data;
-                if (pointData.lengh > this.maximumMapPoints) {
-                    pointData = data.data.slice(0, this.maximumMapPoints);
-                }
-                m_geoPoints.data(pointData)
-                    .style({
-                        fillColor: 'black',
-                        fillOpacity: params.opacity,
-                        stroke: false,
-                        radius: 5
-                    })
-                    .position(function (d) {
-                        return {
-                            x: d[data.x_column],
-                            y: d[data.y_column]
-                        };
-                    });
-            } else {
-                m_geoPoints.data([]);
-            }
-            if (params['display-type'] === 'vector') {
-                data.numPoints = 0;
-                data.numLines = Math.min(data.data.length,
-                                         this.maximumVectors);
-                if (!data.x1_column) {
-                    data.x1_column = data.columns.pickup_longitude;
-                    data.y1_column = data.columns.pickup_latitude;
-                    data.x2_column = data.columns.dropoff_longitude;
-                    data.y2_column = data.columns.dropoff_latitude;
-                }
-                var x1, y1, x2, y2, item;
-                for (var i = 0; i < data.data.length; i += 1) {
-                    item = data.data[i];
-                    x1 = item[data.x1_column];
-                    y1 = item[data.y1_column];
-                    x2 = item[data.x2_column];
-                    y2 = item[data.y2_column];
-                    if (x1 < -80 || x1 > -60 || y1 < 30 || y1 > 50 ||
-                            x2 < -80 || x2 > -60 || y2 < 30 || y2 > 50) {
-                        item.hide = true;
-                    }
-                }
-                var lineRecord = [{
-                    x_column: data.x1_column,
-                    y_column: data.y1_column,
-                    strokeColor: geo.util.convertColor('#0000FF')
-                }, {
-                    x_column: data.x2_column,
-                    y_column: data.y2_column,
-                    strokeColor: geo.util.convertColor('#FFFF00')
-                }];
-                var lineData = data.data;
-                if (lineData.lengh > this.maximumVectors) {
-                    lineData = data.data.slice(0, this.maximumVectors);
-                }
-                m_geoLines.data(lineData)
-                    .line(function () {
-                        return lineRecord;
-                    })
-                    .position(function (d, didx, item, iidx) {
-                        var dat = lineData[iidx];
-                        return {
-                            x: dat[d.x_column],
-                            y: dat[d.y_column]
-                        };
-                    })
-                    .style({
-                        strokeColor: function (d) {
-                            return d.strokeColor;
-                        },
-                        strokeWidth: 5,
-                        strokeOpacity: function (d, didx, item, iidx) {
-                            return lineData[iidx].hide ? -1 : params.opacity;
-                        }
-                    });
-            } else {
-                m_geoLines.data([]);
+            switch (params['display-type']) {
+                case 'both':
+                    this.setMapDisplayToBothPoints();
+                    break;
+                case 'dropoff':
+                    this.setMapDisplayToPoints(params['display-type']);
+                    break;
+                case 'vector':
+                    this.setMapDisplayToVectors();
+                    break;
+                default:
+                    this.setMapDisplayToPoints('pickup');
+                    break;
             }
         }
         var loadTime = new Date().getTime();
@@ -334,6 +261,148 @@ geoapp.Map = function (arg) {
                 ' total ' + (animTime - startTime));
         }
         return results;
+    };
+
+    /* Set the map to display pickup or dropoff points.
+     *
+     * @param displayType: either 'pickup' or 'dropoff'
+     */
+    this.setMapDisplayToPoints = function (displayType) {
+        var data = m_mapData, params = m_mapParams;
+
+        data.numPoints = Math.min(data.data.length, this.maximumMapPoints);
+        data.numLines = 0;
+        if (displayType === 'dropoff') {
+            data.x_column = data.columns.dropoff_longitude;
+            data.y_column = data.columns.dropoff_latitude;
+        } else {
+            data.x_column = data.columns.pickup_longitude;
+            data.y_column = data.columns.pickup_latitude;
+        }
+        var pointData = data.data;
+        if (pointData.length > this.maximumMapPoints) {
+            pointData = data.data.slice(0, this.maximumMapPoints);
+        }
+        m_geoPoints.data(pointData)
+            .style({
+                fillColor: 'black',
+                fillOpacity: params.opacity,
+                stroke: false,
+                radius: 5
+            })
+            .position(function (d) {
+                return {
+                    x: d[data.x_column],
+                    y: d[data.y_column]
+                };
+            });
+        m_geoLines.data([]);
+    };
+
+    /* Set the map to display pickup to dropoff vectors.
+     */
+    this.setMapDisplayToVectors = function () {
+        var data = m_mapData, params = m_mapParams,
+            x1, y1, x2, y2, item;
+
+        data.numPoints = 0;
+        data.numLines = Math.min(data.data.length, this.maximumVectors);
+        data.x1_column = data.columns.pickup_longitude;
+        data.y1_column = data.columns.pickup_latitude;
+        data.x2_column = data.columns.dropoff_longitude;
+        data.y2_column = data.columns.dropoff_latitude;
+        for (var i = 0; i < data.data.length; i += 1) {
+            item = data.data[i];
+            x1 = item[data.x1_column];
+            y1 = item[data.y1_column];
+            x2 = item[data.x2_column];
+            y2 = item[data.y2_column];
+            if (x1 < -80 || x1 > -60 || y1 < 30 || y1 > 50 ||
+                    x2 < -80 || x2 > -60 || y2 < 30 || y2 > 50) {
+                item.hide = true;
+            }
+        }
+        var lineRecord = [{
+            x_column: data.x1_column,
+            y_column: data.y1_column,
+            strokeColor: m_pickupColor
+        }, {
+            x_column: data.x2_column,
+            y_column: data.y2_column,
+            strokeColor: m_dropoffColor
+        }];
+        var lineData = data.data;
+        if (lineData.length > this.maximumVectors) {
+            lineData = data.data.slice(0, this.maximumVectors);
+        }
+
+        m_geoLines.data(lineData)
+            .line(function () {
+                return lineRecord;
+            })
+            .position(function (d, didx, item, iidx) {
+                var dat = lineData[iidx];
+                return {
+                    x: dat[d.x_column],
+                    y: dat[d.y_column]
+                };
+            })
+            .style({
+                strokeColor: function (d) {
+                    return d.strokeColor;
+                },
+                strokeWidth: 5,
+                strokeOpacity: function (d, didx, item, iidx) {
+                    return lineData[iidx].hide ? -1 : params.opacity;
+                }
+            });
+        m_geoPoints.data([]);
+    };
+
+    /* Set the map to display pickup AND dropoff points.
+     */
+    this.setMapDisplayToBothPoints = function () {
+        var data = m_mapData, params = m_mapParams, pointData = data.data,
+            i;
+
+        data.numPoints = Math.min(data.data.length, this.maximumMapPoints) * 2;
+        data.numLines = 0;
+
+        data.x1_column = data.columns.pickup_longitude;
+        data.y1_column = data.columns.pickup_latitude;
+        data.x2_column = data.columns.dropoff_longitude;
+        data.y2_column = data.columns.dropoff_latitude;
+        var pointArray = new Array(data.numPoints);
+        for (i = 0; i < pointArray.length; i += 1) {
+            pointArray[i] = i;
+        }
+        m_geoPoints.data(pointArray)
+            .style({
+                fillColor: function (d) {
+                    /*jshint bitwise: false */
+                    return (!(d & 1)) ? m_pickupColor : m_dropoffColor;
+                },
+                fillOpacity: params.opacity,
+                stroke: false,
+                radius: 5
+            })
+            .position(function (d) {
+                /*jshint bitwise: false */
+                var i = d >> 1;
+                /*jshint bitwise: false */
+                if (!(d & 1)) {
+                    return {
+                        x: pointData[i][data.x1_column],
+                        y: pointData[i][data.y1_column]
+                    };
+                } else {
+                    return {
+                        x: pointData[i][data.x2_column],
+                        y: pointData[i][data.y2_column]
+                    };
+                }
+            });
+        m_geoLines.data([]);
     };
 
     /* Redraw the map, but not too often.  When we redraw the map, set a timer
@@ -424,6 +493,9 @@ geoapp.Map = function (arg) {
         }
         var data = m_mapData.data;
         var dateColumn = m_mapData.columns.pickup_datetime;
+        if (m_mapParams['display-type'] === 'dropoff') {
+            dateColumn = m_mapData.columns.dropoff_datetime;
+        }
         var steps = parseInt(options['cycle-steps'] || 1);
         var substeps = parseInt(options['cycle-substeps'] || 1);
         var numBins = steps * substeps;
@@ -494,9 +566,28 @@ geoapp.Map = function (arg) {
             params.bins.push(bin);
             binStart = binEnd;
         }
-        for (i = 0; i < data.length; i += 1) {
-            params.dataBin[i] = parseInt(
-                ((moment(data[i][dateColumn]) - start) % range) / binWidth);
+        switch (m_mapParams['display-type']) {
+            case 'both':
+                var dateColumn2 = m_mapData.columns.dropoff_datetime;
+                for (i = 0; i < m_mapData.numPoints; i += 1) {
+                    /*jshint bitwise: false */
+                    params.dataBin[i] = parseInt(((
+                        data[i >> 1][(!(i & 1)) ? dateColumn : dateColumn2] -
+                                     start) % range) / binWidth);
+                }
+                break;
+            case 'vector':
+                for (i = 0; i < m_mapData.numLines; i += 1) {
+                    params.dataBin[i] = parseInt(((
+                        data[i][dateColumn] - start) % range) / binWidth);
+                }
+                break;
+            default:
+                for (i = 0; i < m_mapData.numPoints; i += 1) {
+                    params.dataBin[i] = parseInt(((
+                        data[i][dateColumn] - start) % range) / binWidth);
+                }
+                break;
         }
         m_animationData = params;
     };
@@ -506,6 +597,7 @@ geoapp.Map = function (arg) {
      */
     this.animateFrame = function () {
         var view = this, vpf, bin, vis, i, j, v, opac;
+
         if (!m_mapData || !m_mapData.data || !m_animationData) {
             return;
         }

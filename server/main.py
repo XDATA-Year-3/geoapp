@@ -57,6 +57,7 @@ class GeoApp():
     def start(self):
         cherrypy.config['database']['uri'] = 'mongodb://localhost:27017/geoapp'
         cherrypy.config['server.socket_port'] = 8001
+        cherrypy.engine.timeout_monitor.unsubscribe()
         self.root = GeoAppRoot()
         # Create the girder services and place them at /girder
         self.root.girder, appconf = girder.utility.server.configureServer()
