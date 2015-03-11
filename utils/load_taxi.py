@@ -30,13 +30,7 @@ import tempfile
 import time
 import zipfile
 
-win32file = None
-if sys.platform == 'win32':
-    try:
-        import win32file
-    except Exception:
-        pass
-
+import fileutil
 
 DBName = 'taxi'
 
@@ -193,7 +187,7 @@ def dataToFiles(fileData, opts={}, row=None):
         for f in xrange(numFiles):
             (fd, filename) = tempfile.mkstemp('.json')
             os.close(fd)
-            fptr = OpenWithoutCaching(filename, 'wb')
+            fptr = fileutil.OpenWithoutCaching(filename, 'wb')
             files.append({'name': filename, 'fptr': fptr})
         fileData['numFiles'] = numFiles
         fileData['files'] = files
@@ -340,10 +334,11 @@ def importFiles(fileData, opts={}, destDB=None):
         (fd, filename) = tempfile.mkstemp('combined.json')
         print filename
         os.close(fd)
-        fptr = OpenWithoutCaching(filename, 'wb')
+        fptr = fileutil.OpenWithoutCaching(filename, 'wb')
         processed = 0
         for f in files:
-            data = OpenWithoutCaching(f['name']).read().strip().split('\n')
+            data = fileutil.OpenWithoutCaching(
+                f['name']).read().strip().split('\n')
             os.unlink(f['name'])
             random.shuffle(data)
             for line in data:
@@ -525,73 +520,6 @@ def readFiles(opts={}):
         dcount, rcount, time.time() - starttime))
     sys.stdout.flush()
     importFiles(fileData, opts)
-
-
-class OpenWithoutCaching():
-    """
-    This mimics enough of the python file class to work with continuous read or
-    written files.  It marks the file to avoid caching in the operating system,
-    which speeds up access as it doesn't need to keep it in memory.  Use in
-    place of open(name[, mode]).
-    """
-    def __init__(self, name, mode='rb'):
-        self.fptr = None
-        self.fileType = 'python'
-        if sys.platform == 'win32' and win32file:
-            if 'w' in mode or 'a' in mode:
-                self.fptr = win32file.CreateFile(
-                    name, win32file.GENERIC_WRITE, 0, None,
-                    win32file.CREATE_ALWAYS,
-                    win32file.FILE_FLAG_SEQUENTIAL_SCAN, 0)
-            else:
-                self.fptr = win32file.CreateFile(
-                    name, win32file.GENERIC_READ, 0, None,
-                    win32file.OPEN_EXISTING,
-                    win32file.FILE_FLAG_SEQUENTIAL_SCAN, 0)
-            self.fileType = 'win32'
-        else:
-            self.fptr = open(name, mode)
-            # if linux, add fadvise here
-
-    def __del__(self):
-        self.close()
-
-    def close(self):
-        if not self.fptr:
-            return
-        if self.fileType == 'win32':
-            self.fptr.Close()
-        else:
-            self.fptr.close()
-        self.fptr = None
-
-    def read(self, readlen=None):
-        if self.fileType == 'win32':
-            if readlen is None:
-                data = []
-                while True:
-                    rc, buffer = win32file.ReadFile(self.fptr, 1024 * 1024)
-                    if rc or not len(buffer):
-                        break
-                    data.append(buffer)
-                return "".join(data)
-            else:
-                return win32file.ReadFile(self.fptr, readlen)
-        else:
-            return self.fptr.read(readlen)
-
-    def write(self, data):
-        if self.fileType == 'win32':
-            win32file.WriteFile(self.fptr, data)
-        else:
-            return self.fptr.write(data)
-
-    def tell(self):
-        if self.fileType == 'win32':
-            return win32file.SetFilePointer(self.fptr, 0,
-                                            win32file.FILE_CURRENT)
-        else:
-            return self.fptr.tell()
 
 
 if __name__ == '__main__':
