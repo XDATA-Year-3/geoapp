@@ -28,8 +28,10 @@ def start_db(db):
     fileutil.clearFileCache(False)
     if db=='m2':
         os.system("c:\\mongodb\\start.bat 2>NUL >NUL")
+        time.sleep(5)
     elif db=='m3':
         os.system("c:\\mongodb3\\start.bat 2>NUL >NUL")
+        time.sleep(5)
     elif db=='pg':
         os.system("net start postgresql-x64-9.4 2>NUL >NUL")
 
