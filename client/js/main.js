@@ -18,6 +18,8 @@ var app;
 
 moment.suppressDeprecationWarnings = true;
 
+geoapp.version = '0.1';
+
 geoapp.App = geoapp.View.extend({
     initialize: function (settings) {
         geoapp.restRequest({
@@ -51,7 +53,10 @@ geoapp.App = geoapp.View.extend({
 
         settings = settings || {};
 
-        if (view) {
+        if (view && this.bodyView instanceof view &&
+            this.bodyView.reinitialize) {
+            this.bodyView.reinitialize(settings);
+        } else if (view) {
             if (this.bodyView) {
                 this.bodyView.destroy();
             }
@@ -138,7 +143,7 @@ $(function () {
     girder.apiRoot = 'api/v1';
     geoapp.map = geoapp.Map();
 
-    app = new geoapp.App({el: 'body', parentView: null});
+    geoapp.app = new geoapp.App({el: 'body', parentView: null});
 });
 
 /* TODO:

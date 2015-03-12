@@ -59,6 +59,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 $('#ga-speed-test-results').addClass('hidden');
             }
         });
+        geoapp.View.prototype.initialize.apply(this, arguments);
     },
 
     /* Render the view.  This also prepares various controls if this is the

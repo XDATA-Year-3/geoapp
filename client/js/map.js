@@ -181,6 +181,7 @@ geoapp.Map = function (arg) {
                 options.params.offset += resp.datacount;
                 this.replaceMapData(options);
             }
+            geoapp.activityLog.logActivity('load_data', {complete: !callNext});
         }, this));
         xhr.girder = {mapdata: true};
     };
@@ -805,6 +806,14 @@ geoapp.Map = function (arg) {
             if (m_animationData.playState === 'step' ||
                     m_animationData.playState === 'stepback') {
                 m_animationData.playState = 'step' + lastStep;
+            }
+            if (m_animationData.playState != curPlayState &&
+                (!curPlayState || !m_animationData ||
+                curPlayState.substr(0, 4) !== 'step' ||
+                m_animationData.playState.substr(0, 4) !== 'step')) {
+                geoapp.activityLog.logSystem('Animation action', {
+                    action: action, stepnum: stepnum
+                });
             }
             return lastStep;
         }
