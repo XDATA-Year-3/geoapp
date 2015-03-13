@@ -93,6 +93,12 @@ module.exports = function (grunt) {
                 cwd: 'node_modules/bootstrap/dist/fonts',
                 src: ['**/*'],
                 dest: 'built/lib/bootstrap/fonts'
+            },
+            optional: {
+                expand: true,
+                cwd: 'client/optional/static',
+                src: ['**/*.js'],
+                dest: 'built'
             }
         },
 
@@ -176,6 +182,10 @@ module.exports = function (grunt) {
                         'node_modules/daterangepicker/daterangepicker.js',
                         /* bootstrap-slider */
                         'node_modules/bootstrap-slider/js/bootstrap-slider.js'
+                    ],
+                    'built/optional.min.js': [
+                        /* optional libraries */
+                        'client/optional/js/**/*.js'
                     ],
                     'built/testing.min.js': [
                         /*
@@ -265,7 +275,8 @@ module.exports = function (grunt) {
     grunt.registerTask('init', [
         'uglify:libs',
         'cssmin:libs',
-        'copy:libs'
+        'copy:libs',
+        'copy:optional'
 //        'shell:readServerConfig'
     ]);
     grunt.registerTask('docs', ['shell:sphinx']);

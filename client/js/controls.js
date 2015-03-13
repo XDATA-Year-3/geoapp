@@ -50,6 +50,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
     },
 
+    /* This is a dictionary of control sections used in routing. */
+    controlSections: {
+        filter: '#ga-filter-settings #',
+        display: '#ga-display-settings #',
+        anim: '#ga-anim-settings #'
+    },
+
     /* Initialize the view.
      *
      * @params settings: the initial settings.  This can include defaults for
@@ -60,6 +67,31 @@ geoapp.views.ControlsView = geoapp.View.extend({
         girder.cancelRestRequests('fetch');
         this.firstRender = true;
         this.render();
+        geoapp.View.prototype.initialize.apply(this, arguments);
+    },
+
+    /* Reinitialize the view.  This is called if we route to this view while
+     * already showing it.  This ensures that the controls are appropriately
+     * populated and only reloads things that have changed.
+     *
+     * @params settings: the initial settings.  This can include defaults for
+     *                   the different control groups.
+     */
+    reinitialize: function (settings) {
+        var view = this, update = {};
+        _.each(view.controlSections, function (baseSelector, section) {
+            var current = view.updateSection(section, false, true);
+            var params = geoapp.parseQueryString(settings[section] || '');
+            _.each(current, function (value, id) {
+                if (value !== (params[id] || '')) {
+                    try {
+                        $(baseSelector + id).val(params[id] || '');
+                        update[section] = true;
+                    } catch (err) { }
+                }
+            });
+        });
+        view.updateView(false, update);
     },
 
     /* Render the view.  This also prepares various controls if this is the
@@ -73,12 +105,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             if (view.initialSettings && !view.usedInitialSettings) {
                 settings = view.initialSettings;
                 view.usedInitialSettings = true;
-                var sections = {
-                    filter: '#ga-filter-settings #',
-                    display: '#ga-display-settings #',
-                    anim: '#ga-anim-settings #'
-                };
-                _.each(sections, function (baseSelector, section) {
+                _.each(view.controlSections, function (baseSelector, section) {
                     if (settings[section]) {
                         var params = geoapp.parseQueryString(settings[section]);
                         _.each(params, function (value, id) {
@@ -227,23 +254,29 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * and, if appropriate, updates the map or other details.
      *
      * @param updateNav: true to update the navigation route.
-     * @param updateSection: the section to update.  If not specified, update
-     *                       all sections.
+     * @param updateSection: falsy to update all sections, a string to update
+     *                       just one section, or an object with the keys which
+     *                       have thuthy values are the sections to update.
      */
     updateView: function (updateNav, updateSection) {
         var results = {};
-        if (!updateSection || updateSection === 'filter') {
+        if (updateSection && $.type(updateSection) === 'string') {
+            var sections = {};
+            sections[updateSection] = true;
+            updateSection = sections;
+        }
+        if (!updateSection || updateSection.filter) {
             results.filter = this.updateSection('filter', updateNav);
         }
-        if (!updateSection || updateSection === 'display') {
+        if (!updateSection || updateSection.display) {
             results.display = this.updateSection('display', updateNav);
         }
-        if (!updateSection || updateSection === 'anim') {
+        if (!updateSection || updateSection.anim) {
             results.anim = this.updateAnimValues(updateNav);
         }
         if (results.filter) {
             if (!results.display) {
-                results.display = this.updateSection('filter', false);
+                results.display = this.updateSection('display', false);
             }
             geoapp.map.replaceMapData(
                 {params: results.filter, display: results.display});
@@ -260,9 +293,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * @param section: the name of the section to update.  One of 'filter',
      *                 'anim', or 'display'.
      * @param updateNav: true to update the navigation route.
-     * @return: the new map filter parameters.
+     * @param returnVav: if true, return all of the navigation fields, even
+     *                   blank ones.
+     * @return: the new map filter parameters or the complete navigation
+     *          fields.
      */
-    updateSection: function (section, updateNav) {
+    updateSection: function (section, updateNav, returnNav) {
         var view = this;
         var selector = 'ga-' + section + '-settings';
         var params = {};
@@ -270,13 +306,16 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#' + selector + ' [taxifield]').each(function () {
             var elem = $(this);
             var value = elem.val();
-            if (value !== '') {
+            if (value !== '' || returnNav) {
                 navFields[elem.attr('id')] = value;
             }
             view.getTaxiValue(elem, params);
         });
         if (updateNav) {
             geoapp.updateNavigation('mapview', section, navFields);
+        }
+        if (returnNav) {
+            return navFields;
         }
         return params;
     },
