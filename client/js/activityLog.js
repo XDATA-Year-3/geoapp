@@ -33,6 +33,7 @@
         input_change:    {wf: 'WF_EXPLORE', desc: 'text input field changed'},
         link_click:      {wf: 'WF_EXPLORE', desc: 'click on a link'},
         load_data:       {wf: 'WF_GETDATA', desc: 'loaded new data'},
+        map_moved:       {wf: 'WF_EXPLORE', desc: 'map pan, zoom, or resize'},
         navigate:        {wf: 'WF_EXPLORE', desc: 'browser navigation change'},
         select_change:   {wf: 'WF_EXPLORE', desc: 'select box changed'},
         show_tooltip:    {wf: 'WF_EXPLORE', desc: 'show tooltip'},
@@ -44,30 +45,6 @@
             name: 'slide_stop'
         }
     };
-
-    if (window.activityLogger) {
-        /* jshint -W055 */
-        logger = new activityLogger($('body').attr('staticRoot') +
-                                    '/draper.activity_worker-2.1.1.js')
-            .testing(false)
-            .echo(false);
-        logger.registerActivityLogger('http://parakon:9000', 'geoapp',
-                                      geoapp.version);
-        var origInit = geoapp.View.prototype.initialize;
-        geoapp.View.prototype.initialize = function () {
-            origInit.apply(this, arguments);
-            geoapp.activityLog.logControls($(this.el).children(),
-                                           $(this.el).children().attr('id'));
-        };
-        geoapp.router.on('route', function (route, params) {
-            if (params.length) {
-                params = params.slice(-1)[0];
-            }
-            geoapp.activityLog.logActivity('navigate', {
-                route: route, params: params
-            });
-        });
-    }
 
     geoapp.activityLog = {
         /* Log user activity with appropriate workflow information.
@@ -183,4 +160,38 @@
             /* Add pan and zoom support here */
         }
     };
+
+    if (window.activityLogger) {
+        /* jshint -W055 */
+        logger = new activityLogger($('body').attr('staticRoot') +
+                                    '/draper.activity_worker-2.1.1.js')
+            .testing(false)
+            .echo(false);
+        logger.registerActivityLogger('http://parakon:9000', 'geoapp',
+                                      geoapp.version);
+        var origInit = geoapp.View.prototype.initialize;
+        geoapp.View.prototype.initialize = function () {
+            origInit.apply(this, arguments);
+            geoapp.activityLog.logControls($(this.el).children(),
+                                           $(this.el).children().attr('id'));
+        };
+        geoapp.router.on('route', function (route, params) {
+            if (params.length) {
+                params = params.slice(-1)[0];
+            }
+            geoapp.activityLog.logActivity('navigate', {
+                route: route, params: params
+            });
+        });
+        geoapp.activityLog.logSystem('Starting application', {
+            userAgent: navigator.userAgent,
+            browserData: {
+                screenSize: {width: screen.width, height: screen.height},
+                windowSize: {
+                    width: $(window).width(),
+                    height: $(window).height()
+                }
+            }
+        });
+    }
 })();

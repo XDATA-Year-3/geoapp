@@ -16,9 +16,11 @@
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-controls-filter': function () {
+            $('#ga-controls-filter').removeClass('btn-needed');
             this.updateView(true, 'filter');
         },
         'click #ga-anim-update': function () {
+            $('#ga-anim-update').removeClass('btn-needed');
             if ($('#ga-play').val() === 'stop') {
                 $('#ga-play').val('play');
             }
@@ -26,6 +28,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'change #ga-display-settings select': function () {
             this.updateView(true, 'display');
+        },
+        'click .ga-place': function (evt) {
+            var place = $(evt.currentTarget).attr('data-place');
+            if (geoapp.placeList[place]) {
+                geoapp.map.fitBounds(geoapp.placeList[place], 1000);
+                geoapp.map.mapMovedEvent(null, true);
+            }
         },
         'click #ga-play': function () {
             this.animationAction('playpause');
@@ -47,6 +56,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
+        },
+        'change #ga-filter-settings input[type="text"]:visible,#ga-filter-settings select:visible': function (evt) {
+            $('#ga-controls-filter').addClass('btn-needed');
+        },
+        'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function (evt) {
+            $('#ga-anim-update').addClass('btn-needed');
         }
     },
 
@@ -68,6 +83,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         this.firstRender = true;
         this.render();
         geoapp.View.prototype.initialize.apply(this, arguments);
+        geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 0);
     },
 
     /* Reinitialize the view.  This is called if we route to this view while
@@ -92,6 +108,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
+        geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 1000);
     },
 
     /* Render the view.  This also prepares various controls if this is the
@@ -103,7 +120,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         )).on('ready.geoapp.view', function () {
             update = false;
             if (view.initialSettings && !view.usedInitialSettings) {
-                settings = view.initialSettings;
+                var settings = view.initialSettings;
                 view.usedInitialSettings = true;
                 _.each(view.controlSections, function (baseSelector, section) {
                     if (settings[section]) {
@@ -421,6 +438,21 @@ geoapp.views.ControlsView = geoapp.View.extend({
             'mapview', 'anim', {'ga-play': playState}, true);
     }
 });
+
+geoapp.placeList = {
+    manhattan: {
+        x0: -74.0276489,
+        y0:  40.8304859,
+        x1: -73.9161453,
+        y1:  40.6877773
+    },
+    timessq: {
+        x0: -74.0048904,
+        y0:  40.7687378,
+        x1: -73.9708862,
+        y1:  40.7435085
+    }
+};
 
 /* Given an appropriate route, redirect to the ControlsView.
  *
