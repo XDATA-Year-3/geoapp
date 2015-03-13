@@ -1,6 +1,8 @@
 Databases
 ---------
 
+You may just care about the `Conclusions`_.
+
 For testing purposes, I have loaded the taxi data into several different
 databases.  For speedier testing, a randomly-sampled 1/12 subset of the data
 has been tested in a wide variety of databases.  The full data set has been put
@@ -68,10 +70,102 @@ PostgreSQL
   **M2D**, converted to a postgresql table and using pgdb.
 
 * **Postgres 1/12 Shuffled, pgdb (PyC)** - This is the exact dataset loaded for
-  **M2C**, converted to a postgresql table and using psycopg2,
+  **M2C**, converted to a postgresql table and using psycopg2.
 
 * **Postgres Full Shuffled, pgdb (PyD)** - This is the exact dataset loaded for
   **M2D**, converted to a postgresql table and using psycopg2.
+
+
+Test Queries
+============
+
+Each test query was requested through the ``geoapp`` taxi interface.  Times
+include both the database query and the handling of the data via python.  The
+python program uses standard libraries for mongo (``pymongo``) and postgres
+(either ``pgdb`` or ``psycopg2``), then converts the response to a json list of
+lists with the resultant data.
+
+For testing, I selected four typical queries:
+
+* **A Week in February** - This requests up to 300,000 records for the time
+  span between February 17, 2013 0:00 (inclusive) and February 24 0:00
+  (exclusive), sorted in a pseudo-random manner if there are more than 300,000
+  records so as to get a representative data set.  The query to the ``geoapp``
+  program is
+  ``/api/v1/taxi?offset=0&format=list&limit=300000&fields=pickup_datetime%2Cpickup_longitude%2Cpickup_latitude%2C&source=<database>&pickup_datetime_min=2013-2-17&pickup_datetime_max=2013-2-24``.
+
+  For the 1/12th set databases (M2A, M2B, M2C, M3C, PgC, PyC), this returns
+  297,107 records.
+
+  For the full data set databases (M2D, M3D, PgD, PyD), this returns 300,000
+  records out of a full set of 3,563,832.
+
+  The query used in Mongo is
+  ``{'pd': {'$gte': 1361059200000, '$lt': 1361664000000}}``, with projection
+  fields of ``{'px': 1, 'py': 1, 'pd': 1, '_id': 0}``, a sort of ``{_id: 1}``, and
+  a limit of 300,000.
+
+  The SQL used in Postgres is
+  ``SELECT pickup_datetime,pickup_longitude,pickup_latitude FROM trips WHERE true AND pickup_datetime>=1361059200000 AND pickup_datetime<1361664000000 ORDER BY _id ASC LIMIT 300000``.
+
+* **All of February** - This requests up to 300,000 records from all of the
+  data from February, sorted in a pseudo-random manner.  The query to the
+  ``geoapp`` program is
+  ``/api/v1/taxi?offset=0&format=list&limit=300000&fields=pickup_datetime%2Cpickup_longitude%2Cpickup_latitude%2C&source=<database>&pickup_datetime_min=2013-2-1&pickup_datetime_max=2013-3-1``.
+
+  For the 1/12th set databases (M2A, M2B, M2C, M3C, PgC, PyC), this returns
+  300,000 records out of a full set of 1,166,256.
+
+  For the full data set databases (M2D, M3D, PgD, PyD), this returns 300,000
+  records out of a full set of 13,990,176.
+
+  The query used in Mongo is
+  ``{'pd': {'$gte': 1359676800000, '$lt': 1362096000000}}``, with projection
+  fields of ``{'px': 1, 'py': 1, 'pd': 1, '_id': 0}``, a sort of ``{_id: 1}``, and
+  a limit of 300,000.
+
+  The SQL used in Postgres is
+  ``SELECT pickup_datetime,pickup_longitude,pickup_latitude FROM trips WHERE true AND pickup_datetime>=1359676800000 AND pickup_datetime<1362096000000 ORDER BY _id ASC LIMIT 300000``.
+
+* **Entire Data** - This requests 300,000 pseudo-random records from the
+  complete data set.  The query to the ``geoapp`` program is
+  ``/api/v1/taxi?offset=0&format=list&limit=300000&fields=pickup_datetime%2Cpickup_longitude%2Cpickup_latitude%2C&source=<database>``.
+
+  For the 1/12th set databases (M2A, M2B, M2C, M3C, PgC, PyC), this returns
+  300,000 records out of a full set of 14,434,412.
+
+  For the full data set databases (M2D, M3D, PgD, PyD), this returns 300,000
+  records out of a full set of 173,179,759.
+
+  The query used in Mongo is ``{}``, with projection fields of
+  ``{'px': 1, 'py': 1, 'pd': 1, '_id': 0}``, a sort of ``{_id: 1}``, and a limit of
+  300,000.
+  
+  The SQL used in Postgres is
+  ``SELECT pickup_datetime,pickup_longitude,pickup_latitude FROM trips WHERE true ORDER BY _id ASC LIMIT 300000``.
+
+* **Taxi Medallion 9Y64** - This requests up to the first 300,000 records for
+  all trips by the taxi with medallion "9Y64" sorted in a pseudo-random manner.
+  The query to the ``geoapp`` program is
+  ``/api/v1/taxi?offset=0&format=list&limit=300000&fields=pickup_datetime%2Cpickup_longitude%2Cpickup_latitude%2C&source=<database>&medallion=9Y64``.
+
+  For the 1/12th set databases (M2A, M2B, M2C, M3C, PgC, PyC), this returns
+  1,416 records.
+
+  For the full data set databases (M2D, M3D, PgD, PyD), this returns 17,182
+  records.
+
+  The query used in Mongo is ``{'m': u'9Y64'}``, with projection fields of
+  ``{'px': 1, 'py': 1, 'pd': 1, '_id': 0}``, a sort of ``{_id: 1}``, and a limit of
+  300,000.
+  
+  The SQL used in Postgres is
+  ``SELECT pickup_datetime,pickup_longitude,pickup_latitude FROM trips WHERE true AND medallion=9Y64 ORDER BY _id ASC LIMIT 300000``.
+
+For the M2B tests, an additional parameter of ``&sort=random`` was added to each
+query.  In this case, a sort of ``{r: 1}`` was used.  The M2A database did not
+have the ability to return data in a pseudo-random order.  In this case, a
+sort parameter for the ``pickup_datetime`` was used.
 
 
 Speed Comparison
@@ -86,18 +180,20 @@ system cache was flushed, and the service was restarted.
 
 Times are in seconds (lower is better).
 
-============ ===== ==== ==== ==== ==== ==== ====  ===== ===== ===== ====
-Test         State M2A  M2B  M2C  M3C  PgC  PyC   M2D   M3D   PgD   PyD
-============ ===== ==== ==== ==== ==== ==== ====  ===== ===== ===== ====
-Week in Feb. Cold  18.0 19.3  3.3  3.7 38.0 30.2  326.4 193.0  28.3 27.0
-"            Warm   5.0  3.0  3.1  4.0  5.7  5.0  101.6  99.9   8.8  8.0
-All of Feb.  Cold  29.8 39.3 99.5 47.1 12.9 12.0  719.4  85.1  13.7 12.6
-"            Warm   5.1 35.6 22.5 28.9  4.8  4.0   74.1  66.1   4.8  4.1
-Entire data  Cold  31.5  3.5 10.4  9.2  9.3  8.3   12.1  11.0   9.4  8.4
-"            Warm   4.9  3.5  3.0  3.3  3.3  2.6    3.0   3.4   3.3  2.5
-9Y64 Med.    Cold  31.0 12.9 13.8  8.4 13.6 13.3  106.1  96.2 103.9 92.4
-"            Warm   1.0  1.0  1.0  1.0  1.0  1.0    1.1   1.1   1.3  1.2
-============ ===== ==== ==== ==== ==== ==== ====  ===== ===== ===== ====
+============ ===== ==== ==== ==== ==== ==== ==== = ===== ===== ===== ====
+..                  1/12th Databases                Full Databases
+------------ ----- ----------------------------- - ----------------------
+Test         State M2A  M2B  M2C  M3C  PgC  PyC    M2D   M3D   PgD   PyD
+============ ===== ==== ==== ==== ==== ==== ==== = ===== ===== ===== ====
+Week in Feb. Cold  18.0 19.3  3.3  3.7 38.0 30.2   326.4 193.0  28.3 27.0
+..           Warm   5.0  3.0  3.1  4.0  5.7  5.0   101.6  99.9   8.8  8.0
+All of Feb.  Cold  29.8 39.3 99.5 47.1 12.9 12.0   719.4  85.1  13.7 12.6
+..           Warm   5.1 35.6 22.5 28.9  4.8  4.0    74.1  66.1   4.8  4.1
+Entire data  Cold  31.5  3.5 10.4  9.2  9.3  8.3    12.1  11.0   9.4  8.4
+..           Warm   4.9  3.5  3.0  3.3  3.3  2.6     3.0   3.4   3.3  2.5
+9Y64 Med.    Cold  31.0 12.9 13.8  8.4 13.6 13.3   106.1  96.2 103.9 92.4
+..           Warm   1.0  1.0  1.0  1.0  1.0  1.0     1.1   1.1   1.3  1.2
+============ ===== ==== ==== ==== ==== ==== ==== = ===== ===== ===== ====
 
 
 Memory Comparison
@@ -161,8 +257,43 @@ PgD         42.8 Gb
 ======== ==========
 
 
+Conclusions
+===========
+
+Based on these results, I have the following recommendations:
+
+* Store times as integers.  It is faster and saves data conversions.
+
+* For Postgres: use ``psycopg2`` rather than ``pgdb``.  ``pgdb`` has better
+  datatype handling, but ``psycopg2`` is faster.
+
+* For Mongo: use Mongo 3 with the WiredTiger datastore.  It is faster and uses
+  less space and memory than Mongo 2.
+
+* If you need pseudo-random data, ingest the data in the desired order rather
+  than using a separate field and index for randomization.
+
+* In general, if you have tabular data, use Postgres.  If you have data with no
+  consistent scheme, use Mongo.
+
+* Postgres is faster than Mongo 3.  The only exception to this is when queries
+  that are indexed have small complete result sets (not just the number of
+  records returned, but the total number without a limit).  Even in these
+  cases, Postgres is nearly as fast as Mongo, whereas Mongo is frequently
+  vastly slower than Postgres.
+
+As a reminder, the correct indices are crucial for database performance.
+
+
 Raw times
-=========
++++++++++
+
+This gives some idea of the variability of the tests.  For each cold test, all
+database services were stopped, the file system cache was dropped, and the
+appropriate database service was restarted.  For the warm tests, immediately
+after a cold test, the warm tests were run one after another.  All tests were
+run when no other programs were being actively used in the system, but ordinary
+background tasks still could occur.
 
 ========== =================== ===============================
 Test       Cold times          Warm times
