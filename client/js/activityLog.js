@@ -33,6 +33,7 @@
         input_change:    {wf: 'WF_EXPLORE', desc: 'text input field changed'},
         link_click:      {wf: 'WF_EXPLORE', desc: 'click on a link'},
         load_data:       {wf: 'WF_GETDATA', desc: 'loaded new data'},
+        navigate:        {wf: 'WF_EXPLORE', desc: 'browser navigation change'},
         select_change:   {wf: 'WF_EXPLORE', desc: 'select box changed'},
         show_tooltip:    {wf: 'WF_EXPLORE', desc: 'show tooltip'},
         slide:           {wf: 'WF_EXPLORE', desc: 'move a slider'},
@@ -58,6 +59,14 @@
             geoapp.activityLog.logControls($(this.el).children(),
                                            $(this.el).children().attr('id'));
         };
+        geoapp.router.on('route', function (route, params) {
+            if (params.length) {
+                params = params.slice(-1)[0];
+            }
+            geoapp.activityLog.logActivity('navigate', {
+                route: route, params: params
+            });
+        });
     }
 
     geoapp.activityLog = {
