@@ -3,12 +3,16 @@ Databases
 
 You may just care about the `Conclusions`_.
 
+For the XDATA project, I needed to work with the New York City 2013 Taxi trip
+data.  This data set consists of 173,179,759 records, each of which have 21
+distinct properties.
+
 For testing purposes, I have loaded the taxi data into several different
 databases.  For speedier testing, a randomly-sampled 1/12 subset of the data
-has been tested in a wide variety of databases.  The full data set has been put
-into a smaller number of databases.  For Mongo and Postgres, the databaases are
-on a Windows computer.  The taxi program is running on an Ubuntu virtualbox
-hosted on that Windows computer.
+(reducing the size to 14,434,412 records) has been tested in a wide variety of
+databases.  The full data set has been put into a smaller number of databases.
+For Mongo and Postgres, the databases are on a Windows computer.  The taxi
+program is running on an Ubuntu virtualbox hosted on that Windows computer.
 
 Mongo 2.6
 =========
