@@ -280,7 +280,8 @@ Based on these results, I have the following recommendations:
 * In general, if you have tabular data, use Postgres.  If you have data with no
   consistent scheme, use Mongo.
 
-* Postgres is faster than Mongo 3.  The only exception to this is when queries
+* Postgres is faster than Mongo 3 on tabular datasets up to at least this scale.
+  The only exception to this is when queries
   that are indexed have small complete result sets (not just the number of
   records returned, but the total number without a limit).  Even in these
   cases, Postgres is nearly as fast as Mongo, whereas Mongo is frequently
