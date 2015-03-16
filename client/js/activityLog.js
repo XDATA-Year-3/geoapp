@@ -157,7 +157,6 @@
                         value: $(this).val()
                     });
                 });
-            /* Add pan and zoom support here */
         }
     };
 
