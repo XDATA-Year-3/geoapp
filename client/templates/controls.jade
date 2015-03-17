@@ -49,17 +49,12 @@
               type="text", placeholder="# - #",
               title="Number of passengers",
               taxifield="passenger_count", taxitype="intRange")
-          //
-            .form-group
-              label(for="ga-random") Random Selector
-              input#ga-random.form-control.input-sm(
-                type="text", placeholder="#.### - #.###",
-                title="Random Selector",
-                taxifield="random", taxitype="floatRange")
           .form-group
             button#ga-controls-filter.btn.btn-default.btn-sm
               i.icon-ok
               |  Filter
+            #ga-map-loading.hidden
+              i.icon-spin1.animate-spin
   .panel-group#ga-display-settings-panel
     .panel.panel-default
       .panel-heading
@@ -86,6 +81,15 @@
               option(value="mapquest") MapQuest tiles
               option(value="openstreetmap") OpenStreetMap
               option(value="tonerlite") Stamen Toner Lite
+          .form-group
+            button#ga-place-manhattan.btn.btn-sm.ga-place(
+                data-place="manhattan", title="Show all of Manhattan") 
+              i.icon-target
+              |  Manhattan
+            button#ga-place-timessq.btn.btn-sm.ga-place(
+                data-place="timessq", title="Show Times Square")
+              i.icon-target
+              |  Times Sq.
   .panel-group#ga-anim-settings-panel
     .panel.panel-default
       .panel-heading

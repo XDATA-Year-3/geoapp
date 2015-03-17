@@ -15,6 +15,7 @@
 
 var geoapp = girder;
 var app;
+var m_lastUpdateNavigationSection;
 
 moment.suppressDeprecationWarnings = true;
 
@@ -100,8 +101,11 @@ geoapp.router.off('route').on('route', function (route, params) {
  * @param params: a dictionary to encode.
  * @param modify: if true, modify existing parameters.  Otherwise, the
  *                specified section is replaced with the new parameters.
+ * @param combine: if true and the last call to updateNavigation was the same
+ *                 section, replace the previous navigation rather than adding
+ *                 to the history.
  */
-geoapp.updateNavigation = function (base, section, params, modify) {
+geoapp.updateNavigation = function (base, section, params, modify, combine) {
     var curRoute = Backbone.history.fragment || '',
         routeParts = geoapp.dialogs.splitRoute(curRoute),
         queryString = geoapp.parseQueryString(routeParts.name);
@@ -122,7 +126,11 @@ geoapp.updateNavigation = function (base, section, params, modify) {
     if (unparsedQueryString.length > 0) {
         unparsedQueryString = '?' + unparsedQueryString;
     }
-    geoapp.router.navigate(base + unparsedQueryString);
+    if (section !== m_lastUpdateNavigationSection) {
+        combine = false;
+    }
+    m_lastUpdateNavigationSection = section;
+    geoapp.router.navigate(base + unparsedQueryString, {replace: combine});
 };
 
 /* Parse a JSON string to an object, returning an empty object on any error.

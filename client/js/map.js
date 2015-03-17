@@ -28,14 +28,16 @@ geoapp.Map = function (arg) {
         m_mapData,
         m_mapParams,
         m_lastQueryOptions,
-        m_drawTimer,
-        m_drawQueued,
+        m_drawTimer, m_drawQueued,
+        m_panTimer, m_panQueued, m_panIgnore,
         m_animationOptions = {},
         m_animationData,
         m_animTimer,
         m_baseUrl,
         m_pickupColor = geo.util.convertColor('#0000FF'),
         m_dropoffColor = geo.util.convertColor('#FFFF00'),
+        m_defaultCenter = {x: -73.978165, y: 40.757977},
+        m_defaultZoom = 10,
         m_verbose = 1;
 
     this.maximumMapPoints = 300000;
@@ -58,9 +60,9 @@ geoapp.Map = function (arg) {
      * @param data: the data to draw on the map (see above).
      * @param params: a set of parameters that affect the map but not what data
      *                was loaded.
-     * @param display: a set of parameters that
      */
     this.showMap = function (data, params) {
+        var view = this;
         data = data || [];
         var displayInfo = this.updateMapParams(params, false);
 
@@ -70,16 +72,16 @@ geoapp.Map = function (arg) {
             $('#ga-main-map').empty();
             m_geoMap = geo.map({
                 node: '#ga-main-map',
-                center: {
-                    x: -73.978165,
-                    y: 40.757977
-                },
-                zoom: 10
+                center: m_defaultCenter,
+                zoom: m_defaultZoom
             });
             m_mapLayer = m_geoMap.createLayer('osm', {
                 baseUrl: displayInfo.baseUrl,
                 renderer: 'vgl'
-            });
+            })
+            .geoOn(geo.event.pan, function (e) { view.mapMovedEvent(e); })
+            .geoOn(geo.event.resize, function (e) { view.mapMovedEvent(e); })
+            .geoOn(geo.event.zoom, function (e) { view.mapMovedEvent(e); });
             geoLayer = m_geoMap.createLayer('feature', {
                 renderer: 'vgl'
             });
@@ -97,6 +99,113 @@ geoapp.Map = function (arg) {
         }
         m_mapData = data;
         this.updateMapParams(params, 'always');
+    };
+
+    /* Perform any action necessary after a zoom or pan event.  This updates
+     * the navigation route.
+     *
+     * Enter: evt: the event that triggered this action.  Null if from timer.
+     *        always: if evt is null and this is true, process the current map
+     *                position.
+     */
+    this.mapMovedEvent = function (evt, always) {
+        if (m_panIgnore && (evt || !always)) {
+            return;
+        }
+        if (evt && evt.eventType === geo.event.pan && (!evt.screenDelta || (
+                !evt.screenDelta.x && !evt.screenDelta.y))) {
+            return;
+        }
+        if (!evt) {
+            if (m_panTimer) {
+                window.clearTimeout(m_panTimer);
+            }
+            m_panTimer = null;
+            if (!m_panQueued && !always) {
+                return;
+            }
+        }
+        if (!m_panTimer) {
+            var view = this;
+            var bounds = m_geoMap.bounds();
+            var zoom = m_geoMap.zoom();
+            geoapp.activityLog.logActivity('map_moved', {
+                bounds: bounds,
+                zoom: zoom
+            });
+
+            geoapp.updateNavigation(null, 'map', {
+                x0: bounds.upperLeft.x.toFixed(7),
+                y0: bounds.upperLeft.y.toFixed(7),
+                x1: bounds.lowerRight.x.toFixed(7),
+                y1: bounds.lowerRight.y.toFixed(7),
+                zoom: zoom.toFixed(2)
+            }, false, true);
+
+            m_panQueued = false;
+            m_panTimer = window.setTimeout(function () {
+                view.mapMovedEvent();
+            }, 250);
+            return;
+        } else {
+            m_panQueued = true;
+        }
+    };
+
+    /* Scale the map to include the specified bounds.  The bounds object can
+     * contain either x0, y0, x1, y1 with the upper left and lower right
+     * longitudes and latitudes, OR x, y, and zoom with the center longitude,
+     * latitude, and zoom level, OR a default value will be used.
+     *
+     * @param bounds: an object as discussed above.
+     * @param duration: duration in ms to transition to the location specified.
+     *                  Defaults to 0.
+     */
+    this.fitBounds = function (bounds, duration) {
+        bounds = bounds || {};
+        var node = m_geoMap.node(),
+            width = node.width(), height = node.height(),
+            curBounds = m_geoMap.bounds(),
+            curZoom = m_geoMap.zoom();
+        var params = {
+            interp: d3.interpolateZoom,
+            duration: parseInt(duration || 0),
+            done: function () {
+                m_panIgnore = false;
+            }
+        };
+        if (bounds.x0 !== undefined && bounds.y0 !== undefined &&
+                bounds.x1 !== undefined && bounds.y1 !== undefined) {
+            bounds.x0 = parseFloat(bounds.x0);
+            bounds.y0 = parseFloat(bounds.y0);
+            bounds.x1 = parseFloat(bounds.x1);
+            bounds.y1 = parseFloat(bounds.y1);
+            /* We want to view the entire rectangle that is specified, so
+             * calculate the appropriate zoom. */
+            params.center = {
+                x: (bounds.x0 + bounds.x1) / 2,
+                y: (bounds.y0 + bounds.y1) / 2
+            };
+            var scale = 1,
+                scalex = Math.abs((bounds.x1 - bounds.x0) /
+                    (curBounds.lowerRight.x - curBounds.upperLeft.x)),
+                scaley = Math.abs((bounds.y1 - bounds.y0) /
+                    (curBounds.lowerRight.y - curBounds.upperLeft.y));
+            if (scalex && (!scaley || (scalex > scaley))) {
+                scale = scalex;
+            } else if (scaley) {
+                scale = scaley;
+            }
+            params.zoom = curZoom - Math.log(scale) / Math.log(2);
+        } else if (bounds.x !== undefined && bounds.y !== undefined && bounds.zoom !== undefined) {
+            params.center = {x: parseFloat(bounds.x), y: parseFloat(bounds.y)};
+            params.zoom = parseFloat(bounds.zoom);
+        } else {
+            params.center = m_defaultCenter;
+            params.zoom = m_defaultZoom;
+        }
+        m_panIgnore = true;
+        m_geoMap.transition(params);
     };
 
     /* Replace or add to the data used for the current map.  The options
@@ -147,6 +256,7 @@ geoapp.Map = function (arg) {
             console.log('request ' + (new Date().getTime() - options.startTime));
         }
         geoapp.cancelRestRequests('mapdata');
+        $('#ga-map-loading').removeClass('hidden');
         var xhr = geoapp.restRequest({
             path: 'taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
@@ -180,6 +290,8 @@ geoapp.Map = function (arg) {
             if (callNext) {
                 options.params.offset += resp.datacount;
                 this.replaceMapData(options);
+            } else {
+                $('#ga-map-loading').addClass('hidden');
             }
             geoapp.activityLog.logActivity('load_data', {complete: !callNext});
         }, this));
