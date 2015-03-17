@@ -369,6 +369,7 @@ geoapp.Map = function (arg) {
             switch (params['display-process']) {
                 case 'binned':
                     this.binMapData(params);
+                    this.setMapDisplayToBinnedData(params);
                     break;
                 default:
                     switch (params['display-type']) {
@@ -1042,21 +1043,24 @@ geoapp.Map = function (arg) {
         return state;
     };
 
-    /* Bin the map data and create a set of polygons representing the bins.
+    /* Bin the map data.
      *
      * @param params: the display parameters for the map.
      */
     this.binMapData = function (params) {
-        var binSize = 50; /* in pixels */
+        var numBins = 20; //DWM::
         var node = m_geoMap.node(),
             width = node.width(), height = node.height(),
             bounds = m_geoMap.bounds();
+        var binSize = Math.min(width, height) / numBins;
         var x0 = bounds.upperLeft.x, x1 = bounds.lowerRight.x,
             y1 = bounds.upperLeft.y, y0 = bounds.lowerRight.y;
         var binW = (x1 - x0) / width * binSize,
             binH = (y1 - y0) / height * binSize;
-        var maxx = Math.ceil((x1 - x0) / binW),
-            maxy = Math.ceil((y1 - y0) / binH);
+        var maxx = width <= height ? numBins : Math.ceil((x1 - x0) / binW),
+            maxy = height <= width ? numBins : Math.ceil((y1 - y0) / binH);
+        var binX0 = x0 + (x1 - x0 - binW * maxx) / 2;
+        var binY0 = y0 + (y1 - y0 - binH * maxy) / 2;
         var data = m_mapData;
         data.x1_column = data.columns.pickup_longitude;
         data.y1_column = data.columns.pickup_latitude;
@@ -1064,7 +1068,7 @@ geoapp.Map = function (arg) {
         data.x2_column = data.columns.dropoff_longitude;
         data.y2_column = data.columns.dropoff_latitude;
         data.t2_column = data.columns.dropoff_datetime;
-        var x, y, i, item;
+        var x, y, i, item, flux;
         var bins = {};
         function addBin(x, y) {
             if (!bins[x]) {
@@ -1074,10 +1078,10 @@ geoapp.Map = function (arg) {
                 bins[x][y] = {
                     x: x,
                     y: y,
-                    x0: x * binW + x0,
-                    y0: y * binH + y0,
-                    x1: (x + 1) * binW + x0,
-                    y1: (y + 1) * binH + y0,
+                    x0: x * binW + binX0,
+                    y0: y * binH + binY0,
+                    x1: (x + 1) * binW + binX0,
+                    y1: (y + 1) * binH + binY0,
                     pickups: 0,
                     dropoffs: 0,
                     pickupTimes: [],
@@ -1087,16 +1091,16 @@ geoapp.Map = function (arg) {
         }
         for (i = 0; i < data.data.length; i += 1) {
             item = data.data[i];
-            x = Math.floor((item[data.x1_column] - x0) / binW);
-            y = Math.floor((item[data.y1_column] - y0) / binH);
+            x = Math.floor((item[data.x1_column] - binX0) / binW);
+            y = Math.floor((item[data.y1_column] - binY0) / binH);
             if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
                 addBin(x, y);
                 bins[x][y].pickups += 1;
                 bins[x][y].pickupTimes.push(item[data.t1_column]);
                 //DWM:: track direction
             }
-            x = Math.floor((item[data.x2_column] - x0) / binW);
-            y = Math.floor((item[data.y2_column] - y0) / binH);
+            x = Math.floor((item[data.x2_column] - binX0) / binW);
+            y = Math.floor((item[data.y2_column] - binY0) / binH);
             if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
                 addBin(x, y);
                 bins[x][y].dropoffs += 1;
@@ -1108,25 +1112,15 @@ geoapp.Map = function (arg) {
             maxpickup: 0,
             maxdropoff: 0,
             maxflux: 0,
-            x0: x0,
-            y0: y0,
-            x1: x1,
-            y1: y1,
+            extents: {x0: x0, y0: y0, x1: x1, y1: y1},
+            screen: {w: width, h: height},
             w: binW,
-            h: binH
+            h: binH,
+            x0: binX0,
+            y0: binY0
         };
-        /* We have now created the bins.  Generate polygons for each bin. */
-        data.numLines = 0;
-        m_geoLines.data([]);
-        data.numPoints = 0;
-        m_geoPoints.data([]);
-
-        var polyData = [], flux;
-        var coor = [{x: 0, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, {x: 1, y: 0},
-                    {x: 0, y: 0}];
         _.each(bins, function (binx, x) {
             _.each(binx, function (bin, y) {
-                polyData.push({bin: bin, outer: coor});
                 flux = Math.abs(bin.pickups - bin.dropoffs);
                 if (flux > data.binParams.maxflux) {
                     data.binParams.maxflux = flux;
@@ -1139,14 +1133,37 @@ geoapp.Map = function (arg) {
                 }
             });
         });
+    };
+
+    /* Set the map data to polygons representing the binned data.
+     *
+     * @param params: the display parameters for the map.
+     */
+    this.setMapDisplayToBinnedData = function (params) {
+        var data = m_mapData;
+        var bp = data.binParams;
+
+        data.numLines = 0;
+        m_geoLines.data([]);
+        data.numPoints = 0;
+        m_geoPoints.data([]);
+
+        var polyData = [];
+        var coor = [{x: 0, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, {x: 1, y: 0},
+                    {x: 0, y: 0}];
+        _.each(data.bins, function (binx, x) {
+            _.each(binx, function (bin, y) {
+                polyData.push({bin: bin, outer: coor});
+            });
+        });
         data.numPolygons = polyData.length;
 
         m_geoPoly.data(polyData)
         .position(function (d, didx, item) {
             var bin = item.bin;
             return {
-                x: (bin.x + d.x) * binW + x0,
-                y: (bin.y + d.y) * binH + y0
+                x: (bin.x + d.x) * bp.w + bp.x0,
+                y: (bin.y + d.y) * bp.h + bp.y0
             };
         })
         .style({
@@ -1162,15 +1179,23 @@ geoapp.Map = function (arg) {
                 }
             },
             fillOpacity: function (d, didx, item) {
+                var val;
                 switch (params['display-type']) {
                     case 'both': case 'vector':
-                        return Math.abs(item.bin.pickups -
-                        item.bin.dropoffs) / data.binParams.maxflux;
+                        val = Math.abs(item.bin.pickups -
+                            item.bin.dropoffs) / bp.maxflux;
+                        break;
                     case 'dropoff':
-                        return item.bin.dropoffs / data.binParams.maxdropoff;
+                        val = item.bin.dropoffs / bp.maxdropoff;
+                        break;
                     default:
-                        return item.bin.pickups / data.binParams.maxpickup;
+                        val = item.bin.pickups / bp.maxpickup;
+                        break;
                 }
+                /* We may want to apply a power function.  For instance,
+                 *   return Math.pow(val, Math.log10(2));
+                 * would scale 0.1 to 0.5, 0.01 to 0.25, etc. */
+                return val;
             }
         });
     };
