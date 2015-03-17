@@ -32,8 +32,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'click .ga-place': function (evt) {
             var place = $(evt.currentTarget).attr('data-place');
             if (geoapp.placeList[place]) {
-                geoapp.map.fitBounds(geoapp.placeList[place], 1000);
-                geoapp.map.mapMovedEvent(null, true);
+                geoapp.map.fitBounds(geoapp.placeList[place], 1000, true);
             }
         },
         'click #ga-play': function () {
