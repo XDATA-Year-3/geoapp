@@ -14,12 +14,12 @@
             label(for="ga-source") Data Source
             select#ga-source.form-control.input-sm(title="Database source",
                 taxifield="source")
-              option(value="mongo12") Mongo 1/12 Random Value
-              option(value="mongo12r") Mongo 1/12 Shuffled
-              option(value="mongo") Mongo 1/12 Dates
-              option(value="mongofull") Mongo Full Shuffled
-              option(value="postgres12") Postgres 1/12 Shuffled
               option(value="postgresfull") Postgres Full Shuffled
+              option(value="postgres12") Postgres 1/12 Shuffled
+              option(value="mongofull") Mongo Full Shuffled
+              option(value="mongo12r") Mongo 1/12 Shuffled
+              option(value="mongo12") Mongo 1/12 Random Value
+              option(value="mongo") Mongo 1/12 Dates
               option(value="tangelo") Tangelo Service 1/12
           .form-group
             label(for="ga-medallion") Medallion
@@ -87,6 +87,10 @@
                 taxifield="display-process")
               option(value="raw") Individual Trips
               option(value="binned") Binned Heatmap
+          .form-group
+            button#ga-display-update.btn.btn-default.btn-sm
+              i.icon-cw
+              |  Update
           .form-group
             button#ga-place-manhattan.btn.btn-sm.ga-place(
                 data-place="manhattan", title="Show all of Manhattan") 

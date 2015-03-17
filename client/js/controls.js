@@ -27,7 +27,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
             this.updateView(true, 'anim');
         },
         'change #ga-display-settings select': function () {
+            $('#ga-display-update').removeClass('btn-needed');
             this.updateView(true, 'display');
+        },
+        'click #ga-display-update': function () {
+            $('#ga-display-update').removeClass('btn-needed');
+            geoapp.map.updateMapParams(this.updateSection('display', false),
+                                       'always');
         },
         'click .ga-place': function (evt) {
             var place = $(evt.currentTarget).attr('data-place');
@@ -163,6 +169,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         });
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
+        $('#ga-main-map').off('ga.map.moved').on('ga.map.moved', function () {
+            view.mapMoved();
+        });
         return this;
     },
 
@@ -435,6 +444,15 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-play').val(playState);
         geoapp.updateNavigation(
             'mapview', 'anim', {'ga-play': playState}, true);
+    },
+
+    /* When the map is moved, check if we need to mark that the display can be
+     * updated. */
+    mapMoved: function () {
+        var display  = this.updateSection('display', false);
+        if (display['display-process'] === 'binned') {
+            $('#ga-display-update').addClass('btn-needed');
+        }
     }
 });
 

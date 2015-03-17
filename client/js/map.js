@@ -141,7 +141,6 @@ geoapp.Map = function (arg) {
                 bounds: bounds,
                 zoom: zoom
             });
-
             geoapp.updateNavigation(null, 'map', {
                 x0: bounds.upperLeft.x.toFixed(7),
                 y0: bounds.upperLeft.y.toFixed(7),
@@ -149,7 +148,7 @@ geoapp.Map = function (arg) {
                 y1: bounds.lowerRight.y.toFixed(7),
                 zoom: zoom.toFixed(2)
             }, false, true);
-
+            $('#ga-main-map').trigger('ga.map.moved');
             m_panQueued = false;
             m_panTimer = window.setTimeout(function () {
                 view.mapMovedEvent();
@@ -1066,7 +1065,6 @@ geoapp.Map = function (arg) {
         data.y2_column = data.columns.dropoff_latitude;
         data.t2_column = data.columns.dropoff_datetime;
         var x, y, i, item;
-        var maxpickup = 0, maxdropoff = 0;
         var bins = {};
         function addBin(x, y) {
             if (!bins[x]) {
@@ -1094,9 +1092,6 @@ geoapp.Map = function (arg) {
             if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
                 addBin(x, y);
                 bins[x][y].pickups += 1;
-                if (bins[x][y].pickups > maxpickup) {
-                    maxpickup = bins[x][y].pickups;
-                }
                 bins[x][y].pickupTimes.push(item[data.t1_column]);
                 //DWM:: track direction
             }
@@ -1105,16 +1100,13 @@ geoapp.Map = function (arg) {
             if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
                 addBin(x, y);
                 bins[x][y].dropoffs += 1;
-                if (bins[x][y].dropoffs > maxdropoff) {
-                    maxdropoff = bins[x][y].dropoffs;
-                }
                 bins[x][y].dropoffTimes.push(item[data.t2_column]);
             }
         }
         data.bins = bins;
         data.binParams = {
-            maxpickup: maxpickup,
-            maxdropoff: maxdropoff,
+            maxpickup: 0,
+            maxdropoff: 0,
             maxflux: 0,
             x0: x0,
             y0: y0,
@@ -1139,41 +1131,47 @@ geoapp.Map = function (arg) {
                 if (flux > data.binParams.maxflux) {
                     data.binParams.maxflux = flux;
                 }
+                if (bins[x][y].pickups > data.binParams.maxpickup) {
+                    data.binParams.maxpickup = bins[x][y].pickups;
+                }
+                if (bins[x][y].dropoffs > data.binParams.maxdropoff) {
+                    data.binParams.maxdropoff = bins[x][y].dropoffs;
+                }
             });
         });
         data.numPolygons = polyData.length;
 
         m_geoPoly.data(polyData)
-            .position(function (d, didx, item) {
-                var bin = item.bin;
-                return {
-                    x: (bin.x + d.x) * binW + x0,
-                    y: (bin.y + d.y) * binH + y0
-                };
-            })
-            .style({
-                fillColor: function (d, didx, item) {
-                    switch (params['display-type']) {
-                        case 'both': case 'vector':
-                            return (item.bin.pickups > item.bin.dropoffs ?
-                            m_pickupColor : m_dropoffColor);
-                        case 'dropoff':
-                            return m_dropoffOnlyColor;
-                        default:
-                            return m_pickupOnlyColor;
-                    }
-                },
-                fillOpacity: function (d, didx, item) {
-                    switch (params['display-type']) {
-                        case 'both': case 'vector':
-                            return Math.abs(item.bin.pickups -
-                            item.bin.dropoffs) / data.binParams.maxflux;
-                        case 'dropoff':
-                            return item.bin.dropoffs / maxdropoff;
-                        default:
-                            return item.bin.pickups / maxpickup;
-                    }
+        .position(function (d, didx, item) {
+            var bin = item.bin;
+            return {
+                x: (bin.x + d.x) * binW + x0,
+                y: (bin.y + d.y) * binH + y0
+            };
+        })
+        .style({
+            fillColor: function (d, didx, item) {
+                switch (params['display-type']) {
+                    case 'both': case 'vector':
+                        return (item.bin.pickups > item.bin.dropoffs ?
+                        m_pickupColor : m_dropoffColor);
+                    case 'dropoff':
+                        return m_dropoffOnlyColor;
+                    default:
+                        return m_pickupOnlyColor;
                 }
-            });
+            },
+            fillOpacity: function (d, didx, item) {
+                switch (params['display-type']) {
+                    case 'both': case 'vector':
+                        return Math.abs(item.bin.pickups -
+                        item.bin.dropoffs) / data.binParams.maxflux;
+                    case 'dropoff':
+                        return item.bin.dropoffs / data.binParams.maxdropoff;
+                    default:
+                        return item.bin.pickups / data.binParams.maxpickup;
+                }
+            }
+        });
     };
 };
