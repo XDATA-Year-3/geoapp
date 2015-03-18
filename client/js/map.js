@@ -38,6 +38,7 @@ geoapp.Map = function (arg) {
         m_dropoffOnlyColor = geo.util.convertColor('black'),
         m_dropoffColor = geo.util.convertColor('#FFFF00'),
         m_defaultCenter = {x: -73.978165, y: 40.757977},
+        m_defaultGoodZone = 5, /* in degrees of latitude and longitude */
         m_defaultZoom = 10,
         m_verbose = 1;
 
@@ -93,14 +94,14 @@ geoapp.Map = function (arg) {
             geoLayer = m_geoMap.createLayer('feature', {
                 renderer: 'vgl'
             });
-            m_geoLines = geoLayer.createFeature('line', {
+            m_geoPoly = geoLayer.createFeature('polygon', {
                 selectionAPI: false,
                 dynamicDraw: true
             });
             geoLayer = m_geoMap.createLayer('feature', {
                 renderer: 'vgl'
             });
-            m_geoPoly = geoLayer.createFeature('polygon', {
+            m_geoLines = geoLayer.createFeature('line', {
                 selectionAPI: false,
                 dynamicDraw: true
             });
@@ -429,26 +430,52 @@ geoapp.Map = function (arg) {
             pointData = data.data.slice(0, this.maximumMapPoints);
         }
         m_geoPoints.data(pointData)
-            .style({
-                fillColor: (displayType === 'dropoff' ?  m_dropoffOnlyColor :
-                    m_pickupOnlyColor),
-                fillOpacity: params.opacity,
-                stroke: false,
-                radius: 5
-            })
-            .position(function (d) {
-                return {
-                    x: d[data.x_column],
-                    y: d[data.y_column]
-                };
-            });
+        .style({
+            fillColor: (displayType === 'dropoff' ?  m_dropoffOnlyColor :
+                m_pickupOnlyColor),
+            fillOpacity: params.opacity,
+            stroke: false,
+            radius: 5
+        })
+        .position(function (d) {
+            return {
+                x: d[data.x_column],
+                y: d[data.y_column]
+            };
+        });
+    };
+
+    /* Check if either end of this trip looks bogus.
+     *
+     * @param item: the trip to check.
+     * @param data: an object that lists the pickup and dropoff columns in the
+     *              attributes x1_column, y1_column, x2_column, y2_column.
+     * @returns: true if the point is bad.
+     */
+    this.isBadPoint = function (item, data) {
+        var x1, y1, x2, y2;
+
+        x1 = item[data.x1_column];
+        y1 = item[data.y1_column];
+        x2 = item[data.x2_column];
+        y2 = item[data.y2_column];
+        if (x1 < m_defaultCenter.x - m_defaultGoodZone ||
+            x1 > m_defaultCenter.x + m_defaultGoodZone ||
+            y1 < m_defaultCenter.y - m_defaultGoodZone ||
+            y1 > m_defaultCenter.y + m_defaultGoodZone ||
+            x2 < m_defaultCenter.x - m_defaultGoodZone ||
+            x2 > m_defaultCenter.x + m_defaultGoodZone ||
+            y2 < m_defaultCenter.y - m_defaultGoodZone ||
+            y2 > m_defaultCenter.y + m_defaultGoodZone) {
+            return true;
+        }
+        return false;
     };
 
     /* Set the map to display pickup to dropoff vectors.
      */
     this.setMapDisplayToVectors = function () {
-        var data = m_mapData, params = m_mapParams,
-            x1, y1, x2, y2, item;
+        var data = m_mapData, params = m_mapParams, item;
 
         data.numPoints = 0;
         m_geoPoints.data([]);
@@ -461,12 +488,7 @@ geoapp.Map = function (arg) {
         data.y2_column = data.columns.dropoff_latitude;
         for (var i = 0; i < data.data.length; i += 1) {
             item = data.data[i];
-            x1 = item[data.x1_column];
-            y1 = item[data.y1_column];
-            x2 = item[data.x2_column];
-            y2 = item[data.y2_column];
-            if (x1 < -80 || x1 > -60 || y1 < 30 || y1 > 50 ||
-                    x2 < -80 || x2 > -60 || y2 < 30 || y2 > 50) {
+            if (this.isBadPoint(item, data)) {
                 item.hide = true;
             }
         }
@@ -485,25 +507,25 @@ geoapp.Map = function (arg) {
         }
 
         m_geoLines.data(lineData)
-            .line(function () {
-                return lineRecord;
-            })
-            .position(function (d, didx, item, iidx) {
-                var dat = lineData[iidx];
-                return {
-                    x: dat[d.x_column],
-                    y: dat[d.y_column]
-                };
-            })
-            .style({
-                strokeColor: function (d) {
-                    return d.strokeColor;
-                },
-                strokeWidth: 5,
-                strokeOpacity: function (d, didx, item, iidx) {
-                    return lineData[iidx].hide ? -1 : params.opacity;
-                }
-            });
+        .line(function () {
+            return lineRecord;
+        })
+        .position(function (d, didx, item, iidx) {
+            var dat = lineData[iidx];
+            return {
+                x: dat[d.x_column],
+                y: dat[d.y_column]
+            };
+        })
+        .style({
+            strokeColor: function (d) {
+                return d.strokeColor;
+            },
+            strokeWidth: 5,
+            strokeOpacity: function (d, didx, item, iidx) {
+                return lineData[iidx].hide ? -1 : params.opacity;
+            }
+        });
     };
 
     /* Set the map to display pickup AND dropoff points.
@@ -527,31 +549,31 @@ geoapp.Map = function (arg) {
             pointArray[i] = i;
         }
         m_geoPoints.data(pointArray)
-            .style({
-                fillColor: function (d) {
-                    /*jshint bitwise: false */
-                    return (!(d & 1)) ? m_pickupColor : m_dropoffColor;
-                },
-                fillOpacity: params.opacity,
-                stroke: false,
-                radius: 5
-            })
-            .position(function (d) {
+        .style({
+            fillColor: function (d) {
                 /*jshint bitwise: false */
-                var i = d >> 1;
-                /*jshint bitwise: false */
-                if (!(d & 1)) {
-                    return {
-                        x: pointData[i][data.x1_column],
-                        y: pointData[i][data.y1_column]
-                    };
-                } else {
-                    return {
-                        x: pointData[i][data.x2_column],
-                        y: pointData[i][data.y2_column]
-                    };
-                }
-            });
+                return (!(d & 1)) ? m_pickupColor : m_dropoffColor;
+            },
+            fillOpacity: params.opacity,
+            stroke: false,
+            radius: 5
+        })
+        .position(function (d) {
+            /*jshint bitwise: false */
+            var i = d >> 1;
+            /*jshint bitwise: false */
+            if (!(d & 1)) {
+                return {
+                    x: pointData[i][data.x1_column],
+                    y: pointData[i][data.y1_column]
+                };
+            } else {
+                return {
+                    x: pointData[i][data.x2_column],
+                    y: pointData[i][data.y2_column]
+                };
+            }
+        });
     };
 
     /* Redraw the map, but not too often.  When we redraw the map, set a timer
@@ -1012,6 +1034,7 @@ geoapp.Map = function (arg) {
             mapLayer: m_mapLayer,
             geoPoints: m_geoPoints,
             geoLines: m_geoLines,
+            geoPoly: m_geoPoly,
             mapData: m_mapData,
             mapParams: m_mapParams,
             lastQueryOptions: m_lastQueryOptions,
@@ -1043,12 +1066,34 @@ geoapp.Map = function (arg) {
         return state;
     };
 
+    /* Make sure a bin exists.  If not, create it.
+     *
+     * @param bins: object to store bins.
+     * @param x: first bin coordinate.
+     * @param y: second bin coordiante.
+     * @return: the desired bin.
+     */
+    this.ensureBinExists = function (bins, x, y) {
+        if (!bins[x]) {
+            bins[x] = {};
+        }
+        if (!bins[x][y]) {
+            bins[x][y] = {
+                x: x, y: y,
+                pickups: 0, pickupPoints: [],
+                dropoffs: 0, dropoffPoints: [],
+                dx: 0, dy: 0, count: 0
+            };
+        }
+        return bins[x][y];
+    };
+
     /* Bin the map data.
      *
      * @param params: the display parameters for the map.
      */
     this.binMapData = function (params) {
-        var numBins = 20; //DWM::
+        var numBins = params['display-num-bins'] || 20; //DWM::
         var node = m_geoMap.node(),
             width = node.width(), height = node.height(),
             bounds = m_geoMap.bounds();
@@ -1064,47 +1109,35 @@ geoapp.Map = function (arg) {
         var data = m_mapData;
         data.x1_column = data.columns.pickup_longitude;
         data.y1_column = data.columns.pickup_latitude;
-        data.t1_column = data.columns.pickup_datetime;
         data.x2_column = data.columns.dropoff_longitude;
         data.y2_column = data.columns.dropoff_latitude;
-        data.t2_column = data.columns.dropoff_datetime;
-        var x, y, i, item, flux;
-        var bins = {};
-        function addBin(x, y) {
-            if (!bins[x]) {
-                bins[x] = {};
-            }
-            if (!bins[x][y]) {
-                bins[x][y] = {
-                    x: x,
-                    y: y,
-                    x0: x * binW + binX0,
-                    y0: y * binH + binY0,
-                    x1: (x + 1) * binW + binX0,
-                    y1: (y + 1) * binH + binY0,
-                    pickups: 0,
-                    dropoffs: 0,
-                    pickupTimes: [],
-                    dropoffTimes: []
-                };
-            }
-        }
+        var x, y, i, item;
+        var bins = {}, bin;
+
         for (i = 0; i < data.data.length; i += 1) {
             item = data.data[i];
+            if (this.isBadPoint(item, data)) {
+                continue;
+            }
             x = Math.floor((item[data.x1_column] - binX0) / binW);
             y = Math.floor((item[data.y1_column] - binY0) / binH);
             if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
-                addBin(x, y);
-                bins[x][y].pickups += 1;
-                bins[x][y].pickupTimes.push(item[data.t1_column]);
-                //DWM:: track direction
+                bin = this.ensureBinExists(bins, x, y);
+                bin.pickups += 1;
+                bin.pickupPoints.push(i);
+                bin.dx += item[data.x2_column] - item[data.x1_column];
+                bin.dy += item[data.y2_column] - item[data.y1_column];
+                bin.count += 1;
             }
             x = Math.floor((item[data.x2_column] - binX0) / binW);
             y = Math.floor((item[data.y2_column] - binY0) / binH);
             if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
-                addBin(x, y);
-                bins[x][y].dropoffs += 1;
-                bins[x][y].dropoffTimes.push(item[data.t2_column]);
+                bin = this.ensureBinExists(bins, x, y);
+                bin.dropoffs += 1;
+                bin.dropoffPoints.push(i);
+                bin.dx -= item[data.x2_column] - item[data.x1_column];
+                bin.dy -= item[data.y2_column] - item[data.y1_column];
+                bin.count += 1;
             }
         }
         data.bins = bins;
@@ -1112,27 +1145,53 @@ geoapp.Map = function (arg) {
             maxpickup: 0,
             maxdropoff: 0,
             maxflux: 0,
+            maxvector: 0,
             extents: {x0: x0, y0: y0, x1: x1, y1: y1},
             screen: {w: width, h: height},
             w: binW,
             h: binH,
             x0: binX0,
-            y0: binY0
+            y0: binY0,
+            binSize: binSize
         };
+        var bp = data.binParams;
+
         _.each(bins, function (binx, x) {
             _.each(binx, function (bin, y) {
+                var flux, dx, dy, ctr, vec;
+
                 flux = Math.abs(bin.pickups - bin.dropoffs);
-                if (flux > data.binParams.maxflux) {
-                    data.binParams.maxflux = flux;
+                if (flux > bp.maxflux) {
+                    bp.maxflux = flux;
                 }
-                if (bins[x][y].pickups > data.binParams.maxpickup) {
-                    data.binParams.maxpickup = bins[x][y].pickups;
+                if (bins[x][y].pickups > bp.maxpickup) {
+                    bp.maxpickup = bins[x][y].pickups;
                 }
-                if (bins[x][y].dropoffs > data.binParams.maxdropoff) {
-                    data.binParams.maxdropoff = bins[x][y].dropoffs;
+                if (bins[x][y].dropoffs > bp.maxdropoff) {
+                    bp.maxdropoff = bins[x][y].dropoffs;
+                }
+                dx = bin.dx / bin.count;
+                dy = bin.dy / bin.count;
+                ctr = {
+                    x: (bin.x + 0.5) * bp.w + bp.x0,
+                    y: (bin.y + 0.5) * bp.h + bp.y0
+                };
+                bin.dx /= bin.count;  bin.dy /= bin.count;
+                if (params['display-vector-length'] !== 'full') {
+                    vec = m_geoMap.gcsToDisplay({x: ctr.x + dx, y: ctr.y + dy});
+                    ctr = m_geoMap.gcsToDisplay(ctr);
+                    bin.dx = vec.x - ctr.x;
+                    bin.dy = vec.y - ctr.y;
+                    bin.veclen = Math.sqrt(bin.dx * bin.dx + bin.dy * bin.dy);
+                    bin.theta = Math.atan2(bin.dy, bin.dx);
+                    if (bin.veclen > bp.maxvector && bin.count >= 10) {
+                        bp.maxvector = bin.veclen;
+                    }
                 }
             });
         });
+        /* Scale the maximum vector so that the vectors we render are larger */
+        bp.maxvector /= 5;
     };
 
     /* Set the map data to polygons representing the binned data.
@@ -1198,5 +1257,44 @@ geoapp.Map = function (arg) {
                 return val;
             }
         });
+        if (params['display-type'] === 'vector' && (bp.maxvector ||
+                params['display-vector-length'] === 'full')) {
+            var lineRecord = [0, 1];
+            m_geoLines.data(polyData)
+            .line(function () {
+                return lineRecord;
+            })
+            .position(function (d, didx, item, iidx) {
+                var bin = polyData[iidx].bin;
+                var coor = {
+                    x: (bin.x + 0.5) * bp.w + bp.x0,
+                    y: (bin.y + 0.5) * bp.h + bp.y0
+                };
+                if (d) {
+                    if (params['display-vector-length'] !== 'full') {
+                        var veclen = (bin.veclen < bp.maxvector ?
+                            bin.veclen : bp.maxvector);
+                        veclen *= bp.binSize / bp.maxvector / 2;
+                        coor = m_geoMap.gcsToDisplay(coor);
+                        coor.x += Math.cos(bin.theta) * veclen;
+                        coor.y += Math.sin(bin.theta) * veclen;
+                        coor = m_geoMap.displayToGcs(coor);
+                    } else {
+                        coor.x += bin.dx;
+                        coor.y += bin.dy;
+                    }
+                }
+                return coor;
+            })
+            .style({
+                strokeColor: 'black',
+                strokeWidth: 5,
+                strokeOpacity: function (d, didx, item, iidx) {
+                    var bin = polyData[iidx].bin;
+                    var val = Math.abs(bin.pickups - bin.dropoffs) / bp.maxflux;
+                    return val;
+                }
+            });
+        }
     };
 };

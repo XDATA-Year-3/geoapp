@@ -26,30 +26,42 @@
             input#ga-test-maximum.form-control.input-sm(
               type="text", title="The maximum number of trips to test.  If this is blank, tests will continue until the browser throws an error or crashes.",
               data-placement="bottom", value="1000000")
-          .form-group(title="Select which tests are run.",
+          .form-group.ga-test-group(title="Select which tests are run.",
               data-placement="bottom")
             label#ga-test-enable-header Selected tests:
-            label Points
+          .form-group.ga-test-group
+            label.ga-test-label Points
             input#ga-test-enable-pt-load.ga-test-enable.form-control.input-sm(
               type="checkbox", checked="checked", ga-test-num=0)
             label(for="ga-test-enable-pt-load") Load
             input#ga-test-enable-pt-fps.ga-test-enable.form-control.input-sm(
               type="checkbox", checked="checked", ga-test-num=1)
             label(for="ga-test-enable-pt-fps") FPS
-            label &nbsp;&nbsp;&nbsp;&nbsp; Lines
+            label.ga-test-label Lines
             input#ga-test-enable-line-load.ga-test-enable.form-control.input-sm(
               type="checkbox", checked="checked", ga-test-num=2)
             label(for="ga-test-enable-line-load") Load
             input#ga-test-enable-line-fps.ga-test-enable.form-control.input-sm(
               type="checkbox", checked="checked", ga-test-num=3)
             label(for="ga-test-enable-line-fps") FPS
+          .form-group.ga-test-group
+            label.ga-test-label Bins
+            input#ga-test-enable-bin-load.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=4)
+            label(for="ga-test-enable-bin-load") Load
+            input#ga-test-enable-bin-fps.ga-test-enable.form-control.input-sm(
+              type="checkbox", checked="checked", ga-test-num=5)
+            label(for="ga-test-enable-bin-fps") FPS
           .form-group#ga-speed-test-results.hidden
             table
               tr
                 th(rowspan=2) Trips
                 th(colspan=2) Points
                 th(colspan=2) Lines
+                th(colspan=2) Bins
               tr
+                th Load
+                th FPS
                 th Load
                 th FPS
                 th Load
