@@ -47,7 +47,12 @@ geoapp.Map = function (arg) {
     /* maximumDataPoints defaults to the maximum of maximumMapPoints and
      * maximumVectors */
     this.maximumDataPoints = null;
-    this.pageDataPoints = null;    /* defaults to maximumDataPoints */
+    /* pageDataPoints to null to load everything in one batch (to use
+     * maximumDataPoints).  If oneSmallPage is true, pageDataPoints are loaded,
+     * then all of the rest of the data in a second query.  If false,
+     * pageDataPoints are loaded at a time until all of the data is loaded. */
+    this.pageDataPoints = 10000;
+    this.oneSmallPage = true;
 
     /* Show a map with data.  If we have already shown the map, just update
      * the data and redraw the map.  The data is an object that contains:
@@ -256,6 +261,8 @@ geoapp.Map = function (arg) {
         if (!options.params.limit) {
             options.params.limit = Math.min(
                 this.pageDataPoints || options.maxcount, options.maxcount);
+        } else if (this.oneSmallPage) {
+            options.params.limit = options.maxcount - options.params.offset;
         }
         if (!options.params.fields) {
             options.params.fields = '' + //'medallion,hack_license,' +
@@ -271,7 +278,9 @@ geoapp.Map = function (arg) {
             console.log('request ' + (new Date().getTime() - options.startTime));
         }
         geoapp.cancelRestRequests('mapdata');
-        $('#ga-map-loading').removeClass('hidden');
+        $('#ga-map-loading').removeClass('hidden')
+            .toggleClass('first-load', !options.params.offset)
+            .toggleClass('second-load', !!options.params.offset);
         var xhr = geoapp.restRequest({
             path: 'taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
