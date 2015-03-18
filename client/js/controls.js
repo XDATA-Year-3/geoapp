@@ -26,7 +26,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             this.updateView(true, 'anim');
         },
-        'change #ga-display-settings select': function () {
+        'change #ga-display-settings select,#ga-display-settings input[type="text"]': function () {
             $('#ga-display-update').removeClass('btn-needed');
             this.updateView(true, 'display');
         },
@@ -375,15 +375,27 @@ geoapp.views.ControlsView = geoapp.View.extend({
             case 'dateRange':
                 this.getDateRange(elem, params, field);
                 break;
+            case 'float':
+                if (value !== null && value !== undefined &&
+                        value.length > 0 && !isNaN(value)) {
+                    params[field] = parseFloat(value);
+                }
+                break;
             case 'floatRange':
                 this.getFloatRange(elem, params, field);
+                break;
+            case 'int':
+                if (value !== null && value !== undefined &&
+                        value.length > 0 && !isNaN(value)) {
+                    params[field] = parseInt(value);
+                }
                 break;
             case 'intRange':
                 this.getIntRange(elem, params, field);
                 break;
             default:
                 if (value !== null && value !== undefined && value.length > 0) {
-                    params[field] = elem.val();
+                    params[field] = value;
                 }
                 break;
         }

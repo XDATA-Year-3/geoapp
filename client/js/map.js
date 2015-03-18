@@ -365,7 +365,7 @@ geoapp.Map = function (arg) {
         var data = m_mapData;
         var changed = (data && data.data && update === 'always');
         if (data && data.data) {
-            ['display-type', 'display-process'].forEach(function (key) {
+            ['display-type', 'display-process', 'display-num-bins'].forEach(function (key) {
                 changed = changed || (params[key] !== origParams[key]);
             });
         }
@@ -1102,7 +1102,7 @@ geoapp.Map = function (arg) {
      * @param params: the display parameters for the map.
      */
     this.binMapData = function (params) {
-        var numBins = params['display-num-bins'] || 20; //DWM::
+        var numBins = Math.max(params['display-num-bins'] || 20, 5);
         var node = m_geoMap.node(),
             width = node.width(), height = node.height(),
             bounds = m_geoMap.bounds();

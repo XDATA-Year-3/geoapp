@@ -88,6 +88,12 @@
               option(value="raw") Individual Trips
               option(value="binned") Binned Heatmap
           .form-group
+            label(for="ga-display-num-bins") Number of Bins
+            input#ga-display-num-bins.form-control.input-sm(
+              type="text", placeholder="#",
+              title="Number of bins across short dimension of the map",
+              taxifield="display-num-bins", taxitype="int")
+          .form-group
             button#ga-display-update.btn.btn-default.btn-sm
               i.icon-cw
               |  Update
@@ -122,20 +128,20 @@
               option(value="month") Month
               option(value="year") Year
           .form-group
-            label(for="ga-cycle-steps") Cycle Steps
+            label(for="ga-cycle-parts") Cycle Steps
             input#ga-cycle-parts.form-control.input-sm(
               type="text", placeholder="#", title="Time cycle divisions",
-              taxifield="cycle-steps")
+              taxifield="cycle-steps", taxitype="int")
           .form-group
-            label(for="ga-cycle-substeps") Cycle Sub-steps
+            label(for="ga-cycle-subparts") Cycle Sub-steps
             input#ga-cycle-subparts.form-control.input-sm(
               type="text", placeholder="#", title="Time cycle sub-grouping",
-              taxifield="cycle-substeps")
+              taxifield="cycle-substeps", taxitype="int")
           .form-group
             label(for="ga-cycle-steptime") Time per step
             input#ga-cycle-steptime.form-control.input-sm(
               type="text", placeholder="# ms", title="Milliseconds per Step",
-              taxifield="cycle-steptime")
+              taxifield="cycle-steptime", taxitype="float")
           .form-group
             button#ga-anim-update.btn.btn-default.btn-sm
               i.icon-cw
