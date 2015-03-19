@@ -749,8 +749,8 @@ geoapp.Map = function (arg) {
             sliderElem: options.sliderElem,
             playState: options.playState || 'play'
         };
-        var binWidth = moment.duration(
-            (range.asMilliseconds() + numBins - 1) / numBins);
+        var binWidth = moment.duration(Math.floor(
+            (range.asMilliseconds() + numBins - 1) / numBins));
         var binStart = start;
         for (i = 0; i < numBins; i += 1) {
             var binEnd = moment(binStart + binWidth);
@@ -1158,7 +1158,6 @@ geoapp.Map = function (arg) {
      *                  reset the bin max values.
      */
     this.binMapData = function (params, anim, step, resetmax) {
-        //DWM::
         var numBins = Math.max(params['display-num-bins'] || 20, 5);
         var node = m_geoMap.node(),
             width = node.width(), height = node.height(),
@@ -1297,7 +1296,7 @@ geoapp.Map = function (arg) {
                 maxpickup: maxpickup,
                 maxdropoff: maxdropoff,
                 maxvector: maxvector
-            }
+            };
         }
     };
 

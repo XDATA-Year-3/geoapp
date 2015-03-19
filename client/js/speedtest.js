@@ -21,7 +21,8 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         {name: 'panim', type: 'pickup', phase: 'anim'},
         {name: 'lload', type: 'vector', phase: 'load'},
         {name: 'lanim', type: 'vector', phase: 'anim'},
-        {name: 'bload', type: 'both',   phase: 'load', process: 'binned'}
+        {name: 'bload', type: 'both',   phase: 'load', process: 'binned'},
+        {name: 'bload', type: 'both',   phase: 'anim', process: 'binned'}
     ],
 
     events: {
@@ -61,6 +62,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             }
         });
         geoapp.View.prototype.initialize.apply(this, arguments);
+        geoapp.map.fitBounds(null, 0);
     },
 
     /* Render the view.  This also prepares various controls if this is the
@@ -90,13 +92,13 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         $('#ga-run-speed-test,#ga-test-comment,#ga-test-maximum,' +
             '.ga-test-enable').prop('disabled', true);
         $('#ga-stop-speed-test').prop('disabled', false);
+        geoapp.map.fitBounds(null, 0);
         geoapp.map.animationAction('stop');
         var testsToRun = [];
         for (var i = 0; i < this.tests.length; i += 1) {
             testsToRun.push($('.ga-test-enable[ga-test-num=' + i + ']').is(
                 ':not(:checked)') ? false : true);
         }
-        console.log(testsToRun); //DWM::
         this.testParams = {
             state: 'running',
             testNum: 0,    /* type index */
@@ -286,6 +288,11 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             test = this.tests[params.testNum],
             stoptime, fps, frametime;
         if (!params.times.length) {
+            geoapp.map.showMap(params.data, {
+                'display-type': test.type,
+                'display-process': test.process || 'raw',
+                'display-num-bins': 25
+            });
             geoapp.map.animate({
                 cycle: 'day',
                 'cycle-steps': 8,
