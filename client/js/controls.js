@@ -26,14 +26,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             this.updateView(true, 'anim');
         },
-        'change #ga-display-settings select': function () {
+        'change #ga-display-settings select,#ga-display-settings input[type="text"]': function () {
+            $('#ga-display-update').removeClass('btn-needed');
             this.updateView(true, 'display');
+        },
+        'click #ga-display-update': function () {
+            $('#ga-display-update').removeClass('btn-needed');
+            geoapp.map.updateMapParams(this.updateSection('display', false),
+                                       'always');
         },
         'click .ga-place': function (evt) {
             var place = $(evt.currentTarget).attr('data-place');
             if (geoapp.placeList[place]) {
-                geoapp.map.fitBounds(geoapp.placeList[place], 1000);
-                geoapp.map.mapMovedEvent(null, true);
+                geoapp.map.fitBounds(geoapp.placeList[place], 1000, true);
             }
         },
         'click #ga-play': function () {
@@ -164,6 +169,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         });
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
+        $('#ga-main-map').off('ga.map.moved').on('ga.map.moved', function () {
+            view.mapMoved();
+        });
         return this;
     },
 
@@ -367,15 +375,27 @@ geoapp.views.ControlsView = geoapp.View.extend({
             case 'dateRange':
                 this.getDateRange(elem, params, field);
                 break;
+            case 'float':
+                if (value !== null && value !== undefined &&
+                        value.length > 0 && !isNaN(value)) {
+                    params[field] = parseFloat(value);
+                }
+                break;
             case 'floatRange':
                 this.getFloatRange(elem, params, field);
+                break;
+            case 'int':
+                if (value !== null && value !== undefined &&
+                        value.length > 0 && !isNaN(value)) {
+                    params[field] = parseInt(value);
+                }
                 break;
             case 'intRange':
                 this.getIntRange(elem, params, field);
                 break;
             default:
                 if (value !== null && value !== undefined && value.length > 0) {
-                    params[field] = elem.val();
+                    params[field] = value;
                 }
                 break;
         }
@@ -436,6 +456,15 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-play').val(playState);
         geoapp.updateNavigation(
             'mapview', 'anim', {'ga-play': playState}, true);
+    },
+
+    /* When the map is moved, check if we need to mark that the display can be
+     * updated. */
+    mapMoved: function () {
+        var display  = this.updateSection('display', false);
+        if (display['display-process'] === 'binned') {
+            $('#ga-display-update').addClass('btn-needed');
+        }
     }
 });
 

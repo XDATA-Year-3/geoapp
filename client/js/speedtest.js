@@ -20,7 +20,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         {name: 'pload', type: 'pickup', phase: 'load'},
         {name: 'panim', type: 'pickup', phase: 'anim'},
         {name: 'lload', type: 'vector', phase: 'load'},
-        {name: 'lanim', type: 'vector', phase: 'anim'}
+        {name: 'lanim', type: 'vector', phase: 'anim'},
+        {name: 'bload', type: 'both',   phase: 'load', process: 'binned'},
+        {name: 'bload', type: 'both',   phase: 'anim', process: 'binned'}
     ],
 
     events: {
@@ -60,6 +62,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             }
         });
         geoapp.View.prototype.initialize.apply(this, arguments);
+        geoapp.map.fitBounds(null, 0);
     },
 
     /* Render the view.  This also prepares various controls if this is the
@@ -89,6 +92,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         $('#ga-run-speed-test,#ga-test-comment,#ga-test-maximum,' +
             '.ga-test-enable').prop('disabled', true);
         $('#ga-stop-speed-test').prop('disabled', false);
+        geoapp.map.fitBounds(null, 0);
         geoapp.map.animationAction('stop');
         var testsToRun = [];
         for (var i = 0; i < this.tests.length; i += 1) {
@@ -97,7 +101,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         }
         this.testParams = {
             state: 'running',
-            testNum: 0,     /* type index */
+            testNum: 0,    /* type index */
             sizePower: 4,  /* initial # of data points is 10^(sizePower) */
             sizeIndex: 0,  /* index within sizeFactors */
             times: [],
@@ -246,7 +250,11 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             geoapp.map.maximumVectors = params.numPts;
         }
         starttime = new Date().getTime();
-        geoapp.map.showMap(params.data, {'display-type': test.type});
+        geoapp.map.showMap(params.data, {
+            'display-type': test.type,
+            'display-process': test.process || 'raw',
+            'display-num-bins': 50
+        });
         stoptime = new Date().getTime();
         params.times.push(stoptime - starttime);
         if (params.times.length < 12 && stoptime - params.testStart < 10000) {
@@ -280,6 +288,11 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             test = this.tests[params.testNum],
             stoptime, fps, frametime;
         if (!params.times.length) {
+            geoapp.map.showMap(params.data, {
+                'display-type': test.type,
+                'display-process': test.process || 'raw',
+                'display-num-bins': 25
+            });
             geoapp.map.animate({
                 cycle: 'day',
                 'cycle-steps': 8,
