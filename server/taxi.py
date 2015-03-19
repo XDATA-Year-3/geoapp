@@ -464,8 +464,16 @@ class TaxiViaPostgres():
             'format': 'list',
             'fields': fields,
             'columns': columns,
-            'data': c.fetchall()
+            'data': c.fetchmany()
             }
+        logger.info('Fetching first items (%5.3fs including query execution)',
+                    time.time() - starttime)
+        while True:
+            data = c.fetchmany()
+            if data:
+                result['data'].extend(data)
+            else:
+                break
         logger.info('Fetching data (%5.3fs including query execution)',
                     time.time() - starttime)
         c.close()

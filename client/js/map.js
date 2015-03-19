@@ -39,7 +39,9 @@ geoapp.Map = function (arg) {
         m_dropoffColor = geo.util.convertColor('#FFFF00'),
         m_defaultCenter = {x: -73.978165, y: 40.757977},
         m_defaultGoodZone = 5, /* in degrees of latitude and longitude */
+        m_goodExtents,
         m_defaultZoom = 10,
+        m_maxVectorScale = 5, /* Increase vector sizes */
         m_verbose = 1;
 
     this.maximumMapPoints = 300000;
@@ -464,18 +466,24 @@ geoapp.Map = function (arg) {
     this.isBadPoint = function (item, data) {
         var x1, y1, x2, y2;
 
+        if (!m_goodExtents) {
+            m_goodExtents = {
+                x0: m_defaultCenter.x - m_defaultGoodZone,
+                x1: m_defaultCenter.x + m_defaultGoodZone,
+                y0: m_defaultCenter.y - m_defaultGoodZone,
+                y1: m_defaultCenter.y + m_defaultGoodZone
+            };
+        }
         x1 = item[data.x1_column];
         y1 = item[data.y1_column];
+        if (x1 < m_goodExtents.x0 || x1 > m_goodExtents.x1 ||
+            y1 < m_goodExtents.y0 || y1 > m_goodExtents.y1) {
+            return true;
+        }
         x2 = item[data.x2_column];
         y2 = item[data.y2_column];
-        if (x1 < m_defaultCenter.x - m_defaultGoodZone ||
-            x1 > m_defaultCenter.x + m_defaultGoodZone ||
-            y1 < m_defaultCenter.y - m_defaultGoodZone ||
-            y1 > m_defaultCenter.y + m_defaultGoodZone ||
-            x2 < m_defaultCenter.x - m_defaultGoodZone ||
-            x2 > m_defaultCenter.x + m_defaultGoodZone ||
-            y2 < m_defaultCenter.y - m_defaultGoodZone ||
-            y2 > m_defaultCenter.y + m_defaultGoodZone) {
+        if (x2 < m_goodExtents.xo || x2 > m_goodExtents.x1 ||
+            y2 < m_goodExtents.y0 || y2 > m_goodExtents.y1) {
             return true;
         }
         return false;
@@ -666,6 +674,7 @@ geoapp.Map = function (arg) {
         };
         options = options || m_animationOptions;
         m_animationOptions = options;
+        var oldData = m_animationData;
         m_animationData = null;
         if (!m_mapData || !m_mapData.data ||
                 !m_mapData.data.length || options.playState === 'stop') {
@@ -673,9 +682,11 @@ geoapp.Map = function (arg) {
         }
         var data = m_mapData.data;
         var dateColumn = m_mapData.columns.pickup_datetime;
-        if (m_mapParams['display-type'] === 'dropoff') {
+        if (m_mapParams['display-type'] === 'dropoff' &&
+                m_mapParams['display-process'] !== 'binned') {
             dateColumn = m_mapData.columns.dropoff_datetime;
         }
+        var dateColumn2 = m_mapData.columns.dropoff_datetime;
         var steps = parseInt(options['cycle-steps'] || 1);
         var substeps = parseInt(options['cycle-substeps'] || 1);
         var numBins = steps * substeps;
@@ -718,12 +729,19 @@ geoapp.Map = function (arg) {
             start = moment(start);
             range = moment.duration(moment(end) - moment(start) + 1);
         }
+        var dataLength = m_mapData.numPoints;
+        if (m_mapParams['display-type'] === 'vector') {
+            dataLength = m_mapData.numLines;
+        }
+        if (m_mapParams['display-process'] === 'binned') {
+            dataLength = data.length;
+        }
         var params = {
             numBins: numBins,
             steps: steps,
             substeps: substeps,
             bins: [],
-            dataBin: new Int32Array(data.length),
+            dataBin: new Int32Array(dataLength),
             opacity: options.opacity,
             timestep: (options['cycle-steptime'] || 1000) / substeps,
             loops: options.loops,
@@ -746,30 +764,63 @@ geoapp.Map = function (arg) {
             params.bins.push(bin);
             binStart = binEnd;
         }
-        switch (m_mapParams['display-type']) {
-            case 'both':
-                var dateColumn2 = m_mapData.columns.dropoff_datetime;
-                for (i = 0; i < m_mapData.numPoints; i += 1) {
-                    /*jshint bitwise: false */
-                    params.dataBin[i] = parseInt(((
-                        data[i >> 1][(!(i & 1)) ? dateColumn : dateColumn2] -
-                                     start) % range) / binWidth);
-                }
-                break;
-            case 'vector':
-                for (i = 0; i < m_mapData.numLines; i += 1) {
-                    params.dataBin[i] = parseInt(((
+        switch (m_mapParams['display-process']) {
+            case 'binned':
+                params.dataBin2 = new Int32Array(dataLength);
+                for (i = 0; i < data.length; i += 1) {
+                    params.dataBin[i] = Math.floor(((
                         data[i][dateColumn] - start) % range) / binWidth);
+                    params.dataBin2[i] = Math.floor(((
+                        data[i][dateColumn2] - start) % range) / binWidth);
+                }
+                /* Calculate a general scale */
+                for (i = 0; i < numBins; i += substeps) {
+                    this.binMapData(m_mapParams, params, i, !i);
                 }
                 break;
             default:
-                for (i = 0; i < m_mapData.numPoints; i += 1) {
-                    params.dataBin[i] = parseInt(((
-                        data[i][dateColumn] - start) % range) / binWidth);
+                switch (m_mapParams['display-type']) {
+                    case 'both':
+                        for (i = 0; i < m_mapData.numPoints; i += 1) {
+                            /*jshint bitwise: false */
+                            params.dataBin[i] = Math.floor(((
+                                data[i >> 1][(!(i & 1)) ? dateColumn :
+                                dateColumn2] - start) % range) / binWidth);
+                        }
+                        break;
+                    case 'vector':
+                        for (i = 0; i < m_mapData.numLines; i += 1) {
+                            params.dataBin[i] = Math.floor(((
+                                data[i][dateColumn] - start) % range) /
+                                binWidth);
+                        }
+                        break;
+                    default:
+                        for (i = 0; i < m_mapData.numPoints; i += 1) {
+                            params.dataBin[i] = Math.floor(((
+                                data[i][dateColumn] - start) % range) /
+                                binWidth);
+                        }
+                        break;
                 }
                 break;
         }
         m_animationData = params;
+    };
+
+    /* Check if a binned animation value is in the current display step.
+     *
+     * @param bin: the animation bin number.
+     * @param numBins: the number of animation bins.
+     * @param step: the current animation step [0-numBins).
+     * @param subSteps: number of steps to group together.
+     * @return: true if the bin should be shown, false otherwise. */
+    this.inAnimationBin = function (bin, numBins, step, substeps) {
+        if (bin < 0 || bin >= numBins) {
+            return false;
+        }
+        return ((bin >= step && bin < step + substeps) ||
+            bin + numBins < step + substeps);
     };
 
     /* Draw a frame of an animation.  If the current playState is 'play', set
@@ -785,31 +836,29 @@ geoapp.Map = function (arg) {
         options.step = (options.step + 1) % options.numBins;
         options.renderedSteps = (options.renderedSteps || 0) + 1;
         var visOpac = (options.opacity || 0.1);
-        if (m_mapData.numPoints) {
+        if (m_mapParams['display-process'] === 'binned') {
+            this.binMapData(m_mapParams, options, options.step);
+            this.setMapDisplayToBinnedData(m_mapParams);
+        } else if (m_mapData.numPoints) {
             vpf = m_geoPoints.verticesPerFeature();
             opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
                 'fillOpacity');
             for (i = 0, v = 0; i < m_mapData.numPoints; i += 1) {
-                bin = options.dataBin[i];
-                vis = ((bin >= options.step &&
-                    bin < options.step + options.substeps) ||
-                    bin + options.numBins < options.step + options.substeps);
+                vis = this.inAnimationBin(options.dataBin[i], options.numBins,
+                                          options.step, options.substeps);
                 vis = (vis ? visOpac : 0);
                 for (j = 0; j < vpf; j += 1, v += 1) {
                     opac[v] = vis;
                 }
             }
             m_geoPoints.actors()[0].mapper().updateSourceBuffer('fillOpacity');
-        }
-        if (m_mapData.numLines) {
+        } else if (m_mapData.numLines) {
             vpf = m_geoLines.verticesPerFeature();
             opac = m_geoLines.actors()[0].mapper().getSourceBuffer(
                 'strokeOpacity');
             for (i = 0, v = 0; i < m_mapData.numLines; i += 1) {
-                bin = options.dataBin[i];
-                vis = ((bin >= options.step &&
-                    bin < options.step + options.substeps) ||
-                    bin + options.numBins < options.step + options.substeps);
+                vis = this.inAnimationBin(options.dataBin[i], options.numBins,
+                                          options.step, options.substeps);
                 vis = (vis && !m_mapData.data[i].hide ? visOpac : -1);
                 for (j = 0; j < vpf; j += 1, v += 1) {
                     opac[v] = vis;
@@ -832,7 +881,7 @@ geoapp.Map = function (arg) {
         if (m_verbose >= 2) {
             console.log([desc, delay, frameTime, options.step]);
         }
-        while (delay < 0) {
+        while (delay < 0 && options.playState === 'play') {
             /* We have to skip some frames */
             options.step = (options.step + 1) % options.numBins;
             options.nextStepTime += options.timestep;
@@ -946,7 +995,10 @@ geoapp.Map = function (arg) {
                 break;
             case 'stop':
                 var vpf, opac, v;
-                if (m_mapData.numPoints) {
+                if (m_mapParams['display-process'] === 'binned') {
+                    this.binMapData(m_mapParams);
+                    this.setMapDisplayToBinnedData(m_mapParams);
+                } else if (m_mapData.numPoints) {
                     vpf = m_geoPoints.verticesPerFeature();
                     opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
                         'fillOpacity');
@@ -955,8 +1007,7 @@ geoapp.Map = function (arg) {
                     }
                     m_geoPoints.actors()[0].mapper().updateSourceBuffer(
                         'fillOpacity');
-                }
-                if (m_mapData.numLines) {
+                } else if (m_mapData.numLines) {
                     vpf = m_geoLines.verticesPerFeature();
                     opac = m_geoLines.actors()[0].mapper().getSourceBuffer(
                         'strokeOpacity');
@@ -1100,8 +1151,14 @@ geoapp.Map = function (arg) {
     /* Bin the map data.
      *
      * @param params: the display parameters for the map.
+     * @param anim: animation options.  null for full display.
+     * @param step: if animation options are specified, this is the step of the
+     *              animation.
+     * @param resetmax: if animation options are specified and this is true,
+     *                  reset the bin max values.
      */
-    this.binMapData = function (params) {
+    this.binMapData = function (params, anim, step, resetmax) {
+        //DWM::
         var numBins = Math.max(params['display-num-bins'] || 20, 5);
         var node = m_geoMap.node(),
             width = node.width(), height = node.height(),
@@ -1120,41 +1177,69 @@ geoapp.Map = function (arg) {
         data.y1_column = data.columns.pickup_latitude;
         data.x2_column = data.columns.dropoff_longitude;
         data.y2_column = data.columns.dropoff_latitude;
-        var x, y, i, item;
+        var x, y, i, item, checkedBad;
         var bins = {}, bin;
+        var computeVectors = (params['display-type'] === 'vector');
 
         for (i = 0; i < data.data.length; i += 1) {
             item = data.data[i];
-            if (this.isBadPoint(item, data)) {
-                continue;
+            checkedBad = null;
+            if (!anim || this.inAnimationBin(anim.dataBin[i], anim.numBins,
+                                             step, anim.substeps)) {
+                x = (item[data.x1_column] - binX0) / binW;
+                y = (item[data.y1_column] - binY0) / binH;
+                if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
+                    x = Math.floor(x);
+                    y = Math.floor(y);
+                    bin = this.ensureBinExists(bins, x, y);
+                    bin.pickups += 1;
+                    bin.pickupPoints.push(i);
+                    if (computeVectors) {
+                        checkedBad = this.isBadPoint(item, data);
+                        if (!checkedBad) {
+                            bin.dx += (item[data.x2_column] -
+                                item[data.x1_column]);
+                            bin.dy += (item[data.y2_column] -
+                                item[data.y1_column]);
+                            bin.count += 1;
+                        }
+                    }
+                }
             }
-            x = Math.floor((item[data.x1_column] - binX0) / binW);
-            y = Math.floor((item[data.y1_column] - binY0) / binH);
-            if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
-                bin = this.ensureBinExists(bins, x, y);
-                bin.pickups += 1;
-                bin.pickupPoints.push(i);
-                bin.dx += item[data.x2_column] - item[data.x1_column];
-                bin.dy += item[data.y2_column] - item[data.y1_column];
-                bin.count += 1;
-            }
-            x = Math.floor((item[data.x2_column] - binX0) / binW);
-            y = Math.floor((item[data.y2_column] - binY0) / binH);
-            if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
-                bin = this.ensureBinExists(bins, x, y);
-                bin.dropoffs += 1;
-                bin.dropoffPoints.push(i);
-                bin.dx -= item[data.x2_column] - item[data.x1_column];
-                bin.dy -= item[data.y2_column] - item[data.y1_column];
-                bin.count += 1;
+            if (!anim || this.inAnimationBin(anim.dataBin2[i], anim.numBins,
+                                             step, anim.substeps)) {
+                x = (item[data.x2_column] - binX0) / binW;
+                y = (item[data.y2_column] - binY0) / binH;
+                if (x >= 0 && x < maxx && y >= 0 && y < maxy) {
+                    x = Math.floor(x);
+                    y = Math.floor(y);
+                    bin = this.ensureBinExists(bins, x, y);
+                    bin.dropoffs += 1;
+                    bin.dropoffPoints.push(i);
+                    if (computeVectors) {
+                        if (checkedBad === null) {
+                            checkedBad = this.isBadPoint(item, data);
+                        }
+                        if (!checkedBad) {
+                            bin.dx -= (item[data.x2_column] -
+                                item[data.x1_column]);
+                            bin.dy -= (item[data.y2_column] -
+                                item[data.y1_column]);
+                            bin.count += 1;
+                        }
+                    }
+                }
             }
         }
         data.bins = bins;
+        var maxpickup = 0, maxdropoff = 0, maxflux = 0, maxvector = 0;
+        if (anim && !resetmax && data.binAnimParams) {
+            maxpickup = data.binAnimParams.maxpickup || 0;
+            maxdropoff = data.binAnimParams.maxdropoff || 0;
+            maxflux = data.binAnimParams.maxflux || 0;
+            maxvector = data.binAnimParams.maxvector || 0;
+        }
         data.binParams = {
-            maxpickup: 0,
-            maxdropoff: 0,
-            maxflux: 0,
-            maxvector: 0,
             extents: {x0: x0, y0: y0, x1: x1, y1: y1},
             screen: {w: width, h: height},
             w: binW,
@@ -1170,14 +1255,17 @@ geoapp.Map = function (arg) {
                 var flux, dx, dy, ctr, vec;
 
                 flux = Math.abs(bin.pickups - bin.dropoffs);
-                if (flux > bp.maxflux) {
-                    bp.maxflux = flux;
+                if (flux > maxflux) {
+                    maxflux = flux;
                 }
-                if (bins[x][y].pickups > bp.maxpickup) {
-                    bp.maxpickup = bins[x][y].pickups;
+                if (bins[x][y].pickups > maxpickup) {
+                    maxpickup = bins[x][y].pickups;
                 }
-                if (bins[x][y].dropoffs > bp.maxdropoff) {
-                    bp.maxdropoff = bins[x][y].dropoffs;
+                if (bins[x][y].dropoffs > maxdropoff) {
+                    maxdropoff = bins[x][y].dropoffs;
+                }
+                if (!bin.count) {
+                    return;
                 }
                 dx = bin.dx / bin.count;
                 dy = bin.dy / bin.count;
@@ -1193,19 +1281,30 @@ geoapp.Map = function (arg) {
                     bin.dy = vec.y - ctr.y;
                     bin.veclen = Math.sqrt(bin.dx * bin.dx + bin.dy * bin.dy);
                     bin.theta = Math.atan2(bin.dy, bin.dx);
-                    if (bin.veclen > bp.maxvector && bin.count >= 10) {
-                        bp.maxvector = bin.veclen;
+                    if (bin.veclen > maxvector && bin.count >= 10) {
+                        maxvector = bin.veclen;
                     }
                 }
             });
         });
-        /* Scale the maximum vector so that the vectors we render are larger */
-        bp.maxvector /= 5;
+        bp.maxflux = maxflux;
+        bp.maxpickup = maxpickup;
+        bp.maxdropoff = maxdropoff;
+        bp.maxvector = maxvector;
+        if (anim) {
+            data.binAnimParams = {
+                maxflux: maxflux,
+                maxpickup: maxpickup,
+                maxdropoff: maxdropoff,
+                maxvector: maxvector
+            }
+        }
     };
 
     /* Set the map data to polygons representing the binned data.
      *
      * @param params: the display parameters for the map.
+     * @param anim: animation options.  null for full display.
      */
     this.setMapDisplayToBinnedData = function (params) {
         var data = m_mapData;
@@ -1269,6 +1368,7 @@ geoapp.Map = function (arg) {
         if (params['display-type'] === 'vector' && (bp.maxvector ||
                 params['display-vector-length'] === 'full')) {
             var lineRecord = [0, 1];
+            var maxvector = (bp.maxvector || 0) / m_maxVectorScale;
             m_geoLines.data(polyData)
             .line(function () {
                 return lineRecord;
@@ -1281,9 +1381,9 @@ geoapp.Map = function (arg) {
                 };
                 if (d) {
                     if (params['display-vector-length'] !== 'full') {
-                        var veclen = (bin.veclen < bp.maxvector ?
-                            bin.veclen : bp.maxvector);
-                        veclen *= bp.binSize / bp.maxvector / 2;
+                        var veclen = (bin.veclen < maxvector ?
+                            bin.veclen : maxvector);
+                        veclen *= bp.binSize / maxvector / 2;
                         coor = m_geoMap.gcsToDisplay(coor);
                         coor.x += Math.cos(bin.theta) * veclen;
                         coor.y += Math.sin(bin.theta) * veclen;
