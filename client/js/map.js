@@ -13,6 +13,13 @@
  *  limitations under the License.
  */
 
+geoapp.TileSets = {
+    default: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
+    openstreetmap: 'http://tile.openstreetmap.org/',
+    tonerlite: 'http://tile.stamen.com/toner-lite/',
+    blank: '/api/v1/taxi/tiles/blank/'
+};
+
 geoapp.Map = function (arg) {
     'use strict';
 
@@ -95,6 +102,7 @@ geoapp.Map = function (arg) {
                 renderer: 'vgl'
             });
             m_geoPoints = geoLayer.createFeature('point', {
+                primitiveShape: 'sprite',
                 selectionAPI: false,
                 dynamicDraw: true
             });
@@ -349,10 +357,8 @@ geoapp.Map = function (arg) {
         var results = {
             baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/'
         };
-        if (params['display-tile-set'] === 'openstreetmap') {
-            results.baseUrl = 'http://tile.openstreetmap.org/';
-        } else if (params['display-tile-set'] === 'tonerlite') {
-            results.baseUrl = 'http://tile.stamen.com/toner-lite/';
+        if (geoapp.TileSets[params['display-tile-set']] !== undefined) {
+            results.baseUrl = geoapp.TileSets[params['display-tile-set']];
         }
         m_mapParams = params;
         if (update === false ||

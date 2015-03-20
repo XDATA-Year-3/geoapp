@@ -73,6 +73,7 @@
               option(value="mapquest") MapQuest tiles
               option(value="openstreetmap") OpenStreetMap
               option(value="tonerlite") Stamen Toner Lite
+              option(value="blank") Blank
           .form-group
             label(for="ga-display-type") Display Type
             select#ga-display-type.form-control.input-sm(title="Display Type",
@@ -102,6 +103,10 @@
                 data-place="manhattan", title="Show all of Manhattan") 
               i.icon-target
               |  Manhattan
+            button#ga-place-midtown.btn.btn-sm.ga-place(
+                data-place="midtown", title="Show Midtown")
+              i.icon-target
+              |  Midtown
             button#ga-place-timessq.btn.btn-sm.ga-place(
                 data-place="timessq", title="Show Times Square")
               i.icon-target
