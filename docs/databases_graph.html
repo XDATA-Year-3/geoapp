@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Database Comparison for XDATA Taxi Dataset</title>
+    <link rel="stylesheet"
+          href="//cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.js"></script>
+    <script>
+        $(function () {
+var colname = ['Database', 'Week - cold', 'Week - warm', 'Month - cold', 'Month - warm', 'Full - cold', 'Full - warm', 'Taxi - cold', 'Taxi - warm', 'Disk usage', 'Insert time'];
+var colunits = ['', ' s', ' s', ' s', ' s', ' s', ' s', ' s', ' s', ' Gb', ' s'];
+var coldata = [        
+    ['M2A', 18.0, 5.0, 29.8,  5.1, 31.5, 4.9, 31.0, 1.0, 12.8],
+    ['M2B', 19.3, 3.0, 39.3, 35.6,  3.5, 3.5, 12.9, 1.0, 12.8],
+    ['M2C',  3.3, 3.1, 99.5, 22.5, 10.4, 3.0, 13.8, 1.0, 12.8, 718+1175],
+    ['M3C',  3.7, 4.0, 47.1, 28.9,  9.2, 3.3,  8.4, 1.0,  2.7, 405+688],
+    ['PgC', 38.0, 5.7, 12.9,  4.8,  9.3, 3.3, 13.6, 1.0,  3.5, 603+170],
+    ['PyC', 30.2, 5.0, 12.0,  4.0,  8.3, 2.6, 13.3, 1.0,  3.5, 603+170],
+
+    ['M2D', 326.4, 101.6, 719.4, 74.1, 12.1, 3.0, 106.1, 1.1, 126.5, 8715+191958],
+    ['M3D', 193.0,  99.9,  85.1, 66.1, 11.0, 3.4,  96.2, 1.1,  25.5, 5039+34305],
+    ['PgD',  28.3,   8.8,  13.7,  4.8,  9.4, 3.3, 103.9, 1.3,  42.8, 6149],
+    ['PyD',  27.0,   8.0,  12.6,  4.1,  8.4, 2.5,  92.4, 1.2,  42.8, 6149],
+];
+var names = {
+    'M2A': 'Mongo 2.6 loaded in order',
+    'M2B': 'Mongo 2.6 loaded with random key',
+    'M2C': 'Mongo 2.6',
+    'M3C': 'Mongo 3',
+    'PgC': 'Postgres with pgdb',
+    'PyC': 'Postgres with psycopg2',
+    
+    'M2D': 'Mongo 2.6',
+    'M3D': 'Mongo 3',
+    'PgD': 'Postgres with pgdb',
+    'PyD': 'Postgres with psycopg2'
+};
+
+var data = [[colname], [colname]];
+for (var i = 2; i < 6; i += 1) {
+    data[0].push(coldata[i]);
+}
+for (var i = 6; i < 10; i += 1) {
+    data[1].push(coldata[i]);
+}
+var origdata = [];
+for (var d = 0; d < data.length; d += 1) {
+    origdata.push(data[d].slice());
+    for (var i = 1; i < data[d].length; i += 1) {
+        origdata[d][i] = data[d][i].slice();
+        data[d][i][0] = names[data[d][i][0]] + ' (' + data[d][i][0] + ')';
+    }
+    for (var j = 1; j < data[d][0].length; j += 1) {
+        var minval = null, maxval = 0;
+        for (var i = 1; i < data[d].length; i += 1) {
+            if (data[d][i][j] !== undefined && (minval === null || data[d][i][j] < minval)) {
+                minval = data[d][i][j];
+            }
+            if (data[d][i][j] !== undefined && data[d][i][j] > maxval) {
+                maxval = data[d][i][j];
+            }
+        }
+        for (var i = 1; i < data[d].length; i += 1) {
+            if (data[d][i][j] !== undefined) {
+//                data[d][i][j] = 100.0 * minval / data[d][i][j];
+//                data[d][i][j] *= 100.0 / minval;
+                data[d][i][j] *= 100.0 / maxval;
+            }
+        }
+    }
+}
+for (var d = 0; d < data.length; d += 1) {
+    (function () {
+        var orig = origdata[d];
+        c3.generate({
+            bindto: '#chart' + (d + 1),
+            data: {
+                x: 'Database',
+                type: 'bar',
+                columns: data[d],
+            },
+            bar: {
+                ratio: 0.5
+            },
+            axis: {
+                x: {
+                    type: 'category' // this needed to load string x value
+                },
+                y: {max: 100, min: 0, padding: {top: 0, bottom: 0}}
+            },
+            tooltip: {
+                contents: function (d, defaultTitleFormat, defaultValueFormat,
+                                    color) {
+                    d = d.slice();
+                    for (var i = 0; i < d.length; i += 1) {
+                        d[i].value = orig[i + 1][d[i].x + 1];
+                    }
+                    return this.getTooltipContent(d, defaultTitleFormat,
+                        function (value) {
+                            return ' ' + value + colunits[d[0].x + 1];
+                        }, color);
+                }
+            }
+        });
+    })();
+}    
+        });
+    </script>
+</head>
+<body style='font-family: sans-serif'>
+<P>Comparison between databases - scaled so that 100 is the worst case behavior - shorter is better.</P>
+<center><b>1/12th Databases</b></center>
+<div id="chart1"></div>
+<hr/>
+<center><b>Full Databases</b></center>
+<div id="chart2"></div>
+</body>
+</html>
