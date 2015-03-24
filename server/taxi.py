@@ -515,6 +515,8 @@ class Taxi(girder.api.rest.Resource):
     def __init__(self):
         self.resourceName = 'taxi'
         self.route('GET', (), self.find)
+        self.route('GET', ('tiles', 'blank', ':wc1', ':wc2', ':wc3'),
+                   self.blankTiles)
         self.route('PUT', ('reporttest', ), self.storeTestResults)
         self.route('PUT', ('reporttest', ':id'), self.updateTestResults)
         self.access = {
@@ -704,6 +706,23 @@ class Taxi(girder.api.rest.Resource):
         .errorResponse('ID was invalid.')
         .errorResponse('Invalid JSON passed in request body.')
         .errorResponse('Metadata key name was invalid.'))
+
+    @access.public
+    def blankTiles(self, wc1, wc2, wc3, params):
+        def resultFunc():
+            yield (
+                '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00'
+                '\x00\x00\x01\x08\x04\x00\x00\x00\xb5\x1c\x0c\x02\x00\x00'
+                '\x00\x0bIDAT\x18Wc``\x00\x00\x00\x03\x00\x01h&Y\r\x00\x00'
+                '\x00\x00IEND\xaeB`\x82')
+
+        cherrypy.response.headers['Content-Type'] = 'image/png'
+        return resultFunc
+    blankTiles.description = (
+        Description('Always send a transparent 1x1 pixel PNG.')
+        .param('wc1', 'Ignored', paramType='path', required=True)
+        .param('wc2', 'Ignored', paramType='path', required=True)
+        .param('wc3', 'Ignored', paramType='path', required=True))
 
 
 def load(info):

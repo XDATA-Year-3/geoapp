@@ -22,7 +22,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         {name: 'lload', type: 'vector', phase: 'load'},
         {name: 'lanim', type: 'vector', phase: 'anim'},
         {name: 'bload', type: 'both',   phase: 'load', process: 'binned'},
-        {name: 'bload', type: 'both',   phase: 'anim', process: 'binned'}
+        {name: 'banim', type: 'both',   phase: 'anim', process: 'binned'}
     ],
 
     events: {
