@@ -10,3 +10,4 @@ docs/_output
 env/*
 built/*
 *.log
+client/optional/*

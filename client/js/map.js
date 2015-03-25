@@ -17,6 +17,7 @@ geoapp.TileSets = {
     default: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
     openstreetmap: 'http://tile.openstreetmap.org/',
     tonerlite: 'http://tile.stamen.com/toner-lite/',
+    mqsat: 'http://otile1.mqcdn.com/tiles/1.0.0/sat/',
     blank: '/api/v1/taxi/tiles/blank/'
 };
 
@@ -93,7 +94,8 @@ geoapp.Map = function (arg) {
             });
             m_mapLayer = m_geoMap.createLayer('osm', {
                 baseUrl: displayInfo.baseUrl,
-                renderer: 'vgl'
+                renderer: 'vgl',
+                mapOpacity: displayInfo.opacity || 1
             })
             .geoOn(geo.event.pan, function (e) { view.mapMovedEvent(e); })
             .geoOn(geo.event.resize, function (e) { view.mapMovedEvent(e); })
@@ -355,10 +357,14 @@ geoapp.Map = function (arg) {
         params.opacity = params.opacity || 0.05;
         var origParams = m_mapParams || {};
         var results = {
-            baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/'
+            baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
+            opacity: params['display-tile-opacity'] || 1
         };
         if (geoapp.TileSets[params['display-tile-set']] !== undefined) {
             results.baseUrl = geoapp.TileSets[params['display-tile-set']];
+        } else if (params['display-tile-set'] &&
+                params['display-tile-set'].substr(0, 4) === 'http') {
+            results.baseUrl = params['display-tile-set'];
         }
         m_mapParams = params;
         if (update === false ||
@@ -369,10 +375,13 @@ geoapp.Map = function (arg) {
             m_mapLayer.updateBaseUrl(results.baseUrl);
             m_baseUrl = results.baseUrl;
         }
+        m_mapLayer.mapOpacity(results.opacity);
         var animStartStep;
         var data = m_mapData;
         var changed = (data && data.data && update === 'always');
         if (data && data.data) {
+            /* display-tile-set and display-tile-opacity are intentionally not
+             * included here, is they don't affect the animation. */
             ['display-type', 'display-process', 'display-num-bins'].forEach(function (key) {
                 changed = changed || (params[key] !== origParams[key]);
             });
@@ -1164,7 +1173,7 @@ geoapp.Map = function (arg) {
      *                  reset the bin max values.
      */
     this.binMapData = function (params, anim, step, resetmax) {
-        var numBins = Math.max(params['display-num-bins'] || 20, 5);
+        var numBins = Math.max(params['display-num-bins'] || 15, 5);
         var node = m_geoMap.node(),
             width = node.width(), height = node.height(),
             bounds = m_geoMap.bounds();

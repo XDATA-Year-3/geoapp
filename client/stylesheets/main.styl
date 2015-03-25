@@ -93,6 +93,24 @@ a
     width 60px
   [taxitype="float"]
     width 80px
+  label:not(:first-child)
+    padding-left 10px
+  input[type="checkbox"]+label
+    padding-left: 0
+  .slider
+    margin-left 5px
+    height 30px
+    .slider-handle
+      width 6px
+      height 18px
+      margin-left -3px
+      margin-top -4px
+    .slider-selection
+      background none
+  #ga-step-slider-ctl
+    width 290px
+  #ga-tile-opacity-ctl
+    width 25px
 
 .daterangepicker
   .ranges
@@ -113,17 +131,6 @@ a
     padding 2px
   [class^="icon-"]:before, [class*=" icon-"]:before
     font-family inherit
-#ga-step-slider-ctl
-  width 290px
-  margin-left 5px
-  height 30px
-  .slider-handle
-    width 6px
-    height 18px
-    margin-left -3px
-    margin-top -4px
-  .slider-selection
-    background none
 #ga-cycle-display
   max-width 205px
   white-space nowrap

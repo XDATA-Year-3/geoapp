@@ -105,15 +105,32 @@ geoapp.views.ControlsView = geoapp.View.extend({
             var params = geoapp.parseQueryString(settings[section] || '');
             _.each(current, function (value, id) {
                 if (value !== (params[id] || '')) {
-                    try {
-                        $(baseSelector + id).val(params[id] || '');
-                        update[section] = true;
-                    } catch (err) { }
+                    view.setControlValue(baseSelector + id, params[id] || '');
+                    update[section] = true;
                 }
             });
         });
         view.updateView(false, update);
         geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 1000);
+    },
+
+    /* Set the value of a control.  If this is a select control that doesn't
+     * contain the specified value, add that value to the control.
+     *
+     * @param selector: the jquery selector for the control.
+     * @param value: the value to set.
+     */
+    setControlValue: function (selector, value) {
+        value = '' + value;
+        try {
+            $(selector).val(value);
+            if ($(selector).is('select') && $(selector).val() !== value &&
+                    value !== '') {
+                $(selector).append($('<option/>').attr({value: value})
+                    .text(value));
+                $(selector).val(value);
+            }
+        } catch (err) { }
     },
 
     /* Render the view.  This also prepares various controls if this is the
@@ -131,12 +148,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     if (settings[section]) {
                         var params = geoapp.parseQueryString(settings[section]);
                         _.each(params, function (value, id) {
-                            try {
-                                if (value !== '' && value !== undefined) {
-                                    $(baseSelector + id).val(value);
-                                    update = true;
-                                }
-                            } catch (err) { }
+                            if (value !== '' && value !== undefined) {
+                                view.setControlValue(baseSelector + id, value);
+                                update = true;
+                            }
                         });
                     }
                 });
@@ -160,6 +175,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
             $('#ga-step-slider').slider({
                 formatter: geoapp.map.getStepDescription
             }).slider('disable');
+            $('.ga-slider-ctl').each(function () {
+                if ($(this).val().length) {
+                    $(this).attr('data-slider-value', $(this).val());
+                }
+            });
+            $('.ga-slider-ctl').slider();
             if (view.firstRender) {
                 view.firstRender = false;
                 geoapp.map.showMap([], view.updateSection('display', false));
@@ -330,11 +351,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var navFields = {};
         $('#' + selector + ' [taxifield]').each(function () {
             var elem = $(this);
-            var value = elem.val();
+            var value = view.getTaxiValue(elem, params);
             if (value !== '' || returnNav) {
                 navFields[elem.attr('id')] = value;
             }
-            view.getTaxiValue(elem, params);
         });
         if (updateNav) {
             geoapp.updateNavigation('mapview', section, navFields);
@@ -362,13 +382,18 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *
      * @param selector: selector for input control.
      * @param params: dictionary in which to store result.
+     * @returns: the unprocessed value of the element.
      */
     getTaxiValue: function (selector, params) {
         var elem = $(selector);
         var value = elem.val();
+        if (elem.is('.ga-slider-ctl,.ga-slider-ctl-custom')) {
+            value = '' + elem.slider('getValue');
+        }
+
         var field = elem.attr('taxifield');
         if (!field) {
-            return;
+            return value;
         }
         var ttype = elem.attr('taxitype');
         switch (ttype) {
@@ -399,6 +424,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }
                 break;
         }
+        return value;
     },
 
     /* Perform an action on the animation.  Available actions are
@@ -479,7 +505,7 @@ geoapp.placeList = {
         x0: -74.0140000,
         y0:  40.7730000,
         x1: -73.9588000,
-        y1:  40.7350000
+        y1:  40.7320000
     },
     timessq: {
         x0: -74.0048904,
