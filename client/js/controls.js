@@ -140,6 +140,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
+            if (!$('#ga-source option').length) {
+                $('#app-data taxidata option').each(function () {
+                    var opt = $(this);
+                    $('#ga-source').append(
+                        $('<option>').attr('value', opt.attr('key'))
+                        .text(opt.attr('name')));
+                });
+            }
             update = false;
             if (view.initialSettings && !view.usedInitialSettings) {
                 var settings = view.initialSettings;

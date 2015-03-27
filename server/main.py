@@ -17,16 +17,20 @@
 #  limitations under the License.
 ###############################################################################
 
+import cgi
 import cherrypy
 import girder.utility.config
 import girder.utility.server
 import mako.template
 import os
+import sys
 
 import taxi
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(PACKAGE_DIR)
+
+origLoadConfig = None
 
 
 class GeoAppRoot(object):
@@ -42,10 +46,35 @@ class GeoAppRoot(object):
     }
 
     def GET(self):
+        config = girder.utility.config.getConfig()
+        vars = self.vars
+        if 'resources' in config:
+            vars.update(config['resources'])
+        data = {}
+        for dbtype in ('taxidata', ):
+            datalist = []
+            for key in config.get(dbtype, {}):
+                db = config[dbtype][key]
+                datalist.append((db.get("order", sys.maxint),
+                                 db.get("name", ""), key))
+            datalist.sort()
+            data[dbtype] = [{"key": key, "name": name} for (order, name, key)
+                            in datalist]
+        datastr = []
+        for category in data:
+            datastr.extend(['<', category, '>'])
+            for elem in data[category]:
+                datastr.append('<option')
+                for key in elem:
+                    datastr.extend([' ', key, '="',
+                                    cgi.escape(elem[key], quote=True), '"'])
+                datastr.append('/>')
+            datastr.extend(['</', category, '>'])
+        vars['data'] = ''.join(datastr)
         if self.indexHtml is None:
             page = open(os.path.join(ROOT_DIR, 'built/index.html')).read()
             print '%r' % page
-            self.indexHtml = mako.template.Template(page).render(**self.vars)
+            self.indexHtml = mako.template.Template(page).render(**vars)
         return self.indexHtml
 
 
@@ -55,8 +84,6 @@ class GeoApp():
 
     """Start the server and serve until stopped."""
     def start(self):
-        cherrypy.config['database']['uri'] = 'mongodb://localhost:27017/geoapp'
-        cherrypy.config['server.socket_port'] = 8001
         cherrypy.engine.timeout_monitor.unsubscribe()
         self.root = GeoAppRoot()
         # Create the girder services and place them at /girder
@@ -102,6 +129,36 @@ class GeoApp():
         cherrypy.engine.start()
         cherrypy.engine.block()
 
+
+def loadConfig():
+    """
+    Load the girder configuration, then update it with our configuration.
+    """
+    origLoadConfig()
+    configPaths = []
+    configPaths.append(
+        os.path.join(ROOT_DIR, 'conf', 'geoapp.dist.cfg'))
+    configPaths.append(
+        os.path.join(ROOT_DIR, 'conf', 'geoapp.local.cfg'))
+    configPaths.append(
+        os.path.join('/etc', 'geoapp.cfg'))
+    configPaths.append(
+        os.path.join(os.path.expanduser('~'), '.geoapp', 'geoapp.cfg'))
+    if 'GEOAPP_CONFIG' in os.environ:
+        configPaths.append(os.environ['GEOAPP_CONFIG'])
+
+    for curConfigPath in configPaths:
+        if os.path.exists(curConfigPath):
+            girder.utility.config._mergeConfig(curConfigPath)
+
+
+if not origLoadConfig:
+    origLoadConfig = girder.utility.config.loadConfig
+    girder.utility.config.loadConfig = loadConfig
+
 if __name__ == '__main__':
+    # If the config was already loaded, make sure we reload using our app's
+    # added files.
+    loadConfig()
     app = GeoApp()
     app.start()
