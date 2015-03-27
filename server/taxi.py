@@ -571,7 +571,9 @@ class Taxi(girder.api.rest.Resource):
         self.access = {}
         for key in config.get('taxidata', {}):
             db = config['taxidata'][key]
-            if db.get('class', None) in globals():
+            if not isinstance(db, dict) or 'class' not in db:
+                continue
+            if db['class'] in globals():
                 self.access[key] = (globals()[db['class']],
                                     db.get('params', {}))
 

@@ -55,10 +55,12 @@ class GeoAppRoot(object):
             datalist = []
             for key in config.get(dbtype, {}):
                 db = config[dbtype][key]
-                datalist.append((db.get("order", sys.maxint),
-                                 db.get("name", ""), key))
+                if not isinstance(db, dict) or 'class' not in db:
+                    continue
+                datalist.append((db.get('order', sys.maxint),
+                                 db.get('name', ''), key))
             datalist.sort()
-            data[dbtype] = [{"key": key, "name": name} for (order, name, key)
+            data[dbtype] = [{'key': key, 'name': name} for (order, name, key)
                             in datalist]
         datastr = []
         for category in data:
