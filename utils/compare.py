@@ -5,7 +5,9 @@ import urllib
 
 import fileutil
 
-query = 'http://localhost:8001/api/v1/taxi?offset=0&format=list&limit=300000&fields=pickup_datetime%2Cpickup_longitude%2Cpickup_latitude%2C&source='
+query = (
+    'http://localhost:8001/api/v1/taxi?offset=0&format=list&limit=300000'
+    '&fields=pickup_datetime%2Cpickup_longitude%2Cpickup_latitude%2C&source=')
 
 queries = [
     '&pickup_datetime_min=2013-2-17&pickup_datetime_max=2013-2-24',
@@ -22,25 +24,28 @@ dbs = [
     ('m2', 'mongofull'),
     ('m3', 'mongofull'),
     ('pg', 'postgresfull'),
+    ('pg', 'postgresfullg'),
     ]
+
 
 def start_db(db):
     fileutil.clearFileCache(False)
-    if db=='m2':
+    if db == 'm2':
         os.system("c:\\mongodb\\start.bat 2>NUL >NUL")
         time.sleep(5)
-    elif db=='m3':
+    elif db == 'm3':
         os.system("c:\\mongodb3\\start.bat 2>NUL >NUL")
         time.sleep(5)
-    elif db=='pg':
+    elif db == 'pg':
         os.system("net start postgresql-x64-9.4 2>NUL >NUL")
 
+
 def stop_db(db):
-    if db=='m2':
+    if db == 'm2':
         os.system("c:\\mongodb\\stop.bat 2>NUL >NUL")
-    elif db=='m3':
+    elif db == 'm3':
         os.system("c:\\mongodb3\\stop.bat 2>NUL >NUL")
-    elif db=='pg':
+    elif db == 'pg':
         os.system("net stop postgresql-x64-9.4 2>NUL >NUL")
 
 

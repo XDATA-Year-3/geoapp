@@ -106,6 +106,30 @@ CKeyTable = {
     'random': 'r'
 }
 
+GreenKeyTable = {
+    'lpep_pickup_datetime': 'pickup_datetime',
+    'Lpep_dropoff_datetime': 'dropoff_datetime',
+    'Store_and_fwd_flag': 'store_and_fwd_flag',
+    'RateCodeID': 'rate_code',
+    'Pickup_longitude': 'pickup_longitude',
+    'Pickup_latitude': 'pickup_latitude',
+    'Dropoff_longitude': 'dropoff_longitude',
+    'Dropoff_latitude': 'dropoff_latitude',
+    'Passenger_count': 'passenger_count',
+    'Trip_distance': 'trip_distance',
+    'Fare_amount': 'fare_amount',
+    'Extra': 'surcharge',
+    'MTA_tax': 'mta_tax',
+    'Tip_amount': 'tip_amount',
+    'Tolls_amount': 'tolls_amount',
+    'Ehail_fee': '-',
+    'Total_amount': 'total_amount',
+    'Payment_type': 'payment_type',
+    'Distance_between_service': 'trip_distance',
+    'Time_between_service': 'trip_time_in_secs',
+    'Trip_type': '-'
+}
+
 RevTable = {v: k for k, v in KeyTable.items()}
 CRevTable = {v: k for k, v in CKeyTable.items()}
 
@@ -172,8 +196,8 @@ def dataToFiles(fileData, opts={}, row=None):
     :param opts: general command-line options.
     :param row: if not None, the python document to store.
     """
-    if not 'numFiles' in fileData:
-        if not 'count' in fileData or not opts.get('shuffle', False):
+    if 'numFiles' not in fileData:
+        if 'count' not in fileData or not opts.get('shuffle', False):
             numFiles = 1
         else:
             # assume the first row is representative for data size
@@ -214,8 +238,7 @@ def dehash(medallions=None, hacks=None):
     """
     medallionTable = hackTable = {}
 
-    if medallions:
-        MainKey = getKey('medallion')
+    if medallions and len(medallions):
         print 'Medallions', len(medallions)
         medallions = dict.fromkeys(medallions)
         table = {}
@@ -239,8 +262,7 @@ def dehash(medallions=None, hacks=None):
                                                        len(medallions))
         medallionTable = table
 
-    if hacks:
-        MainKey = getKey('hack_license')
+    if hacks and len(hacks):
         print 'Hack Licenses', len(hacks)
         hacks = dict.fromkeys(hacks)
         table = {}
@@ -250,7 +272,6 @@ def dehash(medallions=None, hacks=None):
         # values (and no values are zero-padded).  8-digit numbers cover the
         # data space.  The discrepency is probably due to data entry errors.
         for num in xrange(100000000):
-            #for pad in xrange(len('%d' % num), 8 + 1):
             for pad in xrange(len('%d' % num), len('%d' % num) + 1):
                 value = '%0*d' % (pad, num)
                 key = md5.new(value).hexdigest().upper()
@@ -358,6 +379,8 @@ def importFiles(fileData, opts={}, destDB=None):
     else:
         filename = files[0]['name']
 
+    if not destDB:
+        return
     client = getDbConnection(destDB)
     database = client.get_default_database()
     destColl = database['trips']
@@ -399,6 +422,30 @@ def indexTrips(opts={}):
             background=True)
 
 
+def processTrip(opts, epoch, fileData, trip):
+    for key in trip:
+        if trip[key] == '':
+            trip[key] = None
+        elif RevTable.get(key, key) in TypeTable:
+            dataType = TypeTable[RevTable.get(key, key)]
+            try:
+                if dataType == 'date':
+                    trip[key] = datetime.datetime.strptime(
+                        trip[key], '%Y-%m-%d %H:%M:%S')
+                    if opts.get('dateAsInt', False):
+                        trip[key] = int((trip[key]-epoch).total_seconds()*1000)
+                elif dataType == 'float':
+                    trip[key] = float(trip[key])
+                elif dataType == 'int':
+                    trip[key] = int(trip[key])
+            except ValueError:
+                print 'ValueError', TypeTable[key], key, trip[key]
+                sys.exit(0)
+    if opts.get('random', False):
+        trip[getKey('random')] = random.random()
+    dataToFiles(fileData, opts, trip)
+
+
 def readFiles(opts={}):
     """
     Read the taxi data from files in the local directory that are named
@@ -426,23 +473,41 @@ def readFiles(opts={}):
     hacks = {}
     numRows = 0
     for month in xrange(opts.get('fromMonth', 1), opts.get('toMonth', 12)+1):
-        fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
-        fare = csv.reader(fare.open(fare.namelist()[0]))
-        fheader = [key.strip() for key in fare.next()]
-        columns = {fheader[col]: col for col in xrange(len(fheader))}
-        m_col = columns['medallion']
-        h_col = columns['hack_license']
         linecount = 0
-        for tripline in fare:
-            medallions[tripline[m_col]] = True
-            hacks[tripline[h_col]] = True
-            linecount += 1
-            numRows += 1
-            if not linecount % 25000:
-                sys.stdout.write('%d %d %d %d %3.1fs\r' % (
-                    month, linecount, len(medallions), len(hacks),
-                    time.time() - starttime))
-                sys.stdout.flush()
+        if opts.get('yellow', True):
+            fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
+            fare = csv.reader(fare.open(fare.namelist()[0]))
+            fheader = [key.strip() for key in fare.next()]
+            columns = {fheader[col]: col for col in xrange(len(fheader))}
+            m_col = columns['medallion']
+            h_col = columns['hack_license']
+            linecount = 0
+            for tripline in fare:
+                medallions[tripline[m_col]] = True
+                hacks[tripline[h_col]] = True
+                linecount += 1
+                numRows += 1
+                if not linecount % 25000:
+                    sys.stdout.write('%d %d %d %d %3.1fs\r' % (
+                        month, linecount, len(medallions), len(hacks),
+                        time.time() - starttime))
+                    sys.stdout.flush()
+        if opts.get('green', True):
+            filename = 'lpep_trip%d.csv.zip' % month
+            if os.path.exists(filename):
+                data = zipfile.ZipFile(filename)
+                data = csv.reader(data.open(data.namelist()[0]))
+                dheader = [GreenKeyTable[key.strip()] for key in data.next()]
+                columns = {dheader[col]: col for col in xrange(len(dheader))}
+                linecount = 0
+                for tripline in data:
+                    linecount += 1
+                    numRows += 1
+                if not linecount % 25000:
+                    sys.stdout.write('%d %d %d %d %3.1fs\r' % (
+                        month, linecount, len(medallions), len(hacks),
+                        time.time() - starttime))
+                    sys.stdout.flush()
         sys.stdout.write('%d %d %d %d %3.1fs\n' % (
             month, linecount, len(medallions), len(hacks),
             time.time() - starttime))
@@ -453,69 +518,72 @@ def readFiles(opts={}):
     if opts.get('sampleRate', None):
         fileData['count'] = numRows / opts['sampleRate']
     for month in xrange(opts.get('fromMonth', 1), opts.get('toMonth', 12)+1):
-        data = zipfile.ZipFile('trip_data_%d.csv.zip' % month)
-        data = csv.reader(data.open(data.namelist()[0]))
-        dheader = [getKey(key.strip()) for key in data.next()]
-        fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
-        fare = csv.reader(fare.open(fare.namelist()[0]))
-        fheader = [getKey(key.strip()) for key in fare.next()]
-        triples = {}
-        for tripline in data:
-            trip = dict(zip(dheader, [val.strip() for val in tripline]))
-            tripkey = (trip[getKey('medallion')], trip[getKey('hack_license')],
-                trip[getKey('pickup_datetime')])
-            while tripkey not in triples:
-                fareline = fare.next()
-                if not fareline:
-                    break
-                fdat = dict(zip(fheader, [val.strip() for val in fareline]))
-                fdatkey = (fdat[getKey('medallion')], fdat[getKey(
-                    'hack_license')], fdat[getKey('pickup_datetime')])
-                triples[fdatkey] = fdat
-            if tripkey not in triples:
-                continue
-            trip.update(triples[tripkey])
-            del triples[tripkey]
-            rcount += 1
-            if (opts.get('sampleRate', None) and
-                    random.random() * opts['sampleRate'] >= 1):
-                continue
-            trip[getKey('medallion')] = medallionTable.get(
-                trip[getKey('medallion')], trip[getKey('medallion')])
-            trip[getKey('hack_license')] = hackTable.get(
-                trip[getKey('hack_license')], trip[getKey('hack_license')])
+        if opts.get('yellow', True):
+            data = zipfile.ZipFile('trip_data_%d.csv.zip' % month)
+            data = csv.reader(data.open(data.namelist()[0]))
+            dheader = [getKey(key.strip()) for key in data.next()]
+            fare = zipfile.ZipFile('trip_fare_%d.csv.zip' % month)
+            fare = csv.reader(fare.open(fare.namelist()[0]))
+            fheader = [getKey(key.strip()) for key in fare.next()]
+            triples = {}
+            for tripline in data:
+                trip = dict(zip(dheader, [val.strip() for val in tripline]))
+                tripkey = (trip[getKey('medallion')],
+                           trip[getKey('hack_license')],
+                           trip[getKey('pickup_datetime')])
+                while tripkey not in triples:
+                    fareline = fare.next()
+                    if not fareline:
+                        break
+                    fdat = dict(zip(fheader, [
+                        val.strip() for val in fareline]))
+                    fdatkey = (fdat[getKey('medallion')], fdat[getKey(
+                        'hack_license')], fdat[getKey('pickup_datetime')])
+                    triples[fdatkey] = fdat
+                if tripkey not in triples:
+                    continue
+                trip.update(triples[tripkey])
+                del triples[tripkey]
+                rcount += 1
+                if (opts.get('sampleRate', None) and
+                        random.random() * opts['sampleRate'] >= 1):
+                    continue
+                trip[getKey('medallion')] = medallionTable.get(
+                    trip[getKey('medallion')], trip[getKey('medallion')])
+                trip[getKey('hack_license')] = hackTable.get(
+                    trip[getKey('hack_license')], trip[getKey('hack_license')])
+                processTrip(opts, epoch, fileData, trip)
+                dcount += 1
+                if not dcount % 1000:
+                    sys.stdout.write('%d %d %d %d %3.1fs \r' % (
+                        month, dcount, rcount, len(triples),
+                        time.time() - starttime))
+                    sys.stdout.flush()
 
-            for key in trip:
-                if trip[key] == '':
-                    trip[key] = None
-                elif RevTable.get(key, key) in TypeTable:
-                    dataType = TypeTable[RevTable.get(key, key)]
-                    try:
-                        if dataType == 'date':
-                            trip[key] = datetime.datetime.strptime(
-                                trip[key],'%Y-%m-%d %H:%M:%S')
-                            if opts.get('dateAsInt', False):
-                                trip[key] = int(
-                                    (trip[key]-epoch).total_seconds()*1000)
-                        elif dataType == 'float':
-                            trip[key] = float(trip[key])
-                        elif dataType == 'int':
-                            trip[key] = int(trip[key])
-                    except ValueError:
-                        print 'ValueError', TypeTable[key], key, trip[key]
-                        sys.exit(0)
-            if opts.get('random', False):
-                trip[getKey('random')] = random.random()
-            dataToFiles(fileData, opts, trip)
-            dcount += 1
-            if not dcount % 1000:
-                sys.stdout.write('%d %d %d %d %3.1fs \r' % (
-                    month, dcount, rcount, len(triples),
-                    time.time() - starttime))
-                sys.stdout.flush()
+        if opts.get('green', True):
+            filename = 'lpep_trip%d.csv.zip' % month
+            if os.path.exists(filename):
+                data = zipfile.ZipFile(filename)
+                data = csv.reader(data.open(data.namelist()[0]))
+                dheader = [getKey(GreenKeyTable[key.strip()])
+                           for key in data.next()]
+                columns = {dheader[col]: col for col in xrange(len(dheader))}
+                for tripline in data:
+                    trip = dict(zip(dheader, [
+                        val.strip() for val in tripline]))
+                    del trip['-']
+                    processTrip(opts, epoch, fileData, trip)
+                    dcount += 1
+                    rcount += 1
+                    if not dcount % 1000:
+                        sys.stdout.write('%d %d %d %d %3.1fs \r' % (
+                            month, dcount, rcount, 0,
+                            time.time() - starttime))
+                        sys.stdout.flush()
+
         data = None
         sys.stdout.write('%d %d %d %d %3.1fs \n' % (
-            month, dcount, rcount, len(triples), time.time() - starttime))
+            month, dcount, rcount, 0, time.time() - starttime))
     sys.stdout.write('-- %d %d -- %3.1fs \n' % (
         dcount, rcount, time.time() - starttime))
     sys.stdout.flush()
@@ -525,7 +593,7 @@ def readFiles(opts={}):
 if __name__ == '__main__':
     help = False
     actions = {}
-    opts = {}
+    opts = {'yellow': True, 'green': True}
     seed = 0
     for arg in sys.argv[1:]:
         if arg == '--compact':
@@ -542,12 +610,18 @@ if __name__ == '__main__':
             opts['endIndex'] = True
         elif arg.startswith('--from='):
             opts['fromMonth'] = int(arg.split('=', 1)[1])
+        elif arg == '--green':
+            opts['green'] = True
         elif arg == '--index':
             actions['index'] = True
         elif arg == '--intdate':
             opts['dateAsInt'] = True
         elif arg == '--keep':
             opts['keepFiles'] = True
+        elif arg == '--nogreen':
+            opts['green'] = False
+        elif arg == '--noyellow':
+            opts['yellow'] = False
         elif arg == '--random':
             opts['random'] = True
         elif arg == '--read':
@@ -560,6 +634,8 @@ if __name__ == '__main__':
             opts['shuffle'] = True
         elif arg.startswith('--to='):
             opts['toMonth'] = int(arg.split('=', 1)[1])
+        elif arg == '--yellow':
+            opts['yellow'] = True
         else:
             help = True
     if help or not len(actions):
@@ -568,8 +644,10 @@ if __name__ == '__main__':
 Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
         --sample=(rate) --seed=(value) --random --dropindex --endindex
         --from=(month) --to=(month) --intdate --compact --shuffle --keep
+        --yellow|--noyellow --green|--nogreen
 
---db specifies the database to use in mongo.  This defaults to 'taxi'.
+--db specifies the database to use in mongo.  This defaults to 'taxi'.  If an
+  empty string, don't write to any database (implies --keep).
 --compact uses extra-compact keys for the database.
 --copy copies the --db database to the --copy database.  The destination
   database will be indexed as per the --dropindex or --endindex options.  If
@@ -580,9 +658,11 @@ Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
 --endindex recreates the indices at the end of the read process.
 --from does not drop or reindex existing data, and loads from the specified
     1-based month number onward.
+--green enables importing data for green cabs (default).
 --index regenerates indices on the 'trips' collection.
 --intdate stores dates as integers.
 --keep keeps the json file used with mongoimport.
+--nogreen and --noyellow disable importing data from the green or yellow cabs.
 --random adds a random value from 0 to 1 to each row under the 'random' tag.
 --read drops the 'trips' collection at mongodb://localhost:27017/taxi and reads
     it in from files in the local directory that are named
@@ -592,7 +672,8 @@ Syntax: load_taxi.py --db=(database) --read --index --copy=(database)
 --seed specifies a random number seed.  Default is 0.  Blank for no explicit
     seed.
 --shuffle shuffles the data import.
---to stops loading after the specified 1-based month number (inclusive)."""
+--to stops loading after the specified 1-based month number (inclusive).
+--yellow enables importing data for yellow cabs (default)."""
         sys.exit(0)
     starttime = time.time()
     if 'index' in actions:

@@ -28,6 +28,11 @@ KeyTable = {
 }
 
 
+if len(sys.argv) != 3 or '--help' in sys.argv:
+    print """Convert JSON load file for Mongo to a load file for Postgres.
+
+Syntax: load_pg.py (existing json file) (target pg file)"""
+    sys.exit()
 dptr = fileutil.OpenWithoutCaching(sys.argv[2], 'wb')
 dptr.write("""DROP TABLE trips;
 
@@ -37,8 +42,8 @@ CREATE TABLE trips (
     vendor_id text,
     rate_code int,
     store_and_fwd_flag text,
-    pickup_datetime bigint,
-    dropoff_datetime bigint,
+    pickup_datetime int,
+    dropoff_datetime int,
     passenger_count int,
     trip_time_in_secs int,
     trip_distance real,
@@ -66,7 +71,12 @@ fptr = fileutil.OpenWithoutCaching(sys.argv[1])
 processed = 0
 for line in fptr:
     data = json.loads(line)
-    data = [data[key] for key in skeys]
+    if (not data.get(KeyTable['pickup_datetime'], 0) or
+            not data.get(KeyTable['dropoff_datetime'], 0)):
+        continue
+    data[KeyTable['pickup_datetime']] /= 1000
+    data[KeyTable['dropoff_datetime']] /= 1000
+    data = [data.get(key, None) for key in skeys]
     data = ['\\N' if item is None else str(item) for item in data]
     dptr.write('\t'.join(data) + '\t%d\n' % processed)
     processed += 1
