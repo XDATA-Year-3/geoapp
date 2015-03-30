@@ -408,7 +408,7 @@ class TaxiViaPostgres():
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
-        Get data from the tangelo service.
+        Get data from a postgres database.
 
         :param params: a dictionary of query restrictions.  See the
                        FieldTable.  For values that aren't of type 'text',
@@ -427,7 +427,10 @@ class TaxiViaPostgres():
         sql = ['SELECT']
         if not fields:
             fields = [field[0] for field in FieldTable[:-1]]
-        sql.append(','.join(fields))
+        if hasattr(self, 'adjustReturnFields'):
+            sql.append(','.join(self.adjustReturnFields(fields)))
+        else:
+            sql.append(','.join(fields))
         sql.append('FROM trips WHERE true')
         sqlval = []
         self.params_to_sql(params, sql, sqlval)
@@ -509,6 +512,47 @@ class TaxiViaPostgres():
                     sqlval.append(value)
 
 
+class TaxiViaPostgresSeconds(TaxiViaPostgres):
+    # These databases have times in epoch seconds, not epoch milliseconds
+    def adjustReturnFields(self, fields):
+        newfields = []
+        for field in fields:
+            if FieldTable[field][0] == 'date':
+                newfields.append(field + ' * 1000::bigint')
+            else:
+                newfields.append(field)
+        return newfields
+
+    def params_to_sql(self, params, sql, sqlval):
+        """
+        Convert params to sql.
+
+        :param params: a dictionary of query restrictions.
+        :param sql: a list of sql statement fragments.  Modified.
+        :param sqlval: a list of sql values to escape.  Modified.
+        """
+        for field in FieldTable:
+            for comp, suffix in [('=', ''), ('>=', '_min'), ('<', '_max')]:
+                if field + suffix not in params:
+                    continue
+                value = params[field + suffix]
+                dtype = FieldTable[field][0]
+                if dtype == 'date':
+                    value = int((dateutil.parser.parse(value) - self.epoch)
+                                .total_seconds())
+                    sql.append('AND ' + field + comp + '%d' % value)
+                elif dtype == 'int':
+                    value = int(value)
+                    sql.append('AND ' + field + comp + '%d' % value)
+                elif dtype == 'float':
+                    value = float(value)
+                    sql.append('AND ' + field + comp + '%f' % value)
+                else:
+                    value = str(value)
+                    sql.append('AND ' + field + comp + '%s')
+                    sqlval.append(value)
+
+
 class Taxi(girder.api.rest.Resource):
     """API endpoint for taxi data."""
 
@@ -529,6 +573,7 @@ class Taxi(girder.api.rest.Resource):
                 'dbUri': 'mongodb://parakon:27017/taxifull'}),
             'postgres12': (TaxiViaPostgres, {'db': 'taxi12r'}),
             'postgresfull': (TaxiViaPostgres, {'db': 'taxifull'}),
+            'postgresfullg': (TaxiViaPostgresSeconds, {'db': 'taxifullg'}),
             'tangelo': (TaxiViaTangeloService, {}),
         }
 
