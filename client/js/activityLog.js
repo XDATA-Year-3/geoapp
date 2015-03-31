@@ -160,14 +160,14 @@
         }
     };
 
-    if (window.activityLogger) {
+    var uri = $('body').attr('activity_log_uri');
+    if (window.activityLogger && uri) {
         /* jshint -W055 */
         logger = new activityLogger($('body').attr('staticRoot') +
                                     '/draper.activity_worker-2.1.1.js')
             .testing(false)
             .echo(false);
-        logger.registerActivityLogger('http://parakon:9000', 'geoapp',
-                                      geoapp.version);
+        logger.registerActivityLogger(uri, 'geoapp', geoapp.version);
         var origInit = geoapp.View.prototype.initialize;
         geoapp.View.prototype.initialize = function () {
             origInit.apply(this, arguments);

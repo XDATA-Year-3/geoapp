@@ -24,14 +24,18 @@
           href="${staticRoot}/img/Girder_Favicon.png">
 -->
 </head>
-<body staticRoot="${staticRoot}">
+<body
+    staticRoot="${staticRoot}"
+    activity_log_uri="${activityLogURI}"
+>
+    <div id="app-data" style="display: none">${data}</div>
     <script src="${girderRoot}/built/libs.min.js"></script>
     <script src="${girderRoot}/built/app.min.js"></script>
     <script src="${staticRoot}/libs.min.js"></script>
     <script src="${staticRoot}/optional.min.js"></script>
     <script src="${staticRoot}/main.min.js"></script>
     <script src="${staticRoot}/app.min.js"></script>
-    <div id='ga-main-map'></div>
-    <div id='app-container'></div>
+    <div id="ga-main-map"></div>
+    <div id="app-container"></div>
 </body>
 </html>

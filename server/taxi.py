@@ -106,7 +106,7 @@ class TaxiViaMongo():
     }
     RevTable = {v: k for k, v in KeyTable.items()}
 
-    def __init__(self, dbUri=None):
+    def __init__(self, dbUri=None, **params):
         self.dbUri = dbUri
         db_connection = self.getDbConnection()
         self.database = db_connection.get_default_database()
@@ -328,7 +328,7 @@ class TaxiViaTangeloService():
     }
     RevTable = {v: k for k, v in KeyTable.items()}
 
-    def __init__(self):
+    def __init__(self, **params):
         self.url = 'http://damar.kitwarein.com:50000/taxi'
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
@@ -379,8 +379,13 @@ class TaxiViaPostgres():
 
     epoch = datetime.datetime.utcfromtimestamp(0)
 
-    def __init__(self, db='taxi12r'):
+    def __init__(self, db=None, **params):
         self.dbname = db
+        self.dbparams = params.copy()
+        if db is not None:
+            self.dbparams['database'] = db
+        if not self.dbparams['database'] and not self.dbparams['dsn']:
+            self.dbparams['dsn'] = 'parakon:taxi12r:taxi:taxi#1'
         self.connect()
 
     def connect(self):
@@ -403,8 +408,7 @@ class TaxiViaPostgres():
                 self.db.close()
             except Exception:
                 pass
-        self.db = pgdb.connect(host='parakon', user='taxi', password='taxi#1',
-                               database=self.dbname)
+        self.db = pgdb.connect(**self.dbparams)
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
@@ -563,19 +567,15 @@ class Taxi(girder.api.rest.Resource):
                    self.blankTiles)
         self.route('PUT', ('reporttest', ), self.storeTestResults)
         self.route('PUT', ('reporttest', ':id'), self.updateTestResults)
-        self.access = {
-            'mongo': (TaxiViaMongo, {}),
-            'mongo12': (TaxiViaMongoCompact, {
-                'dbUri': 'mongodb://parakon:27017/taxi12'}),
-            'mongo12r': (TaxiViaMongoRandomized, {
-                'dbUri': 'mongodb://parakon:27017/taxi12r'}),
-            'mongofull': (TaxiViaMongoRandomized, {
-                'dbUri': 'mongodb://parakon:27017/taxifull'}),
-            'postgres12': (TaxiViaPostgres, {'db': 'taxi12r'}),
-            'postgresfull': (TaxiViaPostgres, {'db': 'taxifull'}),
-            'postgresfullg': (TaxiViaPostgresSeconds, {'db': 'taxifullg'}),
-            'tangelo': (TaxiViaTangeloService, {}),
-        }
+        config = girder.utility.config.getConfig()
+        self.access = {}
+        for key in config.get('taxidata', {}):
+            db = config['taxidata'][key]
+            if not isinstance(db, dict) or 'class' not in db:
+                continue
+            if db['class'] in globals():
+                self.access[key] = (globals()[db['class']],
+                                    db.get('params', {}))
 
     def getUserAndFolder(self):
         """
