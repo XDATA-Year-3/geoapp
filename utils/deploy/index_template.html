@@ -11,7 +11,7 @@
   overflow: hidden;
 }
 
-.thumbnail .caption .description{
+.thumbnail .caption .description {
   position: absolute;
   top: 0px;
   right: 0px;
@@ -23,6 +23,9 @@
   color: #fff !important;
   z-index: 2;
   border-radius: 3px;
+}
+.thumbnail .caption .description a {
+  color: #476aff;
 }
     </style>
     <script language="javascript">
@@ -52,13 +55,16 @@ $(function () {
 %DEMORECORD%
 <div class="col-md-4">
   <div class="thumbnail">
-    <a href="%key%/"><img src="%img%"/></a>
-    <div class="caption">
-      <a href="%key%/"><h3>%name%</h3></a>
-      <div class="description">
-        <p>%desc%</p>
+    <a href="%key%/">
+      <img src="%img%"></img>
+      <div class="caption">
+        <h3>%name%</h3>
+        <div class="description">
+          <p>%desc%</p>
+        </div>
       </div>
-    </div>
+    </a>
+    %source%
   </div>
 </div>
 %DEMORECORD%

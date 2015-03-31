@@ -107,7 +107,7 @@ def updateIndex(demos):
         entry = template
         tags = demo.copy()
         if tags['url'] != '':
-            tags['desc'] += '</p><p>Source: <a href="%s">%s</a>' % (
+            tags['source'] = '<p>Source: <a href="%s">%s</a></p>' % (
                 tags['url'], tags['url'])
         for tag in tags:
             tagkey = '%%%s%%' % tag
