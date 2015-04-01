@@ -4,6 +4,7 @@
 import docker
 import os
 import pprint
+import shutil
 import sys
 
 
@@ -69,6 +70,7 @@ def updateNginx(demos):
 
     :param demos: the list of demos as returned by getDemoList.
     """
+    confFile = '/home/vagrant/conf/nginx_proxy_list'
     keys = {}
     conf = []
     for demo in demos:
@@ -81,9 +83,13 @@ def updateNginx(demos):
                 keys[demo['key']] += 1
             conf.append('location /%s/ {\n  proxy_pass http://%s:%d/;\n}\n' % (
                 key, demo['ip'], port))
-    open(os.path.expanduser('~/conf/nginx_proxy_list'), 'wb').write(
-        ''.join(conf))
-    os.system('sudo /etc/init.d/nginx reload')
+    conf = ''.join(conf)
+    oldconf = open(confFile).read()
+    if conf != oldconf:
+        confFileTmp = confFile + '.tmp'
+        open(confFileTmp, 'wb').write(conf)
+        shutil.move(confFileTmp, confFile)
+        os.system('/etc/init.d/nginx reload')
 
 
 def updateIndex(demos):
@@ -95,8 +101,9 @@ def updateIndex(demos):
 
     :param demos: the list of demos as returned by getDemoList.
     """
+    indexFile = '/home/vagrant/demoweb/index.html'
     keys = {}
-    template = open(os.path.expanduser('~/conf/index_template.html')).read()
+    template = open('/home/vagrant/conf/index_template.html').read()
     mainparts = template.split('%DEMORECORD%')
     page = [mainparts[0]]
     template = mainparts[1]
@@ -115,7 +122,12 @@ def updateIndex(demos):
                 entry = entry.replace(tagkey, tags[tag])
         page.append(entry)
     page.append(mainparts[2])
-    open(os.path.expanduser('~/demoweb/index.html'), 'wb').write(''.join(page))
+    page = ''.join(page)
+    oldpage = open(indexFile).read()
+    if page != oldpage:
+        indexFileTmp = indexFile + '.tmp'
+        open(indexFileTmp, 'wb').write(page)
+        shutil.move(indexFileTmp, indexFile)
 
 
 if __name__ == '__main__':
@@ -128,8 +140,7 @@ if __name__ == '__main__':
 
 Syntax: updatedemo.py
 
-This requires the user to have sudo privilege on '/etc/init.d/nginx reload'.
-
+This can call '/etc/init.d/nginx reload', so must have privilege to do so.
 """
         sys.exit(0)
     demos = getDemoList()
