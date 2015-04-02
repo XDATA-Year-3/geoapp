@@ -112,6 +112,7 @@ class GeoApp():
         self.root.api = self.root.girder.api
         del self.root.girder.api
 
+        # The specified path here is relative to the /api path
         self.root.girder.updateHtmlVars({'staticRoot': '../girder/static'})
         self.root.api.v1.updateHtmlVars({'staticRoot': '../girder/static'})
 

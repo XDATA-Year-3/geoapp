@@ -6,6 +6,7 @@ git submodule update --init --recursive
 git submodule update --recursive
 cd geojs
 npm install
+grunt library
 cd ..
 
 # If desired, get the logging module from Draper:
