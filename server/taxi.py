@@ -689,8 +689,7 @@ class Taxi(girder.api.rest.Resource):
 
     find.description = (
         Description('Get a set of taxi data.')
-        .param('source', 'Database source (default mongo).', required=False,
-               enum=['mongo', 'mongofull', 'tangelo'])
+        .param('source', 'Database source (default mongo).', required=False)
         .param('limit', 'Result set size limit (default=50).', required=False,
                dataType='int')
         .param('offset', 'Offset into result set (default=0).', required=False,

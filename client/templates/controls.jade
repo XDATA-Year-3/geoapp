@@ -15,16 +15,17 @@
             select#ga-source.form-control.input-sm(title="Database source",
                 taxifield="source")
             //- the database source options are dynamically set in controls.js
-          .form-group
-            label(for="ga-medallion") Medallion
-            input#ga-medallion.form-control.input-sm(
-              type="text", placeholder="#XX##", title="Taxi medallion",
-              taxifield="medallion")
-          .form-group
-            label(for="ga-hack-license") Hack License
-            input#ga-hack-license.form-control.input-sm(
-              type="text", placeholder="#######", title="Hack license",
-              taxifield="hack_license")
+          //- disable medallion and hack-license, as we probably won't use them
+            .form-group
+              label(for="ga-medallion") Medallion
+              input#ga-medallion.form-control.input-sm(
+                type="text", placeholder="#XX##", title="Taxi medallion",
+                taxifield="medallion")
+            .form-group
+              label(for="ga-hack-license") Hack License
+              input#ga-hack-license.form-control.input-sm(
+                type="text", placeholder="#######", title="Hack license",
+                taxifield="hack_license")
           .form-group
             label(for="ga-pickup-date") Pickup Date
             input#ga-pickup-date.ga-date-range.form-control.input-sm(
