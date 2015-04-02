@@ -24,6 +24,7 @@ import girder.utility.server
 import mako.template
 import os
 import sys
+from girder import logger
 
 import taxi
 
@@ -111,8 +112,8 @@ class GeoApp():
         self.root.api = self.root.girder.api
         del self.root.girder.api
 
-        self.root.girder.updateHtmlVars({'staticRoot': '/girder/static'})
-        self.root.api.v1.updateHtmlVars({'staticRoot': '/girder/static'})
+        self.root.girder.updateHtmlVars({'staticRoot': '../girder/static'})
+        self.root.api.v1.updateHtmlVars({'staticRoot': '../girder/static'})
 
         info = {
             'config': appconf,
@@ -162,5 +163,13 @@ if __name__ == '__main__':
     # If the config was already loaded, make sure we reload using our app's
     # added files.
     loadConfig()
+    # Use our logger values, not girder's
+    logConfig = girder.utility.config.getConfig().get('logging', {})
+    if 'log_root' in logConfig:
+        logConfig['log_root'] = os.path.expanduser(logConfig['log_root'])
+    for hdlr in logger.handlers[:]:
+        logger.removeHandler(hdlr)
+    girder._setupLogger()
+    logger.info('GeoApp starting')
     app = GeoApp()
     app.start()
