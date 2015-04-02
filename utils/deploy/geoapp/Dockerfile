@@ -58,7 +58,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 14f7b31a9177f84f9f1becfcfb2284bfdb3c564a && \
+    git checkout d48a7da753aa9c4a9dd6e161f42cd0ba745cd2ff && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN git submodule update --init --recursive && \
