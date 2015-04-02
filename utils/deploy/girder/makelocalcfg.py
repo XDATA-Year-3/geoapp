@@ -8,6 +8,9 @@ rootPath = os.environ['KWDEMO_KEY']
 cfg = """
 [global]
 server.socket_port: 8080
+tools.proxy.on: True
+tools.proxy.base: "/%ROOTPATH%"
+tools.proxy.local: ""
 
 [database]
 uri: "mongodb://%HOSTIP%:27017/%ROOTPATH%"
@@ -15,8 +18,8 @@ uri: "mongodb://%HOSTIP%:27017/%ROOTPATH%"
 [server]
 # Set to "production" or "development"
 mode: "production"
-api_root: "/%ROOTPATH%/api/v1"
-static_root: "/%ROOTPATH%/static"
+api_root: "api/v1"
+static_root: "static"
 """
 
 hostip = os.popen(

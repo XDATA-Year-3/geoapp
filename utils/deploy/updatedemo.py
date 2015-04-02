@@ -61,7 +61,7 @@ def getDemoList():
     return [item[1] for item in sorted(running)]
 
 
-def updateNginx(demos):
+def updateNginx(demos, basePath):
     """
     Update an nginx configuratoion file to allow access to all demo containers
     and port.  If there is more than one docker container with the same
@@ -69,8 +69,9 @@ def updateNginx(demos):
     ports will be available at (key), (key)1, (key)2, etc.
 
     :param demos: the list of demos as returned by getDemoList.
+    :param basePath: path where conf/nginx_proxy_list is located.
     """
-    confFile = '/home/vagrant/conf/nginx_proxy_list'
+    confFile = os.path.join(basePath, 'conf/nginx_proxy_list')
     keys = {}
     conf = []
     for demo in demos:
@@ -81,8 +82,12 @@ def updateNginx(demos):
             else:
                 key += str(keys[key])
                 keys[demo['key']] += 1
-            conf.append('location /%s/ {\n  proxy_pass http://%s:%d/;\n}\n' % (
-                key, demo['ip'], port))
+            conf.append("""location /%s/ {
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Server $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_pass http://%s:%d/;
+}\n""" % (key, demo['ip'], port))
     conf = ''.join(conf)
     oldconf = open(confFile).read()
     if conf != oldconf:
@@ -92,7 +97,7 @@ def updateNginx(demos):
         os.system('/etc/init.d/nginx reload')
 
 
-def updateIndex(demos):
+def updateIndex(demos, basePath):
     """
     Update the index.html page which summaries the available demos.  If there
     is more than one docker container with the same KWDEMO_KEY or more than one
@@ -100,10 +105,12 @@ def updateIndex(demos):
     will be shown as a thumbnail in the index.
 
     :param demos: the list of demos as returned by getDemoList.
+    :param basePath: path where conf/index_template.html and demoweb/index.html
+                     are located.
     """
-    indexFile = '/home/vagrant/demoweb/index.html'
+    indexFile = os.path.join(basePath, 'demoweb/index.html')
     keys = {}
-    template = open('/home/vagrant/conf/index_template.html').read()
+    template = open(os.path.join(basePath, 'conf/index_template.html')).read()
     mainparts = template.split('%DEMORECORD%')
     page = [mainparts[0]]
     template = mainparts[1]
@@ -123,7 +130,10 @@ def updateIndex(demos):
         page.append(entry)
     page.append(mainparts[2])
     page = ''.join(page)
-    oldpage = open(indexFile).read()
+    if os.path.exists(indexFile):
+        oldpage = open(indexFile).read()
+    else:
+        oldpage = ''
     if page != oldpage:
         indexFileTmp = indexFile + '.tmp'
         open(indexFileTmp, 'wb').write(page)
@@ -132,18 +142,22 @@ def updateIndex(demos):
 
 if __name__ == '__main__':
     help = False
+    basePath = None
     for arg in sys.argv[1:]:
-        if arg:
+        if arg and not basePath:
+            basePath = arg
+        else:
             help = True
     if help:
         print """Generate the demo index page and route web directories to the various demos.
 
-Syntax: updatedemo.py
+Syntax: updatedemo.py [base path]
 
+The base path should be something like /home/ubuntu or /home/vagrant
 This can call '/etc/init.d/nginx reload', so must have privilege to do so.
 """
         sys.exit(0)
     demos = getDemoList()
     pprint.pprint(demos)
-    updateIndex(demos)
-    updateNginx(demos)
+    updateIndex(demos, basePath)
+    updateNginx(demos, basePath)

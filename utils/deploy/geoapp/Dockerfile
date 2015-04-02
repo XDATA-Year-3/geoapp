@@ -53,19 +53,23 @@ WORKDIR /home/kwuser
 
 RUN mkdir /home/kwuser/logs
 
+# XDATA's proxy can't use the git protocol
+RUN git config --global url."https://".insteadOf git://
+
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout f2940d00e6bcc27166ad71a8af7c9fc63d6e683d && \
+    git checkout 14f7b31a9177f84f9f1becfcfb2284bfdb3c564a && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN git submodule update --init --recursive && \
     git submodule update --recursive && \
     cd geojs && \
-    npm install
+    npm install && \
+    grunt library
 RUN npm install
 
-COPY .vimrc /home/kwuser/.vimrc
-RUN sudo chown kwuser:kwuser /home/kwuser/.vimrc
+# COPY .vimrc /home/kwuser/.vimrc
+# RUN sudo chown kwuser:kwuser /home/kwuser/.vimrc
 COPY makelocalcfg.py /home/kwuser/makelocalcfg.py
 RUN python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg
 
