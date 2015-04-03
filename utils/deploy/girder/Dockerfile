@@ -3,6 +3,7 @@ MAINTAINER David Manthey <david.manthey@kitware.com>
 
 # The environment variables beginning with KWDEMO can be used to map this demo
 # to the main url space
+ENV KWDEMO_READY FALSE
 ENV KWDEMO_NAME Girder 1.2.4 Demo
 ENV KWDEMO_KEY girder1.2.4
 ENV KWDEMO_SRCURL https://github.com/girder/girder
@@ -31,5 +32,7 @@ RUN python /home/kwuser/makelocalcfg.py > /etc/girder.cfg
 USER kwuser
 
 WORKDIR /home/kwuser
+
+ENV KWDEMO_READY TRUE
 
 CMD ["python", "-m", "girder"]

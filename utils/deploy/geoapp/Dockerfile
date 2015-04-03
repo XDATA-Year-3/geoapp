@@ -3,6 +3,7 @@ MAINTAINER David Manthey <david.manthey@kitware.com>
 
 # The environment variables beginning with KWDEMO can be used to map this demo
 # to the main url space
+ENV KWDEMO_READY FALSE
 ENV KWDEMO_NAME GeoApp Demo
 ENV KWDEMO_KEY geoapp
 ENV KWDEMO_SRCURL https://github.com/XDATA-Year-3/geoapp
@@ -58,7 +59,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout d48a7da753aa9c4a9dd6e161f42cd0ba745cd2ff && \
+    git checkout 6cb0d0d78c235e2952c821b6f4f8df301091f9da && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN git submodule update --init --recursive && \
@@ -72,5 +73,7 @@ RUN npm install
 # RUN sudo chown kwuser:kwuser /home/kwuser/.vimrc
 COPY makelocalcfg.py /home/kwuser/makelocalcfg.py
 RUN python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg
+
+ENV KWDEMO_READY TRUE
 
 CMD ["python", "server/main.py"]

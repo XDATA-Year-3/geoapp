@@ -13,7 +13,8 @@ def getDemoList():
     Get a list of running containers from Docker.  If the container has an
     environment variable called KWDEMO_KEY and at least one exposed port,
     record information about that docker container so that it can be presented
-    as a demo.
+    as a demo.  If KWDEMO_READY is set to FALSE, then the container will not be
+    presented.
 
     :returns: a list of demos in the order that they were started.
     """
@@ -45,8 +46,11 @@ def getDemoList():
             'url': env.get('KWDEMO_SRCURL', ''),
             'img': env.get('KWDEMO_IMG', ''),
             'ip': data['NetworkSettings']['IPAddress'],
+            'ready': env.get('KWDEMO_READY', ''),
             'ports': []
         }
+        if demo['ready'].upper() == 'FALSE':
+            continue
         for key in data['Config']['ExposedPorts']:
             if key.endswith('/tcp'):
                 try:
@@ -83,9 +87,10 @@ def updateNginx(demos, basePath):
                 key += str(keys[key])
                 keys[demo['key']] += 1
             conf.append("""location /%s/ {
-  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Host $http_host;
   proxy_set_header X-Forwarded-Server $host;
   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
   proxy_pass http://%s:%d/;
 }\n""" % (key, demo['ip'], port))
     conf = ''.join(conf)
@@ -118,6 +123,7 @@ def updateIndex(demos, basePath):
         key = demo['key']
         if key in keys:
             continue
+        keys[key] = True
         entry = template
         tags = demo.copy()
         if tags['url'] != '':

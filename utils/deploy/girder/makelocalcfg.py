@@ -9,8 +9,6 @@ cfg = """
 [global]
 server.socket_port: 8080
 tools.proxy.on: True
-tools.proxy.base: "/%ROOTPATH%"
-tools.proxy.local: ""
 
 [database]
 uri: "mongodb://%HOSTIP%:27017/%ROOTPATH%"
@@ -20,6 +18,7 @@ uri: "mongodb://%HOSTIP%:27017/%ROOTPATH%"
 mode: "production"
 api_root: "api/v1"
 static_root: "static"
+api_static_root: "../static"
 """
 
 hostip = os.popen(
