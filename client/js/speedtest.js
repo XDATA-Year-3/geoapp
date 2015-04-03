@@ -74,7 +74,10 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         )).on('ready.geoapp.view', function () {
             if (view.firstRender) {
                 view.firstRender = false;
-                geoapp.map.showMap([], {});
+                geoapp.map.showMap([], {
+                    'display-tile-set': 'mapquest',
+                    'display-tile-opacity': 1
+                });
             }
             $('[title]').tooltip();
         });

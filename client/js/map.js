@@ -14,12 +14,25 @@
  */
 
 geoapp.TileSets = {
-    default: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
-    openstreetmap: 'http://tile.openstreetmap.org/',
-    tonerlite: 'http://tile.stamen.com/toner-lite/',
-    mqsat: 'http://otile1.mqcdn.com/tiles/1.0.0/sat/',
-    blank: '/api/v1/taxi/tiles/blank/'
+    mapquest: {
+        url: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
+        credit: 'Tiles Courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
+    },
+    mqsat: {
+        url: 'http://otile1.mqcdn.com/tiles/1.0.0/sat/',
+        credit: 'Tiles Courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
+    },
+    openstreetmap: {
+        url: 'http://tile.openstreetmap.org/',
+        credit: '© OpenStreetMap contributors'
+    },
+    tonerlite: {
+        url: 'http://tile.stamen.com/toner-lite/',
+        credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+    },
+    blank: {url: '/api/v1/taxi/tiles/blank/'}
 };
+geoapp.TileSets.default = geoapp.TileSets.mqsat;
 
 geoapp.Map = function (arg) {
     'use strict';
@@ -40,7 +53,7 @@ geoapp.Map = function (arg) {
         m_animationOptions = {},
         m_animationData,
         m_animTimer,
-        m_baseUrl,
+        m_baseUrl, m_baseUrlCredit,
         m_pickupOnlyColor = geo.util.convertColor('black'),
         m_pickupColor = geo.util.convertColor('#0000FF'),
         m_dropoffOnlyColor = geo.util.convertColor('black'),
@@ -52,8 +65,8 @@ geoapp.Map = function (arg) {
         m_maxVectorScale = 5, /* Increase vector sizes */
         m_verbose = 1;
 
-    this.maximumMapPoints = 300000;
-    this.maximumVectors = 100000;
+    this.maximumMapPoints = 100000;
+    this.maximumVectors = 50000;
     /* maximumDataPoints defaults to the maximum of maximumMapPoints and
      * maximumVectors */
     this.maximumDataPoints = null;
@@ -122,6 +135,9 @@ geoapp.Map = function (arg) {
                 selectionAPI: false,
                 dynamicDraw: true
             });
+            $('#ga-main-map').append('<div id="ga-map-credit-box">' +
+                '<div id="ga-map-credit"/></div>');
+            $('#ga-map-credit').html(displayInfo.baseUrlCredit || '');
         }
         m_mapData = data;
         this.updateMapParams(params, 'always');
@@ -357,14 +373,18 @@ geoapp.Map = function (arg) {
         params.opacity = params.opacity || 0.05;
         var origParams = m_mapParams || {};
         var results = {
-            baseUrl: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
+            baseUrl: geoapp.TileSets['default'].url,
+            baseUrlCredit: geoapp.TileSets['default'].credit,
             opacity: params['display-tile-opacity'] || 1
         };
         if (geoapp.TileSets[params['display-tile-set']] !== undefined) {
-            results.baseUrl = geoapp.TileSets[params['display-tile-set']];
+            results.baseUrl = geoapp.TileSets[params['display-tile-set']].url;
+            results.baseUrlCredit = geoapp.TileSets[
+                params['display-tile-set']].credit;
         } else if (params['display-tile-set'] &&
                 params['display-tile-set'].substr(0, 4) === 'http') {
             results.baseUrl = params['display-tile-set'];
+            results.baseUrlCredit = '';
         }
         m_mapParams = params;
         if (update === false ||
@@ -374,6 +394,7 @@ geoapp.Map = function (arg) {
         if (results.baseUrl != m_baseUrl) {
             m_mapLayer.updateBaseUrl(results.baseUrl);
             m_baseUrl = results.baseUrl;
+            $('#ga-map-credit').html(results.baseUrlCredit || '');
         }
         m_mapLayer.mapOpacity(results.opacity);
         var animStartStep;
