@@ -22,7 +22,7 @@ static_root: "girder/static"
 [resources]
 # The activityLog is where the Draper logging receiver is located.  If this
 # optional module is not included, this parameter is irrelevant
-activityLogURI:
+activityLogURI: "http://10.1.93.208"
 
 # Each entry in this section is an available database.  The order is by lowest
 # "order" value, then alphabetically for ties.  Each entry consists of {"name":

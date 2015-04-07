@@ -67,6 +67,8 @@ RUN git submodule update --init --recursive && \
     cd geojs && \
     npm install && \
     grunt library
+RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/draper.activity_logger-2.1.1.js -o client/optional/js/draper.activity_logger-2.1.1.js && \
+    curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/draper.activity_worker-2.1.1.js -o client/optional/static/draper.activity_worker-2.1.1.js
 RUN npm install
 
 # COPY .vimrc /home/kwuser/.vimrc
