@@ -276,8 +276,9 @@ geoapp.Map = function (arg) {
             if (m_verbose >= 1) {
                 console.log(options);
             }
-            options.maxcount = this.maximumDataPoints || Math.max(
-                this.maximumMapPoints, this.maximumVectors);
+            options.maxcount = (options.params.max_trips ||
+                this.maximumDataPoints ||
+                Math.max(this.maximumMapPoints, this.maximumVectors));
             options.params.offset = 0;
             options.params.format = 'list';
             options.data = null;
@@ -342,6 +343,11 @@ geoapp.Map = function (arg) {
                     ' requestTime ' + options.requestTime + ' showTime ' +
                     options.showTime);
             }
+            var title = sprintf('Loaded %d trips', options.data.datacount);
+            $('#ga-points-loaded').text(sprintf(
+                'Loaded %d', options.data.datacount)).attr('title', title)
+                .tooltip().attr('data-original-title', title)
+                .tooltip('fixTitle');
             if (callNext) {
                 options.params.offset += resp.datacount;
                 this.replaceMapData(options);
@@ -402,10 +408,17 @@ geoapp.Map = function (arg) {
         var changed = (data && data.data && update === 'always');
         if (data && data.data) {
             /* display-tile-set and display-tile-opacity are intentionally not
-             * included here, is they don't affect the animation. */
-            ['display-type', 'display-process', 'display-num-bins'].forEach(function (key) {
+             * included here, as they don't affect the animation. */
+            ['display-type', 'display-process', 'display-num-bins',
+            'display-max-points', 'display-max-lines'].forEach(function (key) {
                 changed = changed || (params[key] !== origParams[key]);
             });
+        }
+        if (params['display-max-points'] > 0) {
+            this.maximumMapPoints = params['display-max-points'];
+        }
+        if (params['display-max-lines'] > 0) {
+            this.maximumVectors = params['display-max-lines'];
         }
         if (changed) {
             /* clear animation preparation, but don't clear current step. */

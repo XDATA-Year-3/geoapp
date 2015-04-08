@@ -28,6 +28,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'change #ga-display-settings select,#ga-display-settings input[type="text"]': function () {
             $('#ga-display-update').removeClass('btn-needed');
+            //DWM::
             this.updateView(true, 'display');
         },
         'click #ga-display-update': function () {
@@ -62,7 +63,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change #ga-filter-settings input[type="text"]:visible,#ga-filter-settings select:visible': function (evt) {
+        'change #ga-filter-settings input[type="text"]:visible,#ga-filter-settings select:visible,#ga-data-trips': function (evt) {
             $('#ga-controls-filter').addClass('btn-needed');
         },
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function (evt) {
@@ -324,6 +325,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         if (!updateSection || updateSection.display) {
             results.display = this.updateSection('display', updateNav);
+            this.adjustControls(results);
         }
         if (!updateSection || updateSection.anim) {
             results.anim = this.updateAnimValues(updateNav);
@@ -383,6 +385,26 @@ geoapp.views.ControlsView = geoapp.View.extend({
         params.statusElem = '#ga-cycle-anim';
         params.sliderElem = '#ga-step-slider';
         return params;
+    },
+
+    /* Change which controls are visible based on other controls.
+     *
+     * @param values: current control values.  If not specified, this will be
+     *                loaded as needed, in which case it may be modified.
+     */
+    adjustControls: function (values) {
+        values = values || {};
+        if (!values.display) {
+            values.display = this.updateSection('display', false);
+        }
+        $('#ga-display-max-points-group').toggleClass('hidden', (
+            values.display['display-process'] === 'binned' ||
+            values.display['display-type'] === 'vector'));
+        $('#ga-display-max-lines-group').toggleClass('hidden', (
+            values.display['display-process'] === 'binned' ||
+            values.display['display-type'] !== 'vector'));
+        $('#ga-display-num-bins-group').toggleClass('hidden', (
+            values.display['display-process'] !== 'binned'));
     },
 
     /* Get an value or range of values from a control.  The type is stored in
