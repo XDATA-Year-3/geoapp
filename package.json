@@ -31,7 +31,7 @@
     "bootstrap": "~3.3",
     "moment": "~2.9",
     "daterangepicker": "~0.0.3",
-    "bootstrap-slider": "~4.4"
+    "bootstrap-slider": "~4.7"
   },
   "devDependencies": {
     "jshint": "~2.6",
