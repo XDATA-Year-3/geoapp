@@ -354,7 +354,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
      */
     logTestResults: function (callback) {
         var view = this,
-            path = 'taxi/reporttest',
+            path = 'geoapp/reporttest',
             params = {};
 
         var metadata = this.testParams.results;

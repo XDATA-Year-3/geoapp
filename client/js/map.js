@@ -30,7 +30,7 @@ geoapp.TileSets = {
         url: 'http://tile.stamen.com/toner-lite/',
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
-    blank: {url: 'api/v1/taxi/tiles/blank/'}
+    blank: {url: 'api/v1/geoapp/tiles/blank/'}
 };
 geoapp.TileSets.default = geoapp.TileSets.mqsat;
 
@@ -311,7 +311,7 @@ geoapp.Map = function (arg) {
             .toggleClass('first-load', !options.params.offset)
             .toggleClass('second-load', !!options.params.offset);
         var xhr = geoapp.restRequest({
-            path: 'taxi', type: 'GET', data: options.params
+            path: 'geoapp/taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
             if (!options.data) {
                 options.data = resp;
