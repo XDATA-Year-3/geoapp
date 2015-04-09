@@ -5,6 +5,8 @@ import os
 
 rootPath = os.environ['KWDEMO_KEY']
 
+limitedData = os.environ.get('LIMITED_DATA', '') == 'true'
+
 cfg = """
 [global]
 server.socket_port: 8080
@@ -22,26 +24,32 @@ static_root: "girder/static"
 [resources]
 # The activityLog is where the Draper logging receiver is located.  If this
 # optional module is not included, this parameter is irrelevant
-activityLogURI: "http://10.1.93.208"
+%LIMITED_DISABLE%activityLogURI: "http://10.1.93.208"
 
 # Each entry in this section is an available database.  The order is by lowest
 # "order" value, then alphabetically for ties.  Each entry consists of {"name":
 # (name shown to the user), "class": (internal database class, such as
 # TaxiViaPostgres), "params": (database specific parameters)}
 [taxidata]
-#postgresfullg:
-postgresfullg: {"order": 0, "name": "Postgres Full w/ Green", "class": "TaxiViaPostgresSeconds", "params": {"db": "taxifullg", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%LIMITED_ENABLE%postgresfullg:
+%LIMITED_DISABLE%postgresfullg: {"order": 0, "name": "Postgres Full w/ Green", "class": "TaxiViaPostgresSeconds", "params": {"db": "taxifullg", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
 postgresfull:
-postgres12:
-#postgres12: {"order": 2, "name": "Postgres 1/12 Shuffled", "class": "TaxiViaPostgres", "params": {"db": "taxi12r", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%LIMITED_DISABLE%postgres12:
+%LIMITED_ENABLE%postgres12: {"order": 2, "name": "Postgres 1/12 Shuffled", "class": "TaxiViaPostgres", "params": {"db": "taxi12r", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
 mongofull:
 mongo12r:
 mongo12:
 mongo:
 tangelo:
+
+[instagramdata]
+postgres: {"order": 0, "name": "Postgres", "class": "InstagramViaPostgres", "params": {"db": "instagram", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
 """
 
 hostip = os.popen("netstat -nr | grep '^0\.0\.0\.0' | awk '{print $2}'").read()
 cfg = cfg.replace('%HOSTIP%', hostip.strip()).strip()
 cfg = cfg.replace('%ROOTPATH%', rootPath)
+cfg = cfg.replace('%LIMITED_DISABLE%', '#' if limitedData else '')
+cfg = cfg.replace('%LIMITED_ENABLE%', '' if limitedData else '#')
+
 print cfg

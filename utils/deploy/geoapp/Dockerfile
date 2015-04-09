@@ -59,7 +59,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 6cb0d0d78c235e2952c821b6f4f8df301091f9da && \
+    git checkout c1311d833199a5a8c9d14aae010b266afe43f0a1 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN git submodule update --init --recursive && \
@@ -74,8 +74,7 @@ RUN npm install
 # COPY .vimrc /home/kwuser/.vimrc
 # RUN sudo chown kwuser:kwuser /home/kwuser/.vimrc
 COPY makelocalcfg.py /home/kwuser/makelocalcfg.py
-RUN python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg
 
 ENV KWDEMO_READY TRUE
 
-CMD ["python", "server/main.py"]
+CMD ["sh", "-c", "python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg && python server/main.py"]

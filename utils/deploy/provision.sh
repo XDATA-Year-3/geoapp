@@ -89,7 +89,7 @@ EOT
 echo "listen_addresses='*'" >> /etc/postgresql/9.4/main/postgresql.conf
 /etc/init.d/postgresql restart
 
-crontab -l | { cat; echo "* * * * * /home/`logname`/conf/updatedemo.py /home/`logname`"; } | crontab -
+crontab -l | { cat; echo "* * * * * python /home/`logname`/conf/updatedemo.py /home/`logname`"; } | crontab -
 
 ## Stop and remove all existing docker containers and images
 #docker stop $(docker ps -a -q)
@@ -98,4 +98,4 @@ crontab -l | { cat; echo "* * * * * /home/`logname`/conf/updatedemo.py /home/`lo
 #docker rmi $(docker images -q)
 
 # docker build -t kitware/geoapp geoapp
-# docker run -d --restart=always -t kitware/geoapp
+# docker run -d --restart=always --name=geoapp-current kitware/geoapp
