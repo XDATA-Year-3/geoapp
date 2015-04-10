@@ -15,6 +15,7 @@
 
 geoapp.views.SpeedTestView = geoapp.View.extend({
     testVersion: 1,
+
     displayParams: {
         'display-tile-set': 'mapquest',
         'display-tile-opacity': 1
@@ -119,7 +120,8 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                         height: $(window).height()
                     }
                 },
-                version: this.testVersion
+                version: this.testVersion,
+                appVersion: geoapp.versionInfo
             },
             comment: $('#ga-test-comment').val(),
             maxPts: parseInt($('#ga-test-maximum').val()),
