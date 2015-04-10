@@ -26,7 +26,7 @@ import os
 import sys
 from girder import logger
 
-import taxi
+import geoapp
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(PACKAGE_DIR)
@@ -128,7 +128,7 @@ class GeoApp():
         #   pluginRootDir: (root)}
         # it can modify root, appconf, and apiRoot
 
-        taxi.load(info)
+        geoapp.load(info)
 
         cherrypy.engine.start()
         cherrypy.engine.block()
