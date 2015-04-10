@@ -117,7 +117,7 @@ geoapp.Map = function (arg) {
                 renderer: 'vgl'
             });
             m_geoPoints = geoLayer.createFeature('point', {
-                primitiveShape: 'sprite',
+                primitiveShape: 'triangle',
                 selectionAPI: false,
                 dynamicDraw: true
             });
