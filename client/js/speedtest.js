@@ -79,7 +79,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         )).on('ready.geoapp.view', function () {
             if (view.firstRender) {
                 view.firstRender = false;
-                geoapp.map.showMap([], view.displayParams);
+                geoapp.map.showMap('all', [], view.displayParams);
             }
             $('[title]').tooltip();
         });
@@ -256,11 +256,12 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             geoapp.map.maximumVectors = params.numPts;
         }
         starttime = new Date().getTime();
-        geoapp.map.showMap(params.data, $.extend({}, this.displayParams, {
-            'display-type': test.type,
-            'display-process': test.process || 'raw',
-            'display-num-bins': 50
-        }));
+        geoapp.map.showMap(
+            'taxi', params.data, $.extend({}, this.displayParams, {
+                'display-type': test.type,
+                'display-process': test.process || 'raw',
+                'display-num-bins': 50
+            }));
         stoptime = new Date().getTime();
         params.times.push(stoptime - starttime);
         if (params.times.length < 12 && stoptime - params.testStart < 10000) {
@@ -294,11 +295,12 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             test = this.tests[params.testNum],
             stoptime, fps, frametime;
         if (!params.times.length) {
-            geoapp.map.showMap(params.data, $.extend({}, this.displayParams, {
-                'display-type': test.type,
-                'display-process': test.process || 'raw',
-                'display-num-bins': 25
-            }));
+            geoapp.map.showMap(
+                'taxi', params.data, $.extend({}, this.displayParams, {
+                    'display-type': test.type,
+                    'display-process': test.process || 'raw',
+                    'display-num-bins': 25
+                }));
             geoapp.map.animate({
                 cycle: 'day',
                 'cycle-steps': 8,
