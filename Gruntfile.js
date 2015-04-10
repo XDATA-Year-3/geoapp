@@ -59,6 +59,16 @@ module.exports = function (grunt) {
         );
     };
 
+    /* Ideally, we would add version information for each library we use to
+     * this object. */
+    var libVersionInfoObject = function () {
+        return JSON.stringify({
+            date: grunt.template.date(new Date(), "isoDateTime", true),
+            geojsVersion: geojsVersionObject
+        }, null, "  ");
+    };
+    var geojsVersionObject;
+
     // Project configuration.
     grunt.config.init({
         pkg: grunt.file.readJSON('package.json'),
@@ -136,12 +146,13 @@ module.exports = function (grunt) {
                     stdout: true
                 }
             },
-            // DWM::
-            readServerConfig: {
-                command: 'python config_parse.py girder/conf/girder.local.cfg',
+            getgeojsversion: {
+                command: 'git --git-dir=geojs/.git describe --always --long --abbrev=10 --tags --dirty',
                 options: {
-                    stdout: false,
-                    callback: setServerConfig
+                    callback: function (err, stdout, stderr, callback) {
+                        geojsVersionObject = stdout.replace(/^\s+|\s+$/g, '');
+                        callback();
+                    }
                 }
             }
         },
@@ -159,6 +170,7 @@ module.exports = function (grunt) {
                 files: {
                     'built/app.min.js': [
                         'built/templates.js',
+                        'built/geoapp-version.js',
                         'client/js/**/*.js',
                         '!client/js/main.js'
                     ],
@@ -181,7 +193,8 @@ module.exports = function (grunt) {
                         'node_modules/moment/moment.js',
                         'node_modules/daterangepicker/daterangepicker.js',
                         /* bootstrap-slider */
-                        'node_modules/bootstrap-slider/js/bootstrap-slider.js'
+                        'node_modules/bootstrap-slider/js/bootstrap-slider.js',
+                        'built/geoapplib-version.js'
                     ],
                     'built/optional.min.js': [
                         /* optional libraries */
@@ -215,6 +228,50 @@ module.exports = function (grunt) {
                 files: ['docs/*.rst'],
                 tasks: ['docs']
             }
+        },
+
+        'file-creator': {
+            app: {
+                'built/geoapp-version.js': function (fs, fd, done) {
+                    geoappVersion = versionInfoObject();
+                    fs.writeSync(
+                        fd,
+                        [
+                            '/* global geoapp: true */',
+                            '/* jshint ignore: start */',
+                            '//jscs:disable',
+                            'var girderVersionInfo = geoapp.versionInfo;',
+                            'geoapp.versionInfo = ',
+                            geoappVersion,
+                            ';',
+                            'geoapp.versionInfo.girderVersion = girderVersionInfo;',
+                            'geoapp.versionInfo.libVersion = libVersionInfo;',
+                            '/* jshint ignore: end */',
+                            '//jscs:enable\n'
+                        ].join('\n')
+                    );
+                    done();
+                }
+            },
+            libs: {
+                'built/geoapplib-version.js': function (fs, fd, done) {
+                    geoappLibVersion = libVersionInfoObject();
+                    fs.writeSync(
+                        fd,
+                        [
+                            '/* global geoapp: true */',
+                            '/* jshint ignore: start */',
+                            '//jscs:disable',
+                            'window.libVersionInfo = ',
+                            geoappLibVersion,
+                            ';',
+                            '/* jshint ignore: end */',
+                            '//jscs:enable\n'
+                        ].join('\n')
+                    );
+                    done();
+                }
+            }
         }
     });
 
@@ -230,6 +287,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-copy');
     grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-gitinfo');
+    grunt.loadNpmTasks('grunt-file-creator');
     grunt.loadNpmTasks('grunt-contrib-compress');
 
     /*
@@ -262,22 +320,27 @@ module.exports = function (grunt) {
     */
 
     grunt.registerTask('version-info', [
-        'gitinfo'
+        'gitinfo',
+        'file-creator:app'
+    ]);
+
+    grunt.registerTask('libversion-info', [
+        'shell:getgeojsversion',
+        'file-creator:libs'
     ]);
 
     grunt.registerTask('build-js', [
         'jade',
         'version-info',
         'uglify:app'
-//        'shell:readServerConfig',
 //        'test-env-html'
     ]);
     grunt.registerTask('init', [
+        'libversion-info',
         'uglify:libs',
         'cssmin:libs',
         'copy:libs',
         'copy:optional'
-//        'shell:readServerConfig'
     ]);
     grunt.registerTask('docs', ['shell:sphinx']);
     grunt.registerTask('default', defaultTasks);
