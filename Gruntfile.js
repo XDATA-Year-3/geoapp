@@ -52,7 +52,8 @@ module.exports = function (grunt) {
                 SHA: current.SHA,
                 shortSHA: current.shortSHA,
                 date: grunt.template.date(new Date(), "isoDateTime", true),
-                apiVersion: grunt.config.get('pkg').version
+                apiVersion: grunt.config.get('pkg').version,
+                describe: gitVersionObject
             },
             null,
             "  "
@@ -67,7 +68,7 @@ module.exports = function (grunt) {
             geojsVersion: geojsVersionObject
         }, null, "  ");
     };
-    var geojsVersionObject;
+    var geojsVersionObject, gitVersionObject;
 
     // Project configuration.
     grunt.config.init({
@@ -146,8 +147,17 @@ module.exports = function (grunt) {
                     stdout: true
                 }
             },
+            getgitversion: {
+                command: 'git describe --always --long --dirty --all',
+                options: {
+                    callback: function (err, stdout, stderr, callback) {
+                        gitVersionObject = stdout.replace(/^\s+|\s+$/g, '');
+                        callback();
+                    }
+                }
+            },
             getgeojsversion: {
-                command: 'git --git-dir=geojs/.git describe --always --long --abbrev=10 --tags --dirty',
+                command: 'git --git-dir=geojs/.git describe --always --long --dirty --all',
                 options: {
                     callback: function (err, stdout, stderr, callback) {
                         geojsVersionObject = stdout.replace(/^\s+|\s+$/g, '');
@@ -321,6 +331,7 @@ module.exports = function (grunt) {
 
     grunt.registerTask('version-info', [
         'gitinfo',
+        'shell:getgitversion',
         'file-creator:app'
     ]);
 
