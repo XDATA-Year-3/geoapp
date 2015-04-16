@@ -65,8 +65,8 @@ geoapp.Map = function (arg) {
         m_maxVectorScale = 5, /* Increase vector sizes */
         m_verbose = 1;
 
-    this.maximumMapPoints = 100000;
-    this.maximumVectors = 50000;
+    this.maximumMapPoints = 20000; //100000;
+    this.maximumVectors = 15000; //50000;
     /* maximumDataPoints defaults to the maximum of maximumMapPoints and
      * maximumVectors */
     this.maximumDataPoints = null;
@@ -74,7 +74,7 @@ geoapp.Map = function (arg) {
      * maximumDataPoints).  If oneSmallPage is true, pageDataPoints are loaded,
      * then all of the rest of the data in a second query.  If false,
      * pageDataPoints are loaded at a time until all of the data is loaded. */
-    this.pageDataPoints = 10000;
+    this.pageDataPoints = 5000; //10000;
     this.oneSmallPage = true;
 
     /* Show a map with data.  If we have already shown the map, just update
