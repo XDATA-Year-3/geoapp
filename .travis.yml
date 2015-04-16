@@ -26,6 +26,5 @@ install:
     - PIP_USER=yes ~/.local/bin/girder-install plugin
 
 script:
-    - python ../server/main.py &
-    - curl --silent 'http://localhost:8001/api/v1/system/version'
-    - curl --silent 'http://localhost:8001/api/v1/system/version' | grep -q 'apiVersion'
+    - cd ../server
+    - python -c "import cherrypy,sys,urllib,main as geoapp;app=geoapp.GeoApp();app.start(False);test = 'apiVersion' in urllib.urlopen('http://localhost:8001/api/v1/system/version').read();cherrypy.engine.exit();sys.exit(0 if test else 1)"
