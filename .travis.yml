@@ -23,8 +23,9 @@ install:
     - pip install --user girder python-dateutil PyGreSQL==4.1.1 psycopg2
     - python -c "import bcrypt"
     - ~/.local/bin/girder-install web
-    - ~/.local/bin/girder-install plugin
+    - PIP_USER=yes ~/.local/bin/girder-install plugin
 
 script:
     - python ../server/main.py &
+    - curl --silent 'http://localhost:8001/api/v1/system/version'
     - curl --silent 'http://localhost:8001/api/v1/system/version' | grep -q 'apiVersion'
