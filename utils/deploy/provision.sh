@@ -62,6 +62,7 @@ server {
     proxy_send_timeout    3600;
     proxy_read_timeout    3600;
     send_timeout          3600;
+    proxy_buffering off;
 
     # Make site accessible from http://localhost/
     server_name localhost;
