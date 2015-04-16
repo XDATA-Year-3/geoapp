@@ -22,8 +22,8 @@ install:
     - cd env
     - pip install --user girder python-dateutil PyGreSQL==4.1.1 psycopg2
     - python -c "import bcrypt"
-    - girder-install web
-    - girder-install plugin
+    - ~/.local/bin/girder-install web
+    - ~/.local/bin/girder-install plugin
 
 script:
     - python ../server/main.py &
