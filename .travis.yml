@@ -1,0 +1,39 @@
+language: cpp
+
+sudo: false
+
+compiler:
+    - gcc
+before_install:
+
+    - pushd "${HOME}"
+    - curl "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.0.1.tgz" | gunzip -c | tar x
+    - cd mongodb-*/bin && export PATH="${PWD}:${PATH}"
+    - popd
+    - mkdir /tmp/db
+    - mongod --dbpath=/tmp/db >/dev/null 2>/dev/null &
+    - mongod --version
+
+    - git submodule update --init --recursive
+    - git submodule update --recursive
+    - cd geojs
+    - npm install
+    - grunt library
+    - cd ..
+
+install:
+    - curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/draper.activity_logger-2.1.1.js -o client/optional/js/draper.activity_logger-2.1.1.js
+    - curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/draper.activity_worker-2.1.1.js -o client/optional/static/draper.activity_worker-2.1.1.js
+    
+    - npm install
+
+    - mkdir env
+    - cd env
+    - pip install --user girder python-dateutil PyGreSQL==4.1.1 psycopg2
+    - python -c "import bcrypt"
+    - ~/.local/bin/girder-install web
+    - PIP_USER=yes ~/.local/bin/girder-install plugin
+
+script:
+    - cd ../server
+    - python -c "import cherrypy,sys,urllib,main as geoapp;app=geoapp.GeoApp();app.start(False);test = 'apiVersion' in urllib.urlopen('http://localhost:8001/api/v1/system/version').read();cherrypy.engine.exit();sys.exit(0 if test else 1)"

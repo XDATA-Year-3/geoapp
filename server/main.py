@@ -85,8 +85,21 @@ class GeoApp():
     def __del__(self):
         cherrypy.engine.exit()
 
+    def __init__(self):
+        # If the config was already loaded, make sure we reload using our app's
+        # added files.
+        loadConfig()
+        # Use our logger values, not girder's
+        logConfig = girder.utility.config.getConfig().get('logging', {})
+        if 'log_root' in logConfig:
+            logConfig['log_root'] = os.path.expanduser(logConfig['log_root'])
+        for hdlr in logger.handlers[:]:
+            logger.removeHandler(hdlr)
+        girder._setupLogger()
+        logger.info('GeoApp starting')
+
     """Start the server and serve until stopped."""
-    def start(self):
+    def start(self, block=True):
         cherrypy.engine.timeout_monitor.unsubscribe()
         self.root = GeoAppRoot()
         # Create the girder services and place them at /girder
@@ -131,7 +144,8 @@ class GeoApp():
         geoapp.load(info)
 
         cherrypy.engine.start()
-        cherrypy.engine.block()
+        if block:
+            cherrypy.engine.block()
 
 
 def loadConfig():
@@ -161,16 +175,5 @@ if not origLoadConfig:
     girder.utility.config.loadConfig = loadConfig
 
 if __name__ == '__main__':
-    # If the config was already loaded, make sure we reload using our app's
-    # added files.
-    loadConfig()
-    # Use our logger values, not girder's
-    logConfig = girder.utility.config.getConfig().get('logging', {})
-    if 'log_root' in logConfig:
-        logConfig['log_root'] = os.path.expanduser(logConfig['log_root'])
-    for hdlr in logger.handlers[:]:
-        logger.removeHandler(hdlr)
-    girder._setupLogger()
-    logger.info('GeoApp starting')
     app = GeoApp()
     app.start()
