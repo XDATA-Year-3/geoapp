@@ -65,8 +65,8 @@ geoapp.Map = function (arg) {
         m_maxVectorScale = 5, /* Increase vector sizes */
         m_verbose = 1;
 
-    this.maximumMapPoints = 20000; //100000;
-    this.maximumVectors = 15000; //50000;
+    this.maximumMapPoints = 25000; //100000;
+    this.maximumVectors = 10000; //50000;
     /* maximumDataPoints defaults to the maximum of maximumMapPoints and
      * maximumVectors */
     this.maximumDataPoints = null;
