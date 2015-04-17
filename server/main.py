@@ -52,7 +52,7 @@ class GeoAppRoot(object):
         if 'resources' in config:
             vars.update(config['resources'])
         data = {}
-        for dbtype in ('taxidata', ):
+        for dbtype in ('taxidata', 'instagramdata'):
             datalist = []
             for key in config.get(dbtype, {}):
                 db = config[dbtype][key]
