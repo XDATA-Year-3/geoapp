@@ -10,55 +10,8 @@
               title="Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data from the database.")
       #ga-filter-settings.panel-collapse.collapse.in
         .panel-body
-          .form-group
-            label(for="ga-source") Data Source
-            select#ga-source.form-control.input-sm(title="Database source",
-                taxifield="source")
-            //- the database source options are dynamically set in controls.js
-          //- disable medallion and hack-license, as we probably won't use them
-            .form-group
-              label(for="ga-medallion") Medallion
-              input#ga-medallion.form-control.input-sm(
-                type="text", placeholder="#XX##", title="Taxi medallion",
-                taxifield="medallion")
-            .form-group
-              label(for="ga-hack-license") Hack License
-              input#ga-hack-license.form-control.input-sm(
-                type="text", placeholder="#######", title="Hack license",
-                taxifield="hack_license")
-          .form-group
-            label(for="ga-pickup-date") Pickup Date
-            input#ga-pickup-date.ga-date-range.form-control.input-sm(
-              type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
-              title="Pickup date range",
-              taxifield="pickup_datetime", taxitype="dateRange")
-          .form-group
-            label(for="ga-trip-distance") Trip Distance
-            input#ga-trip-distance.form-control.input-sm(
-              type="text", placeholder="#.## - #.## (miles)",
-              title="Trip distance in miles",
-              taxifield="trip_distance", taxitype="floatRange")
-          .form-group
-            label(for="ga-passenger-count") Passengers
-            input#ga-passenger-count.form-control.input-sm(
-              type="text", placeholder="# - #",
-              title="Number of passengers",
-              taxifield="passenger_count", taxitype="intRange")
-          .form-group
-            button#ga-controls-filter.btn.btn-default.btn-sm
-              i.icon-ok
-              |  Filter
-            #ga-map-loading.hidden
-              i.icon-spin1.animate-spin
-            span#ga-points-loaded
-            label(for="ga-data-trips",
-              title="Maximum number of trips to load.  Loading more trips takes longer and produces more accurate binning.") Max Trips
-            input#ga-data-trips.form-control.input-sm.ga-slider-ctl(
-                type="text", data-slider-min="10000", data-slider-max="1000000",
-                data-slider-step="5000", data-slider-value="25000",
-                data-slider-handle="square", data-slider-scale="logarithmic",
-                data-slider-id="ga-data-trips-ctl",
-                taxifield="max_trips", taxitype="int")
+          include taxifilters.jade
+          include instagramfilters.jade
   .panel-group#ga-display-settings-panel
     .panel.panel-default
       .panel-heading

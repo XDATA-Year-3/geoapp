@@ -216,9 +216,12 @@ def tsquerySearch(field, query):
     if len(include):
         tsqueryExact(sql, include, quotes)
     if len(exclude):
-        sql.append(' AND NOT (true')
-        tsqueryExact(sql, exclude, quotes)
-        sql.append(')')
+        subsql = []
+        tsqueryExact(subsql, exclude, quotes)
+        if len(subsql):
+            sql.append(' AND NOT (true')
+            sql.extend(subsql)
+            sql.append(')')
     return ''.join(sql), sqlval
 
 
@@ -425,8 +428,6 @@ TaxiFieldTable = collections.OrderedDict([
     ('tip_amount', ('float', 'Tip amount')),
     ('tolls_amount', ('float', 'Tolls')),
     ('total_amount', ('float', 'Total cost')),
-
-    ('random', ('float', 'Random value [0-1)')),
 ])
 
 
@@ -454,8 +455,6 @@ class TaxiViaMongo():
         'tip_amount': 'tip',
         'tolls_amount': 'toll',
         'total_amount': 'total',
-
-        'random': 'rnd',
     }
     RevTable = {v: k for k, v in KeyTable.items()}
 
@@ -585,8 +584,6 @@ class TaxiViaMongoCompact(TaxiViaMongo):
         'tip_amount': 'tp',
         'tolls_amount': 'tl',
         'total_amount': 't',
-
-        'random': 'r',
     }
     RevTable = {v: k for k, v in KeyTable.items()}
 
@@ -666,8 +663,6 @@ class TaxiViaMongoRandomized(TaxiViaMongoCompact):
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         if not sort:
             sort = [('_id', 1)]
-        elif sort[0][0] == 'random':
-            sort[0] = ('_id', 1)
         sort = [('_id', 1)]
         return TaxiViaMongoCompact.find(self, params, limit, offset, sort,
                                         fields)
@@ -733,9 +728,7 @@ class TaxiViaPostgres(ViaPostgres):
     def __init__(self, db=None, **params):
         ViaPostgres.__init__(self, db, **params)
         self.useMilliseconds = True
-        self.fieldTable = collections.OrderedDict()
-        for key in TaxiFieldTable.keys()[:-1]:
-            self.fieldTable[key] = TaxiFieldTable[key]
+        self.fieldTable = TaxiFieldTable
         self.tableName = 'trips'
 
 

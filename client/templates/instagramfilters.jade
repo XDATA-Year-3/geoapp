@@ -1,0 +1,33 @@
+#ga-instagram-filter-settings
+  .form-group
+    span(title="Use pickup dates if checked")
+      input#ga-use-taxi-dates.form-control.input-sm(
+        type="checkbox", checked="checked", ga-test-num=0)
+      label(for="ga-use-taxi-dates") Use Pickup Date Range
+  .form-group
+    label(for="ga-posted-date") Posted Date
+    input#ga-posted-date.ga-date-range.form-control.input-sm(
+      type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
+      title="Posted date range",
+      taxifield="posted_date", taxitype="dateRange")
+  .form-group
+    label(for="ga-caption") Caption Search
+    input#ga-caption.form-control.input-sm(
+      type="text", placeholder="Caption substring search",
+      title="Use quotes to specified exact required phrases, hashtags for exact hastag matches, () to group clauses, | for or, and ! or - to exclude phrases.",
+      taxifield="caption_search", taxitype="text")
+  .form-group
+    button#ga-instagram-filter.btn.btn-default.btn-sm
+      i.icon-ok
+      |  Filter
+    #ga-instagram-loading.ga-loading-spinner.hidden
+      i.icon-spin1.animate-spin
+    span#ga-inst-points-loaded.ga-data-loaded
+    label(for="ga-inst-data-grams",
+      title="Maximum number of instagram messages to load.") Max Inst.
+    input#ga-inst-data-grams.form-control.input-sm.ga-slider-ctl(
+        type="text", data-slider-min="10000", data-slider-max="1000000",
+        data-slider-step="5000", data-slider-value="25000",
+        data-slider-handle="square", data-slider-scale="logarithmic",
+        data-slider-id="ga-inst-data-grams-ctl",
+        taxifield="max_instagrams", taxitype="int")
