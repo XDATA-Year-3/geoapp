@@ -137,7 +137,7 @@ geoapp.DataHandler = function (arg) {
             options.params.offset += resp.datacount;
         }
         loadfunc.call(this, options, callNext);
-        geoapp.activityLog.logActivity('load_data', {
+        geoapp.activityLog.logActivity('load_data', 'datahandler', {
             data: options.description,
             params: options.params,
             complete: !callNext

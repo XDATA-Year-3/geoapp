@@ -21,29 +21,53 @@
 (function () {
     var logger;
 
-    /* Workflow codes are one of WF_OTHER, WF_DEFINE, WF_GETDATA, WF_EXPLORE,
-     * WF_CREATE, WF_ENRICH, WF_TRANSFORM */
+    /* elements: BUTTON CANVAS CHECKBOX COMBOBOX DATAGRID DIALOG_BOX
+     *  DROPDOWNLIST FRAME ICON INFOBAR LABEL LINK LISTBOX LISTITEM MAP MENU
+     *  MODALWINDOW PALETTEWINDOW PANEL PROGRESSBAR RADIOBUTTON SLIDER SPINNER
+     *  STATUSBAR TAB TABLE TAG TEXTBOX THROBBER TOAST TOOLBAR TOOLTIP TREEVIEW
+     *  WINDOW WORKSPACE OTHER
+     * activities: ADD REMOVE CREATE DELETE SELECT DESELECT ENTER LEAVE INSPECT
+     *  ALTER HIDE SHOW OPEN CLOSE PERFORM
+     */
     var activitySpec = {
-        button_click:    {wf: 'WF_EXPLORE', desc: 'click on a button'},
-        checkbox_change: {wf: 'WF_EXPLORE', desc: 'checkbox changed'},
-        date_apply:      {wf: 'WF_EXPLORE', desc: 'apply date-range selection'},
-        date_cancel:     {wf: 'WF_EXPLORE', desc: 'cancel date-range picker'},
-        date_hide:       {wf: 'WF_EXPLORE', desc: 'hide date-range picker'},
-        date_show:       {wf: 'WF_EXPLORE', desc: 'show date-range picker'},
-        input_change:    {wf: 'WF_EXPLORE', desc: 'text input field changed'},
-        link_click:      {wf: 'WF_EXPLORE', desc: 'click on a link'},
-        load_data:       {wf: 'WF_GETDATA', desc: 'loaded new data'},
-        map_moved:       {wf: 'WF_EXPLORE', desc: 'map pan, zoom, or resize'},
-        navigate:        {wf: 'WF_EXPLORE', desc: 'browser navigation change'},
-        select_change:   {wf: 'WF_EXPLORE', desc: 'select box changed'},
-        show_tooltip:    {wf: 'WF_EXPLORE', desc: 'show tooltip'},
-        slide:           {wf: 'WF_EXPLORE', desc: 'move a slider'},
-        slideStart:      {wf: 'WF_EXPLORE', desc: 'start moving a slider',
-            name: 'slide_start'
-        },
-        slideStop:       {wf: 'WF_EXPLORE', desc: 'stop moving a slider',
-            name: 'slide_stop'
-        }
+        anim_action:     {elem: 'window',   act: 'alter',
+            desc: 'animation action', value: 'action'},
+        button_click:    {elem: 'button',   act: 'select',
+            desc: 'click on a button'},
+        checkbox_change: {elem: 'checkbox', act: 'alter',
+            desc: 'checkbox changed'},
+        date_apply:      {elem: 'panel',    act: 'alter',
+            desc: 'apply date-range selection'},
+        date_cancel:     {elem: 'panel',    act: 'lease',
+            desc: 'cancel date-range picker'},
+        date_hide:       {elem: 'panel',    act: 'hide',
+            desc: 'hide date-range picker'},
+        date_show:       {elem: 'panel',    act: 'show',
+            desc: 'show date-range picker'},
+        input_change:    {elem: 'textbox',  act: 'alter',
+            desc: 'text input field changed'},
+        link_click:      {elem: 'link',     act: 'select',
+            desc: 'click on a link'},
+        load_data:       {elem: 'map',      act: 'perform',
+            desc: 'loaded new data'},
+        map_moved:       {elem: 'map',      act: 'alter',
+            desc: 'map pan, zoom, or resize'},
+        navigate:        {elem: 'link',     act: 'select',
+            desc: 'browser navigation change'},
+        select_change:   {elem: 'dropdownlist', act: 'alter',
+            desc: 'select box changed'},
+        show_tooltip:    {elem: 'tooltip',  act: 'show',
+            desc: 'show tooltip'},
+        show_view:       {elem: 'window',   act: 'show',
+            desc: 'show view'},
+        slide:           {elem: 'slider',   act: 'alter',
+            desc: 'move a slider'},
+        slideStart:      {elem: 'slider',   act: 'enter', name: 'slide_start',
+            desc: 'start moving a slider'},
+        slideStop:       {elem: 'slider',   act: 'leave', name: 'slide_stop',
+            desc: 'stop moving a slider'},
+        start_app:       {elem: 'window',   act: 'open',
+            desc: 'starting application'}
     };
 
     geoapp.activityLog = {
@@ -51,36 +75,74 @@
          *
          * @param activity: one of the activity names in the activitySpec
          *                  object.
+         * @param group: element group to log.
          * @param data: an object with data to log about the activity.  For
          *              instance, the id of the control, or the coordinates of
          *              the mouse.
+         * @param system: true if system.
          */
-        logActivity: function (activity, data) {
+        logActivity: function (activity, group, data, system) {
             if (!logger) {
                 return;
             }
-            var activityDesc = activity;
-            var wf = logger.WF_OTHER;
-            if (activitySpec[activity]) {
-                activityDesc = activitySpec[activity].desc || activityDesc;
-                wf = logger[activitySpec[activity].wf] || wf;
-                if (activitySpec[activity].name) {
-                    activity = activitySpec[activity].name;
+            data = data || {};
+            var msg = {
+                activity: activity,
+                action: activity,
+                elementType: 'element_type',
+                elementGroup: group,
+                elementSub: data.value !== undefined ? data.value : '',
+                source: system ? 'system' : 'user',
+                tags: [
+                    /* a list of tags to help define some other meaningful
+                     * words, such as if this action deals with a 'query' or is
+                     * altering 'visual' elements */
+                ],
+                meta: {
+                    data: data
                 }
+            };
+            if (!system) {
+                msg.elementId = data.id;
             }
-            logger.logUserActivity(activityDesc, activity, wf, data);
+            if (activitySpec[activity]) {
+                if (activitySpec[activity].desc) {
+                    msg.meta.desc = activitySpec[activity].desc;
+                }
+                if (activitySpec[activity].name) {
+                    msg.action = activitySpec[activity].name;
+                }
+                if (activitySpec[activity].elem) {
+                    msg.elementType = activitySpec[activity].elem;
+                }
+                if (activitySpec[activity].act) {
+                    msg.activity = activitySpec[activity].act;
+                }
+                if (activitySpec[activity].value) {
+                    msg.elementSub = data[activitySpec[activity].value];
+                }
+            } else {
+                console.log(['Unknown activity', activity, data]);
+            }
+            try {
+                logger.log(msg);
+            } catch (ex) {
+                console.log('Activity logger caught a ' + ex.name +
+                            ' exception:', ex.message, ex.stack, ex);
+            }
         },
 
         /* Log system activity.
          *
          * @param activityDesc: a description of the activity.
+         * @param group: element group to log.
          * @param data: an object with data to log about the activity.
          */
-        logSystem: function (activityDesc, data) {
+        logSystem: function (activityDesc, group, data) {
             if (!logger) {
                 return;
             }
-            logger.logSystemActivity(activityDesc, data);
+            this.logActivity(activityDesc, group, data, true);
         },
 
         /* Set up logging for all standard controls on the page.
@@ -95,35 +157,36 @@
             }
             var log = this;
             if (viewName) {
-                log.logSystem('show view', {view: viewName});
+                log.logSystem('show_view', 'main', {view: viewName});
             }
             $('input[type="text"]:visible', selector)
             .on('change', function (evt) {
-                log.logActivity('input_change', {
+                log.logActivity('input_change', 'controls', {
                     id: $(this).attr('id'),
                     value: $(this).val()
                 });
             });
             $('select:visible', selector).on('change', function (evt) {
-                log.logActivity('select_change', {
+                log.logActivity('select_change', 'controls', {
                     id: $(this).attr('id'),
                     value: $(this).val()
                 });
             });
             $('a', selector).on('click', function (evt) {
-                log.logActivity('link_click', {
+                log.logActivity('link_click', 'controls', {
                     id: $(this).attr('id'),
-                    href: $(this).attr('href')
+                    href: $(this).attr('href'),
+                    value: $(this).attr('href')
                 });
             });
             $('button', selector).on('click', function (evt) {
-                log.logActivity('button_click', {
+                log.logActivity('button_click', 'controls', {
                     id: $(this).attr('id')
                 });
             });
             $('input[type="checkbox"]:visible', selector)
             .on('change', function (evt) {
-                log.logActivity('checkbox_change', {
+                log.logActivity('checkbox_change', 'controls', {
                     id: $(this).attr('id'),
                     value: $(this).is(':checked')
                 });
@@ -134,7 +197,7 @@
                  * don't bother logging it -- the user won't have read it. */
                 window.setTimeout(function () {
                     if (ctl.next('div.tooltip:visible').length) {
-                        log.logActivity('show_tooltip', {
+                        log.logActivity('show_tooltip', 'controls', {
                             id: ctl.attr('id'),
                             closestId: (ctl.attr('id') ? undefined :
                                         ctl.closest('[id]').attr('id'))
@@ -144,7 +207,7 @@
             });
             $('.slider', selector)
             .on('slide slideStart slideStop', function (evt) {
-                log.logActivity(evt.type, {
+                log.logActivity(evt.type, 'controls', {
                     id: $(this).attr('id'),
                     value: evt.value
                 });
@@ -152,7 +215,7 @@
             $('.ga-date-range', selector).on('apply.daterangepicker ' +
                 'cancel.daterangepicker hide.daterangepicker ' +
                 'show.daterangepicker', function (evt) {
-                    log.logActivity('date_' + evt.type, {
+                    log.logActivity('date_' + evt.type, 'controls', {
                         id: $(this).attr('id'),
                         value: $(this).val()
                     });
@@ -161,13 +224,23 @@
     };
 
     var uri = $('body').attr('activity_log_uri');
-    if (window.activityLogger && uri) {
+    if (window.userale && uri) {
         /* jshint -W055 */
-        logger = new activityLogger($('body').attr('staticRoot') +
-                                    '/draper.activity_worker-2.1.1.js')
-            .testing(false)
-            .echo(false);
-        logger.registerActivityLogger(uri, 'geoapp', geoapp.version);
+        logger = new userale({
+            loggingUrl: uri,
+            toolName: 'geoapp',
+            toolVersion: geoapp.version,
+            elementGroups: [
+                'main',
+                'map',
+                'datahandler',
+                'controls'
+            ],
+            workerUrl: $('body').attr('staticRoot') + '/userale-worker.js',
+            debug: false,
+            sendLogs: true
+        });
+        logger.register();
         var origInit = geoapp.View.prototype.initialize;
         geoapp.View.prototype.initialize = function () {
             origInit.apply(this, arguments);
@@ -178,11 +251,11 @@
             if (params.length) {
                 params = params.slice(-1)[0];
             }
-            geoapp.activityLog.logActivity('navigate', {
+            geoapp.activityLog.logActivity('navigate', 'main', {
                 route: route, params: params
             });
         });
-        geoapp.activityLog.logSystem('Starting application', {
+        geoapp.activityLog.logSystem('start_app', 'main', {
             userAgent: navigator.userAgent,
             browserData: {
                 screenSize: {width: screen.width, height: screen.height},

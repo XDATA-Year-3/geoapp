@@ -145,7 +145,7 @@ geoapp.Map = function (arg) {
             var view = this;
             var bounds = m_geoMap.bounds();
             var zoom = m_geoMap.zoom();
-            geoapp.activityLog.logActivity('map_moved', {
+            geoapp.activityLog.logActivity('map_moved', 'map', {
                 bounds: bounds,
                 zoom: zoom
             });
@@ -695,7 +695,7 @@ geoapp.Map = function (arg) {
                 (!curPlayState || !m_animationData ||
                 curPlayState.substr(0, 4) !== 'step' ||
                 m_animationData.playState.substr(0, 4) !== 'step')) {
-                geoapp.activityLog.logSystem('Animation action', {
+                geoapp.activityLog.logSystem('anim_action', 'map', {
                     action: action, stepnum: stepnum
                 });
             }
