@@ -143,6 +143,27 @@ geoapp.DataHandler = function (arg) {
             complete: !callNext
         });
     };
+
+    /* Set or clear the loading animation.
+     *
+     * @param elem: a jquery selector for the element containing the loading
+     *              animation.
+     * @param hidden: true to hide the animation, false to show it.
+     * @param first: true if this is the first batch of data, false if not.
+     */
+    this.loadingAnimation = function (elem, hidden, first) {
+        elem = $(elem);
+        elem.toggleClass('hidden', !!hidden);
+        if (!hidden) {
+            elem.toggleClass('first-load', !!first);
+            elem.toggleClass('second-load', !first);
+            /* Restart the animation */
+            $('i', elem).removeClass('animate-spin');
+            window.setTimeout(function () {
+                $('i', elem).addClass('animate-spin');
+            }, 1);
+        }
+    };
 };
 
 /* -------- taxi data handler -------- */
@@ -174,9 +195,8 @@ geoapp.dataHandlers.taxi = function (arg) {
                 'dropoff_datetime,dropoff_longitude,dropoff_latitude';
         }
         geoapp.cancelRestRequests(datakey + 'taxidata');
-        $('#ga-taxi-loading').removeClass('hidden')
-            .toggleClass('first-load', !options.params.offset)
-            .toggleClass('second-load', !!options.params.offset);
+        this.loadingAnimation('#ga-taxi-loading', false,
+                              !options.params.offset);
         var xhr = geoapp.restRequest({
             path: 'geoapp/taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
@@ -210,7 +230,7 @@ geoapp.dataHandlers.taxi = function (arg) {
         if (callNext) {
             this.dataLoad(options);
         } else {
-            $('#ga-taxi-loading').addClass('hidden');
+            this.loadingAnimation('#ga-taxi-loading', true);
         }
     };
 };
@@ -244,9 +264,8 @@ geoapp.dataHandlers.instagram = function (arg) {
                 'posted_date,caption,image_url,latitude,longitude';
         }
         geoapp.cancelRestRequests('instagramdata');
-        $('#ga-instagram-loading').removeClass('hidden')
-            .toggleClass('first-load', !options.params.offset)
-            .toggleClass('second-load', !!options.params.offset);
+        this.loadingAnimation('#ga-instagram-loading', false,
+                              !options.params.offset);
         var xhr = geoapp.restRequest({
             path: 'geoapp/instagram', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
@@ -287,7 +306,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         if (callNext) {
             this.dataLoad(options);
         } else {
-            $('#ga-instagram-loading').addClass('hidden');
+            this.loadingAnimation('#ga-instagram-loading', true);
         }
     };
 };
