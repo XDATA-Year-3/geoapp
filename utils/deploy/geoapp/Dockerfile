@@ -59,7 +59,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 58be4124bf0b64de54b3101b3815fad05faeb614 && \
+    git checkout b5b6b812834109006cac837c5b951855e59d6fc3 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN git submodule update --init --recursive && \
@@ -67,8 +67,9 @@ RUN git submodule update --init --recursive && \
     cd geojs && \
     npm install && \
     grunt library
-RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/draper.activity_logger-2.1.1.js -o client/optional/js/draper.activity_logger-2.1.1.js && \
-    curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/draper.activity_worker-2.1.1.js -o client/optional/static/draper.activity_worker-2.1.1.js
+RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
+    curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
+
 RUN npm install
 
 # COPY .vimrc /home/kwuser/.vimrc
