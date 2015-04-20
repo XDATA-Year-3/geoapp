@@ -150,11 +150,9 @@ geoapp.parseJSON = function (jsonValue)  {
 $(function () {
     girder.apiRoot = 'api/v1';
     geoapp.map = geoapp.Map();
-
     geoapp.app = new geoapp.App({el: 'body', parentView: null});
+    geoapp.dataLoaders = {};
+    _.each(geoapp.dataHandlers, function (handlerFunc, handlerKey) {
+        geoapp.dataLoaders[handlerKey] = handlerFunc();
+    });
 });
-
-/* TODO:
- * - encode and restore map positions via navigation (encode whenever update or
- * filter is called).
- */

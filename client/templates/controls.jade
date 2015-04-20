@@ -10,52 +10,8 @@
               title="Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data from the database.")
       #ga-filter-settings.panel-collapse.collapse.in
         .panel-body
-          .form-group
-            label(for="ga-source") Data Source
-            select#ga-source.form-control.input-sm(title="Database source",
-                taxifield="source")
-              option(value="postgresfull") Postgres Full Shuffled
-              option(value="postgresfullg") Postgres Full w/ Green
-              option(value="postgres12") Postgres 1/12 Shuffled
-              option(value="mongofull") Mongo Full Shuffled
-              option(value="mongo12r") Mongo 1/12 Shuffled
-              option(value="mongo12") Mongo 1/12 Random Value
-              option(value="mongo") Mongo 1/12 Dates
-              option(value="tangelo") Tangelo Service 1/12
-          .form-group
-            label(for="ga-medallion") Medallion
-            input#ga-medallion.form-control.input-sm(
-              type="text", placeholder="#XX##", title="Taxi medallion",
-              taxifield="medallion")
-          .form-group
-            label(for="ga-hack-license") Hack License
-            input#ga-hack-license.form-control.input-sm(
-              type="text", placeholder="#######", title="Hack license",
-              taxifield="hack_license")
-          .form-group
-            label(for="ga-pickup-date") Pickup Date
-            input#ga-pickup-date.ga-date-range.form-control.input-sm(
-              type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
-              title="Pickup date range",
-              taxifield="pickup_datetime", taxitype="dateRange")
-          .form-group
-            label(for="ga-trip-distance") Trip Distance
-            input#ga-trip-distance.form-control.input-sm(
-              type="text", placeholder="#.## - #.## (miles)",
-              title="Trip distance in miles",
-              taxifield="trip_distance", taxitype="floatRange")
-          .form-group
-            label(for="ga-passenger-count") Passengers
-            input#ga-passenger-count.form-control.input-sm(
-              type="text", placeholder="# - #",
-              title="Number of passengers",
-              taxifield="passenger_count", taxitype="intRange")
-          .form-group
-            button#ga-controls-filter.btn.btn-default.btn-sm
-              i.icon-ok
-              |  Filter
-            #ga-map-loading.hidden
-              i.icon-spin1.animate-spin
+          include taxifilters.jade
+          include instagramfilters.jade
   .panel-group#ga-display-settings-panel
     .panel.panel-default
       .panel-heading
@@ -71,10 +27,10 @@
             label(for="ga-tile-set") Tile Set
             select#ga-tile-set.form-control.input-sm(title="Tile Set",
                 taxifield="display-tile-set")
+              option(value="mqsat") MapQuest Satellite
               option(value="mapquest") MapQuest Map
               option(value="openstreetmap") OpenStreetMap
               option(value="tonerlite") Stamen Toner Lite
-              option(value="mqsat") MapQuest Satellite
               option(value="blank") Blank
             label(for="ga-tile-opacity", title="Map layer opacity") Opacity
             input#ga-tile-opacity.form-control.input-sm.ga-slider-ctl(
@@ -98,11 +54,32 @@
               option(value="raw") Individual Trips
               option(value="binned") Binned Heatmap
           .form-group
-            label(for="ga-display-num-bins") Number of Bins
-            input#ga-display-num-bins.form-control.input-sm(
-              type="text", placeholder="#",
-              title="Number of bins across short dimension of the map",
-              taxifield="display-num-bins", taxitype="int")
+            #ga-display-max-points-group.hidden
+              label(for="ga-display-max-points",
+                title="Maximum number trip points to display.") Max Points
+              input#ga-display-max-points.form-control.input-sm.ga-slider-ctl(
+                  type="text", data-slider-min="10000",
+                  data-slider-max="1000000", data-slider-step="5000",
+                  data-slider-value="25000", data-slider-handle="square",
+                  data-slider-scale="logarithmic",
+                  data-slider-id="ga-display-max-points-ctl",
+                  taxifield="display-max-points", taxitype="int")
+            #ga-display-max-lines-group.hidden
+              label(for="ga-display-max-lines",
+                title="Maximum number of trip vectors to display.") Max Vectors
+              input#ga-display-max-lines.form-control.input-sm.ga-slider-ctl(
+                  type="text", data-slider-min="10000",
+                  data-slider-max="1000000", data-slider-step="5000",
+                  data-slider-value="10000", data-slider-handle="square",
+                  data-slider-scale="logarithmic",
+                  data-slider-id="ga-display-max-lines-ctl",
+                  taxifield="display-max-lines", taxitype="int")
+            #ga-display-num-bins-group
+              label(for="ga-display-num-bins") Number of Bins
+              input#ga-display-num-bins.form-control.input-sm(
+                type="text", placeholder="#",
+                title="Number of bins across short dimension of the map",
+                taxifield="display-num-bins", taxitype="int")
           .form-group
             button#ga-display-update.btn.btn-default.btn-sm
               i.icon-cw
