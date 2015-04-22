@@ -178,6 +178,8 @@ geoapp.dataHandlers.taxi = function (arg) {
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
 
+    this.datakey = datakey;
+
     /* Replace or add to the taxi data used for the current map.
      *
      * @param: options: a dictionary with the parameters to use for fetching
@@ -249,6 +251,8 @@ geoapp.dataHandlers.instagram = function (arg) {
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
 
+    this.datakey = datakey;
+
     /* Replace or add to the instagram data used for the current map.
      *
      * @param: options: a dictionary with the parameters to use for fetching
@@ -280,16 +284,31 @@ geoapp.dataHandlers.instagram = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
-        //DWM::
-        //geoapp.map.setCycleDateRange(options.params, 'pickup_datetime_min',
-        //                             'pickup_datetime_max');
-        geoapp.map.showMap(options.description, options.data, options.display);
-        /* debug here */
-        var d = [];
-        for (var i = 0; i < options.data.data.length && i < 100; i += 1) {
-            d.push(options.data.data[i][1]);
+        if (options.params.posted_date_min && options.params.posted_date_max) {
+            geoapp.map.setCycleDateRange(options.params, 'posted_date_min',
+                                         'posted_date_max');
         }
-        console.log(d); //DWM::
+        geoapp.map.showMap(options.description, options.data, options.display);
+        /* Hide the instagram results panel if there is no data.  Show it with
+         * a small quantity of data if there is data. */
+        if (!options.data || !options.data.data || !options.data.data.length) {
+            $('#ga-instagram-results-panel').addClass('hidden');
+            return;
+        }
+        var table = $('#ga-instagram-results-table');
+        table.attr('count', options.data.data.length);
+        /* If the offset is non-zero, we've already started displaying the
+         * results. */
+        if (options.params.offset) {
+            return;
+        }
+        $('#ga-instagram-results-panel').removeClass('hidden');
+        $('#ga-instagram-results-table tr:has(td)').remove();
+        $('#ga-instagram-results .results-table').scrollTop(0);
+        if (this.instagramTable()) {
+            infiniteScroll('#ga-instagram-results .results-table',
+                           this.instagramTable, this);
+        }
     };
 
     /* Load more instagram data or indicated that we are finished loading.
@@ -308,6 +327,51 @@ geoapp.dataHandlers.instagram = function (arg) {
         } else {
             this.loadingAnimation('#ga-instagram-loading', true);
         }
+    };
+
+    /* Append rows to the instagram table.
+     *
+     * @return: true if there is more data. */
+    this.instagramTable = function () {
+        var table = $('#ga-instagram-results-table'),
+            page = 100,
+            layer = geoapp.map.getLayer(this.datakey),
+            data = layer.data(),
+            moreData = false;
+        if (!data || !data.data || !data.data.length) {
+            return moreData;
+        }
+        var current = $('tr:has(td)', table).length;
+        var date_column = data.columns.posted_date,
+            caption_column = data.columns.caption,
+            url_column = data.columns.url;
+        $('.ga-more-results', table).remove();
+        /* We may want to apply another filter to the data here */
+        for (var i = current; i < data.data.length && i < current + page;
+                i += 1) {
+            table.append($('<tr/>')
+                .attr({
+                    item: i,
+                    url: data.data[i][url_column]
+                })
+                .append($('<td/>').text(moment(data.data[i][date_column])
+                    .format('MM-DD HH:mm')))
+                .append($('<td/>').text(data.data[i][caption_column])
+                    .attr('title', data.data[i][caption_column]))
+            );
+        }
+        if (current + page < data.data.length) {
+            moreData = true;
+            table.append($('<tr/>').attr({
+                class: 'ga-more-results'
+            }).append($('<td/>').attr({
+                colspan: 2
+            }).text('More ...')));
+        }
+        //TODO:: switch to a bootstrap tooltip with the picture and caption,
+        // highlight the point hovered over, zoom to that point if clicked,
+        // sort data table by date, inverse date, or original
+        return moreData;
     };
 };
 
