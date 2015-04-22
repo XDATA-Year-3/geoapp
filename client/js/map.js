@@ -813,4 +813,13 @@ geoapp.Map = function (arg) {
             m_cycleDateRange = null;
         }
     };
+
+    /* Get a layer by key.
+     *
+     * @param datakey: the layer's datakey.
+     * @return: the layer if it exists, or null if it does not.
+     */
+    this.getLayer = function (datakey) {
+        return m_layers[datakey];
+    };
 };

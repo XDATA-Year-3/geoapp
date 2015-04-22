@@ -1,0 +1,17 @@
+#ga-results-page.ga-results-ui
+  .panel-group#ga-instagram-results-panel.hidden
+    .panel.panel-default
+      .panel-heading
+        a(data-toggle="collapse", data-parent="#ga-instagram-results-panel",
+          href="#ga-instagram-results")
+          .panel-title
+            b Instagram Results
+            i.icon-info-circled(data-placement="top", data-container="body",
+              title="These are the instagram results based on the Caption Search in the Filters panel.")
+      #ga-instagram-results.panel-collapse.collapse.in
+        .panel-body
+          .results-table
+            table#ga-instagram-results-table
+              tr
+                th Post Date
+                th Caption

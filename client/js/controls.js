@@ -129,16 +129,24 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * @param value: the value to set.
      */
     setControlValue: function (selector, value) {
+        var elem = $(selector);
         value = '' + value;
         try {
-            $(selector).val(value);
-            if ($(selector).is('select') && $(selector).val() !== value &&
-                    value !== '') {
-                $(selector).append($('<option/>').attr({value: value})
-                    .text(value));
-                $(selector).val(value);
+            if (elem.is('[type=checkbox]')) {
+                elem.prop('checked', value === 'true');
+                return;
             }
-        } catch (err) { }
+            elem.val(value);
+            if (elem.is('select') && elem.val() !== value &&
+                    value !== '') {
+                elem.append($('<option/>').attr({value: value})
+                    .text(value));
+                elem.val(value);
+            }
+        } catch (err) {
+            console.log('Failed to set control value.  Caught a ' + err.name +
+                        ' exception:', err.message, err.stack, err);
+        }
     },
 
     /* Render the view.  This also prepares various controls if this is the
@@ -322,7 +330,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                       have thuthy values are the sections to update.
      */
     updateView: function (updateNav, updateSection) {
-        var results = {};
+        var results = {}, params;
         if (updateSection && $.type(updateSection) === 'string') {
             var sections = {};
             sections[updateSection] = true;
@@ -354,10 +362,26 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         }
         if (results['instagram-filter']) {
-            //DWM:: if 'use pickup date range' is checked, pull it from the
-            // taxi controls.
+            /* If 'use_taxi_dates' is checked, pull it from the taxi controls.
+             */
+            params = $.extend({}, results['instagram-filter']);
+            if ('' + params.use_taxi_dates === 'true') {
+                if (!results['taxi-filter']) {
+                    results['taxi-filter'] = this.updateSection(
+                        'taxi-filter', false);
+                }
+                _.each(['', '_min', '_max'], function (keySuffix) {
+                    delete params['posted_date' + keySuffix];
+                    if (results['taxi-filter'][
+                            'pickup_datetime' + keySuffix]) {
+                        params['posted_date' + keySuffix] = results[
+                            'taxi-filter']['pickup_datetime' + keySuffix];
+                    }
+                });
+            }
+            delete params.use_taxi_dates;
             geoapp.dataLoaders.instagram.dataLoad({
-                params: results['instagram-filter'],
+                params: params,
                 display: results.display
             });
         }
@@ -453,6 +477,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         var ttype = elem.attr('taxitype');
         switch (ttype) {
+            case 'boolean':
+                params[field] = elem.is(':checked') ? true : false;
+                break;
             case 'dateRange':
                 this.getDateRange(elem, params, field);
                 break;
