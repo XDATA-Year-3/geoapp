@@ -77,7 +77,8 @@ for line in fptr:
     data[KeyTable['pickup_datetime']] /= 1000
     data[KeyTable['dropoff_datetime']] /= 1000
     data = [data.get(key, None) for key in skeys]
-    data = ['\\N' if item is None else str(item) for item in data]
+    data = ['\\N' if item is None else str(item).replace('\\', '\\\\')
+            for item in data]
     dptr.write('\t'.join(data) + '\t%d\n' % processed)
     processed += 1
     if not (processed % 10000):

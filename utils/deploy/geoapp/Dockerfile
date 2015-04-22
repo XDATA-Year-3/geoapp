@@ -2,13 +2,8 @@ FROM ubuntu:14.04
 MAINTAINER David Manthey <david.manthey@kitware.com>
 
 # The environment variables beginning with KWDEMO can be used to map this demo
-# to the main url space
+# to the main url space.  See the end of this file.
 ENV KWDEMO_READY FALSE
-ENV KWDEMO_NAME GeoApp Demo
-ENV KWDEMO_KEY geoapp
-ENV KWDEMO_SRCURL https://github.com/XDATA-Year-3/geoapp
-ENV KWDEMO_DESC XDATA Year 3 taxi data explorer
-ENV KWDEMO_IMG /geoapp.png
 
 EXPOSE 8080
 
@@ -59,7 +54,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout b5b6b812834109006cac837c5b951855e59d6fc3 && \
+    git checkout f9eb29047ce684fc707bc5775aee68a9e0516546 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN git submodule update --init --recursive && \
@@ -72,10 +67,13 @@ RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/help
 
 RUN npm install
 
-# COPY .vimrc /home/kwuser/.vimrc
-# RUN sudo chown kwuser:kwuser /home/kwuser/.vimrc
 COPY makelocalcfg.py /home/kwuser/makelocalcfg.py
 
+ENV KWDEMO_NAME GeoApp Demo
+ENV KWDEMO_KEY geoapp
+ENV KWDEMO_SRCURL https://github.com/XDATA-Year-3/geoapp
+ENV KWDEMO_DESC XDATA Year 3 taxi data explorer
+ENV KWDEMO_IMG /geoapp.png
 ENV KWDEMO_READY TRUE
 
 CMD ["sh", "-c", "python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg && python server/main.py"]
