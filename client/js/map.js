@@ -480,7 +480,7 @@ geoapp.Map = function (arg) {
                 _.each(m_layers, function (layer) {
                     if (layer.getDateRange && !end) {
                         dateRange = layer.getDateRange();
-                        if (dateRange.start && dateRange.end) {
+                        if (dateRange && dateRange.start && dateRange.end) {
                             start = dateRange.start;
                             end = dateRange.end;
                         }
@@ -806,7 +806,7 @@ geoapp.Map = function (arg) {
      *                in epoch milliseconds.  The key doesn't have to exist.
      */
     this.setCycleDateRange = function (params, minkey, maxkey) {
-        if (params) {
+        if (params && params[minkey] != params[maxkey]) {
             m_cycleDateRange = {
                 date_min: params[minkey],
                 date_max: params[maxkey]
