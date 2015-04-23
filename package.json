@@ -35,11 +35,11 @@
     "bootstrap-slider": "~4.8"
   },
   "devDependencies": {
-    "jshint": "~2.6",
+    "jshint": "~2.7",
     "phantomjs": "1.9.9",
     "jasmine-core": "~2.1",
     "blanket": "1.1.6",
-    "jscs": "~1.10"
+    "jscs": "~1.12"
   },
   "scripts": {
     "postinstall": "grunt init && grunt"

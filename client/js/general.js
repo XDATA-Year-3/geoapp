@@ -25,7 +25,7 @@
  *                  more data.  Returns truthy if more data is available, falsy
  *                  if all data is loaded.
  */
-function infiniteScrollHandler(selector, loadFunc) {
+geoapp.infiniteScrollHandler = function (selector, loadFunc) {
     var liveZone = 300;
 
     var elem = $(selector),
@@ -37,7 +37,7 @@ function infiniteScrollHandler(selector, loadFunc) {
             elem.off('scroll.ga-infinite');
         }
     }
-}
+};
 
 /* Attach a scroll handler to an element.  When its immediate children are
  * scrolled such that a small number of pixels are left near the bottom, a
@@ -52,10 +52,10 @@ function infiniteScrollHandler(selector, loadFunc) {
  *                  if all data is loaded.
  * @param context: context for the loadFunc.
  */
-function infiniteScroll(selector, loadFunc, context) {
+geoapp.infiniteScroll = function (selector, loadFunc, context) {
     var elem = $(selector);
 
     elem.off('scroll.ga-infinite');
     elem.on('scroll.ga-infinite', _.bind(
-        infiniteScrollHandler, context || this, selector, loadFunc));
-}
+        geoapp.infiniteScrollHandler, context || this, selector, loadFunc));
+};

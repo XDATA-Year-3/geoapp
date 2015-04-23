@@ -122,7 +122,7 @@ geoapp.DataHandler = function (arg) {
         options.callNumber += 1;
         options.showTime += new Date().getTime();
         var callNext = ((options.data.datacount < options.data.count ||
-            (resp.datacount == options.params.limit &&
+            (resp.datacount === options.params.limit &&
             options.data.count === undefined)) &&
             options.data.datacount < options.maxcount);
         if (m_verbose >= 1) {
@@ -284,10 +284,10 @@ geoapp.dataHandlers.instagram = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
-        if (options.params.posted_date_min && options.params.posted_date_max) {
-            geoapp.map.setCycleDateRange(options.params, 'posted_date_min',
-                                         'posted_date_max');
-        }
+        /* Note that this competes with the taxi setCycleDateRange, and I need
+         * to do something other than let the last one win. */
+        geoapp.map.setCycleDateRange(options.params, 'posted_date_min',
+                                     'posted_date_max');
         geoapp.map.showMap(options.description, options.data, options.display);
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
@@ -306,8 +306,8 @@ geoapp.dataHandlers.instagram = function (arg) {
         $('#ga-instagram-results-table tr:has(td)').remove();
         $('#ga-instagram-results .results-table').scrollTop(0);
         if (this.instagramTable()) {
-            infiniteScroll('#ga-instagram-results .results-table',
-                           this.instagramTable, this);
+            geoapp.infiniteScroll('#ga-instagram-results .results-table',
+                                  this.instagramTable, this);
         }
     };
 
@@ -355,7 +355,7 @@ geoapp.dataHandlers.instagram = function (arg) {
                     url: data.data[i][url_column]
                 })
                 .append($('<td/>').text(moment(data.data[i][date_column])
-                    .format('MM-DD HH:mm')))
+                    .format('YY-MM-DD HH:mm')))
                 .append($('<td/>').text(data.data[i][caption_column])
                     .attr('title', data.data[i][caption_column]))
             );

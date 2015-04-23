@@ -96,6 +96,7 @@ geoapp.Map = function (arg) {
                 center: m_defaultCenter,
                 zoom: m_defaultZoom
             });
+            /* jscs:disable requireBlocksOnNewline */
             m_mapLayer = m_geoMap.createLayer('osm', {
                 baseUrl: displayInfo.baseUrl,
                 renderer: 'vgl',
@@ -104,11 +105,12 @@ geoapp.Map = function (arg) {
             .geoOn(geo.event.pan, function (e) { view.mapMovedEvent(e); })
             .geoOn(geo.event.resize, function (e) { view.mapMovedEvent(e); })
             .geoOn(geo.event.zoom, function (e) { view.mapMovedEvent(e); });
+            /* jscs:enable requireBlocksOnNewline */
             $('#ga-main-map').append('<div id="ga-map-credit-box">' +
                 '<div id="ga-map-credit"/></div>');
             $('#ga-map-credit').html(displayInfo.baseUrlCredit || '');
         }
-        if (datakey != 'all') {
+        if (datakey !== 'all') {
             if (m_layers[datakey] === undefined) {
                 m_layers[datakey] = geoapp.mapLayers[datakey](m_this);
             }
@@ -266,7 +268,7 @@ geoapp.Map = function (arg) {
             (update !== 'always' && !_.isEqual(params, m_mapParams))) {
             return results;
         }
-        if (results.baseUrl != m_baseUrl) {
+        if (results.baseUrl !== m_baseUrl) {
             m_mapLayer.updateBaseUrl(results.baseUrl);
             m_baseUrl = results.baseUrl;
             $('#ga-map-credit').html(results.baseUrlCredit || '');
@@ -400,7 +402,7 @@ geoapp.Map = function (arg) {
             m_animationData = null;
         }
         if (m_animationData &&
-                m_animationData.playState != (options.playState || 'play')) {
+                m_animationData.playState !== (options.playState || 'play')) {
             m_animationData.playState = (options.playState || 'play');
             different = true;
         }
@@ -478,7 +480,7 @@ geoapp.Map = function (arg) {
                 _.each(m_layers, function (layer) {
                     if (layer.getDateRange && !end) {
                         dateRange = layer.getDateRange();
-                        if (dateRange.start && dateRange.end) {
+                        if (dateRange && dateRange.start && dateRange.end) {
                             start = dateRange.start;
                             end = dateRange.end;
                         }
@@ -615,7 +617,7 @@ geoapp.Map = function (arg) {
         var curPlayState = null, startStep;
 
         if (action === 'jump' && m_animationData &&
-                m_animationData.step == stepnum) {
+                m_animationData.step === stepnum) {
             return;
         }
         if (m_animTimer) {
@@ -636,7 +638,7 @@ geoapp.Map = function (arg) {
                 if (curPlayState !== 'stop') {
                     if (!m_animationData) {
                         this.animate(undefined, stepnum);
-                    } else if (m_animationData.step != stepnum) {
+                    } else if (m_animationData.step !== stepnum) {
                         m_animationData.step = ((stepnum +
                             m_animationData.numBins - 1) %
                             m_animationData.numBins);
@@ -656,7 +658,7 @@ geoapp.Map = function (arg) {
                 } else {
                     if (curPlayState === 'stop') {
                         m_animationData.step = -1;
-                    } else if (action == 'stepback') {
+                    } else if (action === 'stepback') {
                         m_animationData.step = ((m_animationData.step +
                             m_animationData.numBins * 2 - 2) %
                             m_animationData.numBins);
@@ -691,7 +693,7 @@ geoapp.Map = function (arg) {
                     m_animationData.playState === 'stepback') {
                 m_animationData.playState = 'step' + lastStep;
             }
-            if (m_animationData.playState != curPlayState &&
+            if (m_animationData.playState !== curPlayState &&
                 (!curPlayState || !m_animationData ||
                 curPlayState.substr(0, 4) !== 'step' ||
                 m_animationData.playState.substr(0, 4) !== 'step')) {
@@ -804,7 +806,7 @@ geoapp.Map = function (arg) {
      *                in epoch milliseconds.  The key doesn't have to exist.
      */
     this.setCycleDateRange = function (params, minkey, maxkey) {
-        if (params) {
+        if (params && params[minkey] !== params[maxkey]) {
             m_cycleDateRange = {
                 date_min: params[minkey],
                 date_max: params[maxkey]

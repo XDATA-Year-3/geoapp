@@ -89,7 +89,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
 
     /* Run tests. */
     runTests: function () {
-        if ($('.ga-test-enable:not(:checked)').length == this.tests.length) {
+        if ($('.ga-test-enable:not(:checked)').length === this.tests.length) {
             return;
         }
         $('#ga-speed-test-results tr').slice(2).remove();
@@ -128,7 +128,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             testsToRun: testsToRun
         };
         var view = this;
-        window.setTimeout(function () { view.nextTest(); }, 1);
+        window.setTimeout(function () {
+            view.nextTest();
+        }, 1);
     },
 
     /* Run the next test, or stop the test.  The test parameters are in
@@ -180,7 +182,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
                 break;
         }
         if (!results && !skip) {
-            window.setTimeout(function () { view.nextTest(); }, 0);
+            window.setTimeout(function () {
+                view.nextTest();
+            }, 0);
             return;
         }
         if (results) {
@@ -213,9 +217,13 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             }
         }
         if (results) {
-            this.logTestResults(function () { view.nextTest(); });
+            this.logTestResults(function () {
+                view.nextTest();
+            });
         } else {
-            window.setTimeout(function () { view.nextTest(); }, 1);
+            window.setTimeout(function () {
+                view.nextTest();
+            }, 1);
         }
     },
 
@@ -267,7 +275,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         if (params.times.length < 12 && stoptime - params.testStart < 10000) {
             return;
         }
-        params.times.sort(function (a, b) { return a - b; });
+        params.times.sort(function (a, b) {
+            return a - b;
+        });
         if (params.times.length > 5) {
             params.times = params.times.slice(1, params.times.length - 1);
         }
@@ -321,7 +331,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             return;
         }
         params.times = params.times.slice(1);
-        params.times.sort(function (a, b) { return a - b; });
+        params.times.sort(function (a, b) {
+            return a - b;
+        });
         frametime = params.times[parseInt(0.99 * params.times.length)];
         fps = 1000.0 / frametime;
         geoapp.map.animationAction('stop');
