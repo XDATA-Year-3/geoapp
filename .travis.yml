@@ -33,8 +33,9 @@ install:
     - npm install
 
     - pip install --user -r requirements.txt -r requirements-dev.txt
-    - ~/.local/bin/girder-install web
-    - PIP_USER=yes ~/.local/bin/girder-install plugin
+    - export PATH=$PATH:~/.local/bin
+    - girder-install web
+    - PIP_USER=yes girder-install plugin
 
 script:
     # Run ctest
