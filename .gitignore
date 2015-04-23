@@ -9,5 +9,7 @@ docs/_output
 .vagrant
 env/*
 built/*
+_build/*
+Testing/*
 *.log
 client/optional/*

@@ -111,12 +111,20 @@ geoapp.Map = function (arg) {
             $('#ga-map-credit').html(displayInfo.baseUrlCredit || '');
         }
         if (datakey !== 'all') {
-            if (m_layers[datakey] === undefined) {
-                m_layers[datakey] = geoapp.mapLayers[datakey](m_this);
-            }
+            this.ensureLayer(datakey);
             m_layers[datakey].data(data);
         }
         this.updateMapParams(datakey, params, 'always');
+    };
+
+    /* Check if a layer exists and create it if it doesn't.
+     *
+     * @param datakey: the layer to create or verify.
+     */
+    this.ensureLayer = function (datakey) {
+        if (m_layers[datakey] === undefined && geoapp.mapLayers[datakey]) {
+            m_layers[datakey] = geoapp.mapLayers[datakey](m_this);
+        }
     };
 
     /* Perform any action necessary after a zoom or pan event.  This updates

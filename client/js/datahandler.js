@@ -98,8 +98,11 @@ geoapp.DataHandler = function (arg) {
      * @param resp: the ajax response.
      * @param showfunc: a function to show the data.  It is passed (options).
      * @param loadfunc: a function to call after the data has been processed
-     *                  and shown.  It is passed (options, callNext) where
-     *                  callNext is true if more data should be fetched.
+     *                  and shown.  It is passed (options, callNext, moreData)
+     *                  where callNext is true if more data should be fetched,
+     *                  and moreData is true if there is probably more data
+     *                  that could be loaded.  If callNext is true, moreData is
+     *                  always true.
      */
     this.processRequestData = function (options, resp, showfunc, loadfunc) {
         if (!options.data) {
@@ -121,10 +124,10 @@ geoapp.DataHandler = function (arg) {
         showfunc.call(this, options);
         options.callNumber += 1;
         options.showTime += new Date().getTime();
-        var callNext = ((options.data.datacount < options.data.count ||
+        var moreData = (options.data.datacount < options.data.count ||
             (resp.datacount === options.params.limit &&
-            options.data.count === undefined)) &&
-            options.data.datacount < options.maxcount);
+            options.data.count === undefined));
+        var callNext = (moreData && options.data.datacount < options.maxcount);
         if (m_verbose >= 1) {
             console.log(
                 options.description + (callNext ? ' next ' : ' last ') +
@@ -136,7 +139,7 @@ geoapp.DataHandler = function (arg) {
         if (callNext) {
             options.params.offset += resp.datacount;
         }
-        loadfunc.call(this, options, callNext);
+        loadfunc.call(this, options, callNext, moreData);
         geoapp.activityLog.logActivity('load_data', 'datahandler', {
             data: options.description,
             params: options.params,
@@ -163,6 +166,32 @@ geoapp.DataHandler = function (arg) {
                 $('i', elem).addClass('animate-spin');
             }, 1);
         }
+    };
+
+    /* Show a message about how much data has been loaded.
+     *
+     * @param selector: jquery selector of are where the laoding message shou;d
+     *                  be shown.
+     * @param count: number of items loaded.
+     * @param callNext: true if more data is going to be fetched.
+     * @param modeData: true if there is more data that could be loaded.
+     * @param singleItem: single form of item loaded (e.g., 'trip').
+     * @param pluralItem: plural form of item loaded (e.g., 'trips').
+     */
+    this.loadedMessage = function (selector, count, callNext, moreData,
+                                   singleItem, pluralItem) {
+        var shortMsg = sprintf('%s %d', callNext ? 'Loading' : (
+            moreData ? 'First' : 'All'), count);
+        var longMsg = sprintf('Load%s %s %d %s', callNext ? 'ing' : 'ed',
+                               moreData ? 'first' : 'all', count,
+                              count === 1 ? singleItem : pluralItem);
+        if (!callNext && moreData) {
+            longMsg += sprintf('.  Increase Max %s to load more data.',
+                pluralItem[0].toUpperCase() + pluralItem.substring(1));
+        }
+        $(selector).text(shortMsg).attr('title', longMsg)
+            .tooltip().attr('data-original-title', longMsg)
+            .tooltip('fixTitle');
     };
 };
 
@@ -222,13 +251,11 @@ geoapp.dataHandlers.taxi = function (arg) {
      *
      * @param options: the request options.
      * @param callNext: true if more data is needed.
+     * @param moreData: true if more data is available.
      */
-    this.dataLoaded = function (options, callNext) {
-        var title = sprintf('Loaded %d trips', options.data.datacount);
-        $('#ga-points-loaded').text(sprintf(
-            'Loaded %d', options.data.datacount)).attr('title', title)
-            .tooltip().attr('data-original-title', title)
-            .tooltip('fixTitle');
+    this.dataLoaded = function (options, callNext, moreData) {
+        this.loadedMessage('#ga-points-loaded', options.data.datacount,
+                           callNext, moreData, 'trip', 'trips');
         if (callNext) {
             this.dataLoad(options);
         } else {
@@ -315,13 +342,11 @@ geoapp.dataHandlers.instagram = function (arg) {
      *
      * @param options: the request options.
      * @param callNext: true if more data is needed.
+     * @param moreData: true if more data is available.
      */
-    this.dataLoaded = function (options, callNext) {
-        var title = sprintf('Loaded %d messages', options.data.datacount);
-        $('#ga-inst-points-loaded').text(sprintf(
-            'Loaded %d', options.data.datacount)).attr('title', title)
-            .tooltip().attr('data-original-title', title)
-            .tooltip('fixTitle');
+    this.dataLoaded = function (options, callNext, moreData) {
+        this.loadedMessage('#ga-inst-points-loaded', options.data.datacount,
+                           callNext, moreData, 'message', 'messages');
         if (callNext) {
             this.dataLoad(options);
         } else {
