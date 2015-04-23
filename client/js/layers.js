@@ -155,7 +155,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
 
     this.paramChangedKeys = [
         'display-type', 'display-process', 'display-num-bins',
-        'display-max-points', 'display-max-lines'
+        'display-max-points', 'display-max-lines', 'data-opacity'
     ];
 
     /* Set the map to display pickup or dropoff points.
@@ -598,6 +598,9 @@ geoapp.mapLayers.taxi = function (map, arg) {
         if (params['display-max-lines'] > 0) {
             this.maximumVectors = params['display-max-lines'];
         }
+        if (params['data-opacity'] > 0) {
+            params.opacity = params['data-opacity'];
+        }
         switch (params['display-process']) {
             case 'binned':
                 this.binMapData(params);
@@ -718,6 +721,9 @@ geoapp.mapLayers.taxi = function (map, arg) {
      * @param options: animation options.
      */
     this.animateFrame = function (options) {
+        if (!options.layers[this.datakey]) {
+            return;
+        }
         var mapParams = m_this.map.getMapParams(),
             mapData = m_this.data(),
             visOpac = (options.opacity || 0.1),
@@ -820,9 +826,13 @@ geoapp.mapLayers.instagram = function (map, arg) {
     });
     m_geoPoints = geoLayer.createFeature('point', {
         primitiveShape: 'triangle',
-        selectionAPI: true,
+        selectionAPI: false,
         dynamicDraw: true
     });
+
+    this.paramChangedKeys = [
+        'data-opacity'
+    ];
 
     /* Update the taxi map based on the map parameters.  Values that are
      * updated include:
@@ -833,6 +843,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
     this.updateMapParams = function (params) {
         if (params['display-max-points'] > 0) {
             this.maximumMapPoints = params['display-max-points'];
+        }
+        if (params['data-opacity'] > 0) {
+            params['inst-opacity'] = params['data-opacity'];
         }
         var data = m_this.data();
 
