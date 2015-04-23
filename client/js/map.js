@@ -806,7 +806,7 @@ geoapp.Map = function (arg) {
      *                in epoch milliseconds.  The key doesn't have to exist.
      */
     this.setCycleDateRange = function (params, minkey, maxkey) {
-        if (params && params[minkey] != params[maxkey]) {
+        if (params && params[minkey] !== params[maxkey]) {
             m_cycleDateRange = {
                 date_min: params[minkey],
                 date_max: params[maxkey]
