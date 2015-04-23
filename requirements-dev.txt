@@ -1,6 +1,5 @@
 coverage==3.7.1
 flake8==2.4.0
-pep8==1.5.7
 flake8-docstrings==0.2.1.post1
 flake8-blind-except==0.1.0
 PyGreSQL==4.1.1

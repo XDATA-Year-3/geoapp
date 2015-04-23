@@ -5,6 +5,8 @@ project(geoapp NONE)
 include(CTest)
 enable_testing()
 
+find_package(PythonInterp 2.7 REQUIRED)
+
 set(BUILD_TESTING ON CACHE BOOL "Enable geoapp testing")
 
 # set up targets for node programs
@@ -17,6 +19,10 @@ set(flake8_config "${PROJECT_SOURCE_DIR}/tests/flake8.cfg")
 set(JS_HINT_TESTS ON CACHE BOOL "Generate jshint style tests for JS source files.")
 set(JSCS_TESTS ON CACHE BOOL "Generate jscs style tests for JS source files.")
 set(PYTHON_STATIC_ANALYSIS ON CACHE BOOL "Generate style tests for python source files.")
+
+if(PYTHON_STATIC_ANALYSIS)
+  find_program(FLAKE8_EXECUTABLE flake8)
+endif()
 
 find_package(PythonInterp REQUIRED)
 
@@ -49,7 +55,6 @@ if(${JSCS_TESTS})
 endif() # JSCS_TESTS
 
 if(${PYTHON_STATIC_ANALYSIS})
-  find_program(FLAKE8_EXECUTABLE flake8)
   add_test(
     NAME "python_static_analysis"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
