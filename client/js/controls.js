@@ -209,6 +209,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 view.firstRender = false;
                 geoapp.map.showMap(
                     'all', [], view.updateSection('display', false));
+                /* Make sure our layers are created in the desired order */
+                geoapp.map.ensureLayer('taxi');
+                geoapp.map.ensureLayer('instagram');
             }
             if (update) {
                 view.updateView(false);
