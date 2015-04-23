@@ -5,7 +5,6 @@ sudo: false
 compiler:
     - gcc
 before_install:
-
     - pushd "${HOME}"
     - curl "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.0.1.tgz" | gunzip -c | tar x
     - cd mongodb-*/bin && export PATH="${PWD}:${PATH}"
@@ -13,6 +12,12 @@ before_install:
     - mkdir /tmp/db
     - mongod --dbpath=/tmp/db >/dev/null 2>/dev/null &
     - mongod --version
+
+    - pushd "${HOME}"
+    - curl "http://www.cmake.org/files/v3.2/cmake-3.2.1-Linux-x86_64.tar.gz" | gunzip -c | tar x
+    - cd cmake-*/bin && export PATH="${PWD}:${PATH}"
+    - popd
+    - cmake --version
 
     - git submodule update --init --recursive
     - git submodule update --recursive
@@ -35,5 +40,14 @@ install:
     - PIP_USER=yes ~/.local/bin/girder-install plugin
 
 script:
+    # Run ctest
+    - cd ..
+    - mkdir _build
+    - cd _build
+    - cmake ..
+    - ctest -VV
+    - if [ -f test_failed ] ; then false ; fi
+
+    # Make sure we can query a REST end point
     - cd ../server
     - python -c "import cherrypy,sys,urllib,main as geoapp;app=geoapp.GeoApp();app.start(False);test = 'apiVersion' in urllib.urlopen('http://localhost:8001/api/v1/system/version').read();cherrypy.engine.exit();sys.exit(0 if test else 1)"

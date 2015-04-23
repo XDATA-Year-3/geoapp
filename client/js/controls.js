@@ -164,7 +164,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                         .text(opt.attr('name')));
                 });
             }
-            update = false;
+            var update = false;
             if (view.initialSettings && !view.usedInitialSettings) {
                 var settings = view.initialSettings;
                 view.usedInitialSettings = true;

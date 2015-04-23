@@ -13,6 +13,7 @@
  *  limitations under the License.
  */
 
+/* global geoapp: true */
 var geoapp = girder;
 var app;
 var m_lastUpdateNavigationSection;
@@ -138,7 +139,7 @@ geoapp.updateNavigation = function (base, section, params, modify, combine) {
  * @param jsonValue: the JSON value.
  * @returns: the parsed object or an empty object.
  */
-geoapp.parseJSON = function (jsonValue)  {
+geoapp.parseJSON = function (jsonValue) {
     try {
         return JSON.parse(jsonValue);
     } catch (err) {

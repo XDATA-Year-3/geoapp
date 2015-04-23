@@ -122,7 +122,7 @@ geoapp.DataHandler = function (arg) {
         options.callNumber += 1;
         options.showTime += new Date().getTime();
         var callNext = ((options.data.datacount < options.data.count ||
-            (resp.datacount == options.params.limit &&
+            (resp.datacount === options.params.limit &&
             options.data.count === undefined)) &&
             options.data.datacount < options.maxcount);
         if (m_verbose >= 1) {
@@ -306,8 +306,8 @@ geoapp.dataHandlers.instagram = function (arg) {
         $('#ga-instagram-results-table tr:has(td)').remove();
         $('#ga-instagram-results .results-table').scrollTop(0);
         if (this.instagramTable()) {
-            infiniteScroll('#ga-instagram-results .results-table',
-                           this.instagramTable, this);
+            geoapp.infiniteScroll('#ga-instagram-results .results-table',
+                                  this.instagramTable, this);
         }
     };
 

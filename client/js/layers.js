@@ -78,6 +78,7 @@ geoapp.MapLayer = function (map, datakey, arg) {
         }
         var col = this.getDateColumn(), data = m_data.data;
         var start = data[0][col], end = data[0][col];
+        var i;
         for (i = 1; i < data.length; i += 1) {
             if (data[i][col] < start) {
                 start = data[i][col];
