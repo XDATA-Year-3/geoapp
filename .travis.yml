@@ -34,8 +34,7 @@ install:
 
     - mkdir env
     - cd env
-    - pip install --user girder python-dateutil PyGreSQL==4.1.1 psycopg2
-    - python -c "import bcrypt"
+    - pip install --user -r requirements.txt -r requirements-dev.txt
     - ~/.local/bin/girder-install web
     - PIP_USER=yes ~/.local/bin/girder-install plugin
 
@@ -45,7 +44,7 @@ script:
     - mkdir _build
     - cd _build
     - cmake ..
-    - ctest -VV
+    - ctest -VV -j 3
     - if [ -f test_failed ] ; then false ; fi
 
     # Make sure we can query a REST end point
