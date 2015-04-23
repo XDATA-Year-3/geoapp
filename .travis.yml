@@ -34,7 +34,7 @@ install:
 
     - mkdir env
     - cd env
-    - pip install --user -r requirements.txt -r requirements-dev.txt
+    - pip install --user -r ../requirements.txt -r ../requirements-dev.txt
     - ~/.local/bin/girder-install web
     - PIP_USER=yes ~/.local/bin/girder-install plugin
 
