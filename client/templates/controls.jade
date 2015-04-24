@@ -32,7 +32,8 @@
               option(value="openstreetmap") OpenStreetMap
               option(value="tonerlite") Stamen Toner Lite
               option(value="blank") Blank
-            label(for="ga-tile-opacity", title="Map layer opacity") Opacity
+            label.ga-slider-label(for="ga-tile-opacity",
+                title="Map layer opacity") Opacity
             input#ga-tile-opacity.form-control.input-sm.ga-slider-ctl(
                 type="text", data-slider-min="0.1", data-slider-max="1",
                 data-slider-step="0.05", data-slider-value="1",
@@ -54,8 +55,8 @@
               option(value="raw") Individual Trips
               option(value="binned") Binned Heatmap
           .form-group
-            #ga-display-max-points-group.hidden
-              label(for="ga-display-max-points",
+            span#ga-display-max-points-group.hidden
+              label.ga-slider-label(for="ga-display-max-points",
                 title="Maximum number trip points to display.") Max Points
               input#ga-display-max-points.form-control.input-sm.ga-slider-ctl(
                   type="text", data-slider-min="10000",
@@ -64,22 +65,31 @@
                   data-slider-scale="logarithmic",
                   data-slider-id="ga-display-max-points-ctl",
                   taxifield="display-max-points", taxitype="int")
-            #ga-display-max-lines-group.hidden
-              label(for="ga-display-max-lines",
+            span#ga-display-max-lines-group.hidden
+              label.ga-slider-label(for="ga-display-max-lines",
                 title="Maximum number of trip vectors to display.") Max Vectors
               input#ga-display-max-lines.form-control.input-sm.ga-slider-ctl(
-                  type="text", data-slider-min="10000",
+                  type="text", data-slider-min="5000",
                   data-slider-max="150000", data-slider-step="5000",
                   data-slider-value="10000", data-slider-handle="square",
                   data-slider-scale="logarithmic",
                   data-slider-id="ga-display-max-lines-ctl",
                   taxifield="display-max-lines", taxitype="int")
-            #ga-display-num-bins-group
+            span#ga-display-num-bins-group
               label(for="ga-display-num-bins") Number of Bins
               input#ga-display-num-bins.form-control.input-sm(
                 type="text", placeholder="#",
                 title="Number of bins across short dimension of the map",
                 taxifield="display-num-bins", taxitype="int")
+            label.ga-slider-label(for="ga-data-opacity",
+              title="Opacity of points and vectors.") Opacity
+            input#ga-data-opacity.form-control.input-sm.ga-slider-ctl(
+                type="text", data-slider-min="0.004",
+                data-slider-max="1", data-slider-step="0.004",
+                data-slider-value="0.1", data-slider-handle="square",
+                data-slider-id="ga-data-opacity-ctl",
+                data-slider-scale="logarithmic",
+                taxifield="data-opacity", taxitype="float")
           .form-group
             button#ga-display-update.btn.btn-default.btn-sm
               i.icon-cw

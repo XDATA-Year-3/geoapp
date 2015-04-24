@@ -197,6 +197,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
             $('[title]').tooltip();
             $('#ga-step-slider').slider({
+                focus: true,
                 formatter: geoapp.map.getStepDescription
             }).slider('disable');
             $('.ga-slider-ctl').each(function () {
@@ -204,7 +205,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     $(this).attr('data-slider-value', $(this).val());
                 }
             });
-            $('.ga-slider-ctl').slider();
+            $('.ga-slider-ctl').slider({focus: true});
             if (view.firstRender) {
                 view.firstRender = false;
                 geoapp.map.showMap(
