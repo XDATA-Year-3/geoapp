@@ -278,6 +278,8 @@ geoapp.dataHandlers.instagram = function (arg) {
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
 
+    var m_this = this;
+
     this.datakey = datakey;
 
     /* Replace or add to the instagram data used for the current map.
@@ -381,8 +383,9 @@ geoapp.dataHandlers.instagram = function (arg) {
                 })
                 .append($('<td/>').text(moment(data.data[i][date_column])
                     .format('YY-MM-DD HH:mm')))
-                .append($('<td/>').text(data.data[i][caption_column])
-                    .attr('title', data.data[i][caption_column]))
+                .append($('<td/>').text(data.data[i][caption_column]))
+                /* Don't add a tooltip, since we pop up the photo elsewhere */
+                //  .attr('title', data.data[i][caption_column]))
             );
         }
         if (current + page < data.data.length) {
@@ -393,10 +396,29 @@ geoapp.dataHandlers.instagram = function (arg) {
                 colspan: 2
             }).text('More ...')));
         }
-        //TODO:: switch to a bootstrap tooltip with the picture and caption,
-        // highlight the point hovered over, zoom to that point if clicked,
-        // sort data table by date, inverse date, or original
+        /* If hovering over a row, show the relevant instagram point */
+        $('tr', table).off('.instagram-table'
+        ).on('mouseleave.instagram-table', function (evt) {
+            layer.setCurrentPoint(null);
+        }).on('mouseenter.instagram-table', this.instagramTableHighlight
+        );
+        //TODO:: highlight the point hovered over, zoom to that point if
+        // clicked, sort data table by date, inverse date, or original
         return moreData;
+    };
+
+    /* Highlight the hovered over row.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.instagramTableHighlight = function (evt) {
+        var layer = geoapp.map.getLayer(m_this.datakey),
+            idx = $(evt.currentTarget).attr('item');
+        if (idx === '') {
+            layer.setCurrentPoint(null);
+            return;
+        }
+        layer.setCurrentPoint(parseInt(idx));
     };
 };
 

@@ -5,7 +5,7 @@ html, body
   overflow hidden
 
 *
-  font-family 'Droid Sans',sans-serif
+  font-family 'Droid Sans',sans-serif,'Apple Color Emoji','Segoe UI Emoji','NotoColorEmoji','Segoe UI Symbol','Android Emoji','EmojiSymbols'
   font-smoothing antialiased
 
 body
@@ -33,6 +33,7 @@ a
   z-index 1
 
 .ga-main-ui,.ga-results-ui
+  user-select none
   position absolute
   .panel
     background none
@@ -147,6 +148,8 @@ a
     padding-left 10px
     line-height 1.2em
     margin-top 1px
+  #ga-cycle-anim,.ga-data-loaded
+    user-select text
 
 .ga-results-ui
   right 0
@@ -162,6 +165,7 @@ a
         background rgba(232, 255, 255, 0.75)
         color black
         td
+          user-select text
           overflow hidden
           white-space nowrap
           max-width 350px
@@ -196,3 +200,44 @@ a
   max-width 205px
   white-space nowrap
   overflow hidden
+
+#ga-instagram-overlay
+  display none
+  position fixed
+  z-index 2
+  border 4px solid #AAA
+  border-radius 3px
+  background #AAA
+  font-size 12px
+  color black
+  box-sizing content-box
+  width 225px
+  .ga-instagram-overlay-image img
+    height 225px
+    width 100%
+  .ga-instagram-overlay-text
+    width 100%
+    max-height 56px
+    line-height 16px
+    overflow hidden
+    word-wrap break-word
+    white-space normal
+  .ga-instagram-overlay-date
+    padding-right 5px
+    font-weight bold
+    color #333
+  .ga-instagram-overlay-link a
+    color #214565
+    overflow hidden
+    white-space nowrap
+    text-overflow ellipsis
+    width 100%
+    display block
+    padding-top 3px
+  .ga-instagram-overlay-arrow
+    display none
+    float right
+    font-size 24px
+    transform rotate(0deg)
+
+

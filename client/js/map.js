@@ -375,7 +375,7 @@ geoapp.Map = function (arg) {
             m_drawQueued = false;
             m_drawTimer = window.setTimeout(function () {
                 view.triggerDraw(true);
-            }, 100);
+            }, 33);
             return;
         } else {
             m_drawQueued = true;
