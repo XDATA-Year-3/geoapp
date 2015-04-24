@@ -155,7 +155,8 @@ geoapp.mapLayers.taxi = function (map, arg) {
 
     this.paramChangedKeys = [
         'display-type', 'display-process', 'display-num-bins',
-        'display-max-points', 'display-max-lines', 'data-opacity'
+        'display-max-points', 'display-max-lines', 'data-opacity',
+        'show-taxi-data'
     ];
 
     /* Set the map to display pickup or dropoff points.
@@ -592,6 +593,14 @@ geoapp.mapLayers.taxi = function (map, arg) {
      * @param params: the new map parameters.
      */
     this.updateMapParams = function (params) {
+        var data = m_this.data(),
+            visible = (params['show-taxi-data'] !== false && data);
+        m_geoPoints.visible(visible);
+        m_geoLines.visible(visible);
+        m_geoPoly.visible(visible);
+        if (!visible) {
+            return;
+        }
         if (params['display-max-points'] > 0) {
             this.maximumMapPoints = params['display-max-points'];
         }
@@ -797,6 +806,30 @@ geoapp.mapLayers.taxi = function (map, arg) {
                 'strokeOpacity');
         }
     };
+
+    /* Return the current internal state of the layer.
+     *
+     * @param key: the key of the object to fetch, or undefined for a
+     *             dictionary of objects.
+     * @returns: a dictionary of the current state, or one of the internal
+     *           state objects.
+     */
+    this.getInternalState = function (key) {
+        var state = {
+            geoPoints: m_geoPoints,
+            geoLines: m_geoLines,
+            geoPoly: m_geoPoly,
+            pickupOnlyColor: m_pickupOnlyColor,
+            pickupColor: m_pickupColor,
+            dropoffOnlyColor: m_dropoffOnlyColor,
+            dropoffColor: m_dropoffColor,
+            maxVectorScale: m_maxVectorScale
+        };
+        if (key) {
+            return state[key];
+        }
+        return state;
+    };
 };
 
 inherit(geoapp.mapLayers.taxi, geoapp.MapLayer);
@@ -831,7 +864,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
     });
 
     this.paramChangedKeys = [
-        'data-opacity'
+        'data-opacity', 'show-instagram-data'
     ];
 
     /* Update the taxi map based on the map parameters.  Values that are
@@ -841,14 +874,18 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param params: the new map parameters.
      */
     this.updateMapParams = function (params) {
+        var data = m_this.data(),
+            visible = (params['show-instagram-data'] !== false && data);
+        m_geoPoints.visible(visible);
+        if (!visible) {
+            return;
+        }
         if (params['display-max-points'] > 0) {
             this.maximumMapPoints = params['display-max-points'];
         }
         if (params['data-opacity'] > 0) {
             params['inst-opacity'] = params['data-opacity'];
         }
-        var data = m_this.data();
-
         data.numPoints = Math.min(data.data.length, this.maximumMapPoints);
         data.x_column = data.columns.longitude;
         data.y_column = data.columns.latitude;
@@ -954,6 +991,25 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         m_geoPoints.actors()[0].mapper().updateSourceBuffer(
             'fillOpacity');
+    };
+
+    /* Return the current internal state of the layer.
+     *
+     * @param key: the key of the object to fetch, or undefined for a
+     *             dictionary of objects.
+     * @returns: a dictionary of the current state, or one of the internal
+     *           state objects.
+     */
+    this.getInternalState = function (key) {
+        var state = {
+            geoPoints: m_geoPoints,
+            defaultOpacity: m_defaultOpacity,
+            pointColor: m_pointColor
+        };
+        if (key) {
+            return state[key];
+        }
+        return state;
     };
 };
 
