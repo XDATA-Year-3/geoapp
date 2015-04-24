@@ -30,9 +30,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             this.updateView(true, 'anim');
         },
-        'change #ga-display-settings select,#ga-display-settings input[type="text"]': function () {
+        'change #ga-display-settings select,#ga-display-settings input[type="text"],#ga-display-settings input[type="checkbox"]': function (evt) {
             $('#ga-display-update').removeClass('btn-needed');
-            this.updateView(true, 'display');
+            var combineNav = $(evt.target).is('.ga-slider-ctl');
+            this.updateView(combineNav ? 'combine' : true, 'display');
         },
         'click #ga-display-update': function () {
             $('#ga-display-update').removeClass('btn-needed');
@@ -328,12 +329,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
     /* Update some portion of the view.  This parses the specified section,
      * and, if appropriate, updates the map or other details.
      *
-     * @param updateNav: true to update the navigation route.
+     * @param updateNav: true to update the navigation route.  'combine' to
+     *                   combine updates to the navigation route if the section
+     *                   is the same as the last changed.
      * @param updateSection: falsy to update all sections, a string to update
      *                       just one section, or an object with the keys which
      *                       have thuthy values are the sections to update.
      */
-    updateView: function (updateNav, updateSection) {
+    updateView: function (updateNav, updateSection, combineNav) {
         var results = {}, params;
         if (updateSection && $.type(updateSection) === 'string') {
             var sections = {};
@@ -402,7 +405,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *
      * @param section: the name of the section to update.  One of
      *                 'taxi-filter', 'instagram-filter', 'anim', or 'display'.
-     * @param updateNav: true to update the navigation route.
+     * @param updateNav: true to update the navigation route.  'combine' to
+     *                   combine updates to the navigation route if the section
+     *                   is the same as the last changed.
      * @param returnVav: if true, return all of the navigation fields, even
      *                   blank ones.
      * @return: the new map filter parameters or the complete navigation
@@ -421,7 +426,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         });
         if (updateNav) {
-            geoapp.updateNavigation('mapview', section, navFields);
+            geoapp.updateNavigation('mapview', section, navFields, undefined,
+                                    updateNav === 'combine');
         }
         if (returnNav) {
             return navFields;
@@ -431,7 +437,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* Update values associated with the animation controls.
      *
-     * @param updateNav: true to update the navigation route.
+     * @param updateNav: true to update the navigation route.  'combine' to
+     *                   combine updates to the navigation route if the section
+     *                   is the same as the last changed.
      * @return: the new animation parameters.
      */
     updateAnimValues: function (updateNav, results) {
@@ -483,6 +491,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         switch (ttype) {
             case 'boolean':
                 params[field] = elem.is(':checked') ? true : false;
+                value = params[field];
                 break;
             case 'dateRange':
                 this.getDateRange(elem, params, field);
