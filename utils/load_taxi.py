@@ -595,7 +595,7 @@ if __name__ == '__main__':
     actions = {}
     opts = {'yellow': True, 'green': True}
     seed = 0
-    for arg in sys.argv[1:]:
+    for arg in sys.argv[1:]:  # noqa
         if arg == '--compact':
             KeyTable = CKeyTable
             RevTable = CRevTable

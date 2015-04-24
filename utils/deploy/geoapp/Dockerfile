@@ -31,10 +31,6 @@ RUN apt-get update && apt-get install -y \
     mongodb-org-tools \
     nodejs
 
-RUN pip install girder python-dateutil PyGreSQL==4.1.1 psycopg2 && \
-    python -c "import bcrypt" && \
-    girder-install web && \
-    girder-install plugin
 RUN npm install -g grunt-cli
 
 # bower does't work particularly well as root, so we create a non-root user
@@ -54,9 +50,13 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout f9eb29047ce684fc707bc5775aee68a9e0516546 && \
+    git checkout 6e4c74e094d37b46f999559dc0ffe41f8405b18f && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
+RUN pip install --user -r requirements.txt && \
+    export PATH=$PATH:/home/kwuser/.local/bin && \
+    girder-install web && \
+    PIP_USER=yes girder-install plugin
 RUN git submodule update --init --recursive && \
     git submodule update --recursive && \
     cd geojs && \
