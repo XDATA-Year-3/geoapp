@@ -1136,6 +1136,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             }),
             offset = 10,
             url = item[mapData.columns.image_url],
+            imageUrl,
             caption = item[mapData.columns.caption] || '',
             date = moment(item[mapData.columns.posted_date]).format(
                 'MM-DD HH:mm');
@@ -1180,6 +1181,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 m_this.setCurrentPoint(null, true, true);
             }, 500);
         });
+        imageUrl = url.replace(/\/$/, '') + '/media?size=m';
         if ($('img', overlay).attr('orig_url') !== url) {
             $('img', overlay).off('.instagram-overlay'
             ).on('load.instagram-overlay', function () {
@@ -1188,7 +1190,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             }).on('error.instagram-overlay', function () {
                 $('img', overlay).css('display', 'none');
                 overlay.css('display', 'block');
-            }).attr({src: url + '/media?size=m', orig_url: url});
+            }).attr({src: imageUrl, orig_url: url});
         } else {
             overlay.css('display', 'block');
         }
