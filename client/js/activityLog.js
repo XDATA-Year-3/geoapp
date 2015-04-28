@@ -46,6 +46,16 @@
             desc: 'show date-range picker'},
         input_change:    {elem: 'textbox',  act: 'alter',
             desc: 'text input field changed'},
+        inst_overlay:    {elem: 'map',      act: 'show',
+            desc: 'show instagram overlay'},
+        inst_overlay_hide: {elem: 'map',    act: 'hide',
+            desc: 'hide instagram overlay'},
+        inst_table:      {elem: 'listbox',  act: 'show',
+            desc: 'show instagram table'},
+        inst_table_add:  {elem: 'listbox',  act: 'alter',
+            desc: 'add data to instagram table'},
+        inst_table_hide: {elem: 'listbox',  act: 'hide',
+            desc: 'hide instagram table'},
         link_click:      {elem: 'link',     act: 'select',
             desc: 'click on a link'},
         load_data:       {elem: 'map',      act: 'perform',
@@ -60,6 +70,8 @@
             desc: 'show tooltip'},
         show_view:       {elem: 'window',   act: 'show',
             desc: 'show view'},
+        scroll:          {elem: 'panel',    act: 'alter',
+            desc: 'scroll a region'},
         slide:           {elem: 'slider',   act: 'alter',
             desc: 'move a slider'},
         slideStart:      {elem: 'slider',   act: 'enter', name: 'slide_start',
@@ -90,17 +102,20 @@
                 activity: activity,
                 action: activity,
                 elementType: 'element_type',
+                elementSub: '' + (data.value !== undefined ? data.value : ''),
                 elementGroup: group,
-                elementSub: data.value !== undefined ? data.value : '',
                 source: system ? 'system' : 'user',
+                meta: {
+                    /* Disabling this until I know how it needs to be escaped.
+                     * See email discussion with Dave Reed.
+                    data: data
+                     */
+                },
                 tags: [
                     /* a list of tags to help define some other meaningful
                      * words, such as if this action deals with a 'query' or is
                      * altering 'visual' elements */
-                ],
-                meta: {
-                    data: data
-                }
+                ]
             };
             if (!system) {
                 msg.elementId = data.id;
@@ -220,6 +235,26 @@
                         value: $(this).val()
                     });
                 });
+            $('.al-scroller', selector)
+            .on('scroll', function (evt) {
+                /* log scrolling with a maximum rate and some delay.  This will
+                 * show where the scrolling ended up and prevent swamping the
+                 * log system with scroll events. */
+                var elem = $(this),
+                    id = elem.closest('[id]').attr('id');
+                if (!log.scrollerTimers) {
+                    log.scrollerTimers = {};
+                }
+                if (!log.scrollerTimers[id]) {
+                    log.scrollerTimers[id] = window.setTimeout(function () {
+                        log.scrollerTimers[id] = null;
+                        log.logActivity('scroll', 'controls', {
+                            id: id,
+                            value: elem.scrollTop() || elem.scrollLeft()
+                        });
+                    }, 333);
+                }
+            });
         }
     };
 

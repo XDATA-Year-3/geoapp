@@ -1064,7 +1064,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
         } else if (this.inPoints.other.length) {
             cur = this.inPoints.other[0];
         }
-        this.setCurrentPoint(cur);
+        this.setCurrentPoint(cur, undefined, undefined, 'map');
     };
 
     /* Set a point as the current point.  Mark it as the current point and set
@@ -1073,8 +1073,11 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param cur: the 0-based point index, or null to clear the current point.
      * @param redraw: if false, don't redraw the map.  If true, always update.
      * @param immediate: if true, show or hide the overlay immediately.
+     * @param source: name of the source of setting this point.  Used in
+     *                logging.
      */
-    this.setCurrentPoint = function (cur, redraw, immediate) {
+    this.setCurrentPoint = function (cur, redraw, immediate, source) {
+        this.currentPointSource = source || this.currentPointSource || '';
         if (cur === this.currentPoint && redraw !== true) {
             return;
         }
@@ -1125,6 +1128,11 @@ geoapp.mapLayers.instagram = function (map, arg) {
         if (m_this.currentPoint === null || !mapData.data ||
                 m_this.currentPoint >= mapData.data.length) {
             overlay.css('display', 'none');
+            if (overlay.css('display') !== 'none') {
+                geoapp.activityLog.logActivity('inst_overlay_hide', 'map', {
+                    url: null
+                });
+            }
             return;
         }
         var item = mapData.data[m_this.currentPoint];
@@ -1168,8 +1176,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             left: pos.x <= mapW / 2 ? (pos.x + offset) + 'px' : '',
             right: pos.x <= mapW / 2 ? '' : (mapW - pos.x + offset) + 'px',
             top: pos.y <= mapH / 2 ? (pos.y + offset) + 'px' : '',
-            bottom: pos.y <= mapH / 2 ? '' : (mapH - pos.y + offset) + 'px',
-            display: 'none'
+            bottom: pos.y <= mapH / 2 ? '' : (mapH - pos.y + offset) + 'px'
         }).off('.instagram-overlay'
         ).on('mouseenter.instagram-overlay', function () {
             if (m_overlayTimer) {
@@ -1183,13 +1190,22 @@ geoapp.mapLayers.instagram = function (map, arg) {
         });
         imageUrl = url.replace(/\/$/, '') + '/media?size=m';
         if ($('img', overlay).attr('orig_url') !== url) {
-            $('img', overlay).off('.instagram-overlay'
+            $('img', overlay).css('display', 'none').off('.instagram-overlay'
             ).on('load.instagram-overlay', function () {
                 $('img', overlay).css('display', 'block');
                 overlay.css('display', 'block');
+                geoapp.activityLog.logActivity('inst_overlay', 'map', {
+                    source: m_this.currentPointSource || '',
+                    imageUrl: imageUrl,
+                    url: url
+                });
             }).on('error.instagram-overlay', function () {
                 $('img', overlay).css('display', 'none');
                 overlay.css('display', 'block');
+                geoapp.activityLog.logActivity('inst_overlay', 'map', {
+                    source: m_this.currentPointSource || '',
+                    url: url
+                });
             }).attr({src: imageUrl, orig_url: url});
         } else {
             overlay.css('display', 'block');

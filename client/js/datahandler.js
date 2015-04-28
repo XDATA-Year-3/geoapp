@@ -140,7 +140,7 @@ geoapp.DataHandler = function (arg) {
             options.params.offset += resp.datacount;
         }
         loadfunc.call(this, options, callNext, moreData);
-        geoapp.activityLog.logActivity('load_data', 'datahandler', {
+        geoapp.activityLog.logSystem('load_data', 'datahandler', {
             data: options.description,
             params: options.params,
             complete: !callNext
@@ -321,6 +321,10 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
         if (!options.data || !options.data.data || !options.data.data.length) {
+            if (!$('#ga-instagram-results-panel').hadClass('hidden')) {
+                geoapp.activityLog.logSystem(
+                    'inst_table_hide', 'datahandler', {});
+            }
             $('#ga-instagram-results-panel').addClass('hidden');
             return;
         }
@@ -368,7 +372,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         if (!data || !data.data || !data.data.length) {
             return moreData;
         }
-        var current = $('tr:has(td)', table).length;
+        var current = $('tr[item]', table).length;
         var date_column = data.columns.posted_date,
             caption_column = data.columns.caption,
             url_column = data.columns.url;
@@ -388,6 +392,8 @@ geoapp.dataHandlers.instagram = function (arg) {
                 //  .attr('title', data.data[i][caption_column]))
             );
         }
+        geoapp.activityLog.logSystem(
+            !current ? 'inst_table' : 'inst_table_add', 'datahandler', {});
         if (current + page < data.data.length) {
             moreData = true;
             table.append($('<tr/>').attr({
@@ -402,8 +408,8 @@ geoapp.dataHandlers.instagram = function (arg) {
             layer.setCurrentPoint(null);
         }).on('mouseenter.instagram-table', this.instagramTableHighlight
         );
-        //TODO:: highlight the point hovered over, zoom to that point if
-        // clicked, sort data table by date, inverse date, or original
+        //TODO:: zoom to that point if clicked, sort data table by date,
+        // inverse date, or original
         return moreData;
     };
 
@@ -418,7 +424,7 @@ geoapp.dataHandlers.instagram = function (arg) {
             layer.setCurrentPoint(null);
             return;
         }
-        layer.setCurrentPoint(parseInt(idx));
+        layer.setCurrentPoint(parseInt(idx), undefined, undefined, 'table');
     };
 };
 
