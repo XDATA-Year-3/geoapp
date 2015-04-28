@@ -75,6 +75,34 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function (evt) {
             $('#ga-anim-update').addClass('btn-needed');
+        },
+        'keydown #ga-taxi-filter-settings input[type="text"]': function (evt) {
+            if (evt.which === 13) {
+                window.setTimeout(function () {
+                    $('#ga-taxi-filter').click();
+                }, 10);
+            }
+        },
+        'keydown #ga-instagram-filter-settings input[type="text"]': function (evt) {
+            if (evt.which === 13) {
+                window.setTimeout(function () {
+                    $('#ga-instagram-filter').click();
+                }, 10);
+            }
+        },
+        'keydown #ga-display-settings input[type="text"]': function (evt) {
+            if (evt.which === 13) {
+                window.setTimeout(function () {
+                    $('#ga-display-update').click();
+                }, 10);
+            }
+        },
+        'keydown #ga-anim-settings input[type="text"]': function (evt) {
+            if (evt.which === 13) {
+                window.setTimeout(function () {
+                    $('#ga-anim-update').click();
+                }, 10);
+            }
         }
     },
 
@@ -196,7 +224,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     timePickerIncrement: 5
                 });
             });
-            $('[title]').tooltip();
+            $('[title]').tooltip({delay: {show: 250}});
             $('#ga-step-slider').slider({
                 focus: true,
                 formatter: geoapp.map.getStepDescription

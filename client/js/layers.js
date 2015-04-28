@@ -848,9 +848,14 @@ geoapp.mapLayers.instagram = function (map, arg) {
 
     var m_this = this,
         m_geoPoints,
+        m_overlayTimer,
+        m_mapEventsSet,
 
         m_defaultOpacity = 0.1,
-        m_pointColor = geo.util.convertColor('#FF0000');
+        m_pointColor = geo.util.convertColor('#FF0000'),
+        m_strokeColor = geo.util.convertColor('#E69F00');
+
+    this.currentPoint = null;
 
     var geoLayer;
 
@@ -859,7 +864,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
     });
     m_geoPoints = geoLayer.createFeature('point', {
         primitiveShape: 'triangle',
-        selectionAPI: false,
+        selectionAPI: true,
         dynamicDraw: true
     });
 
@@ -897,6 +902,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
         .style({
             fillColor: m_pointColor,
             fillOpacity: params['inst-opacity'] || m_defaultOpacity,
+            strokeColor: m_strokeColor,
+            strokeOpacity: 1,
+            strokeWidth: 5,
             stroke: false,
             radius: 5
         })
@@ -905,7 +913,16 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 x: d[data.x_column],
                 y: d[data.y_column]
             };
+        })
+        .geoOff(geo.event.feature.mouseover)
+        .geoOn(geo.event.feature.mouseover, function (evt) {
+            m_this.highlightPoint(evt.index, evt, true);
+        })
+        .geoOff(geo.event.feature.mouseout)
+        .geoOn(geo.event.feature.mouseout, function (evt) {
+            m_this.highlightPoint(evt.index, evt, false);
         });
+        this.setCurrentPoint(null, false);
     };
 
     /* Return the index of the date column for this data.
@@ -962,8 +979,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             i, j, v, bin, opac, vis, vpf;
 
         vpf = m_geoPoints.verticesPerFeature();
-        opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
-            'fillOpacity');
+        opac = m_geoPoints.actors()[0].mapper().getSourceBuffer('fillOpacity');
         for (i = 0, v = 0; i < mapData.numPoints; i += 1) {
             vis = this.inAnimationBin(
                 dataBin[i], options.numBins, options.step,
@@ -984,8 +1000,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             vpf, opac, v;
 
         vpf = m_geoPoints.verticesPerFeature();
-        opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
-            'fillOpacity');
+        opac = m_geoPoints.actors()[0].mapper().getSourceBuffer('fillOpacity');
         for (v = 0; v < mapData.numPoints * vpf; v += 1) {
             opac[v] = mapParams['inst-opacity'] || m_defaultOpacity;
         }
@@ -1010,6 +1025,191 @@ geoapp.mapLayers.instagram = function (map, arg) {
             return state[key];
         }
         return state;
+    };
+
+    /* When the mouse hovers above a point on the map, indicate this.
+     *
+     * @param idx: 0-based index in the data array.
+     * @param evt: the event that triggered this call.
+     * @param over: true if the mouse if over the point, false if it just left.
+     */
+    this.highlightPoint = function (idx, evt, over) {
+        var vpf = m_geoPoints.verticesPerFeature(),
+            cur = null,
+            opac;
+        if (over) {
+            opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(
+                'fillOpacity');
+            if (idx * vpf >= opac.length || !opac[idx * vpf]) {
+                over = false;
+            }
+        }
+        if (!this.inPoints) {
+            this.inPoints = {top: [], other: []};
+        }
+        if ((!over || !evt.top) && $.inArray(idx, this.inPoints.top) >= 0) {
+            this.inPoints.top.splice($.inArray(idx, this.inPoints.top), 1);
+        }
+        if ((!over || evt.top) && $.inArray(idx, this.inPoints.other) >= 0) {
+            this.inPoints.other.splice($.inArray(idx, this.inPoints.other), 1);
+        }
+        if (over && evt.top && $.inArray(idx, this.inPoints.top) < 0) {
+            this.inPoints.top.push(idx);
+        }
+        if (over && !evt.top && $.inArray(idx, this.inPoints.other) < 0) {
+            this.inPoints.other.push(idx);
+        }
+        if (this.inPoints.top.length) {
+            cur = this.inPoints.top[0];
+        } else if (this.inPoints.other.length) {
+            cur = this.inPoints.other[0];
+        }
+        this.setCurrentPoint(cur, undefined, undefined, 'map');
+    };
+
+    /* Set a point as the current point.  Mark it as the current point and set
+     * a timer to display the instagram picture soon.
+     *
+     * @param cur: the 0-based point index, or null to clear the current point.
+     * @param redraw: if false, don't redraw the map.  If true, always update.
+     * @param immediate: if true, show or hide the overlay immediately.
+     * @param source: name of the source of setting this point.  Used in
+     *                logging.
+     */
+    this.setCurrentPoint = function (cur, redraw, immediate, source) {
+        this.currentPointSource = source || this.currentPointSource || '';
+        if (cur === this.currentPoint && redraw !== true) {
+            return;
+        }
+        var vpf = m_geoPoints.verticesPerFeature(),
+            stroke, i, old = this.currentPoint;
+
+        stroke = m_geoPoints.actors()[0].mapper().getSourceBuffer('stroke');
+        for (i = 0; i < vpf; i += 1) {
+            if (old !== null && old * vpf < stroke.length) {
+                stroke[old * vpf + i] = 0;
+            }
+            if (cur !== null && cur * vpf < stroke.length) {
+                stroke[cur * vpf + i] = 1;
+            }
+        }
+        m_geoPoints.actors()[0].mapper().updateSourceBuffer('stroke');
+        if (redraw !== false) {
+            this.map.triggerDraw();
+        }
+        this.currentPoint = cur;
+        /* If no point is selected, use a shorter timeout for the overlay. */
+        var delay = !cur ? 125 : 250;
+        if (m_overlayTimer) {
+            window.clearTimeout(m_overlayTimer);
+            m_overlayTimer = null;
+        }
+        if (!immediate) {
+            m_overlayTimer = window.setTimeout(this.showOverlay, delay);
+        } else {
+            this.showOverlay();
+        }
+        if (cur && !m_mapEventsSet && $('#ga-main-map').length) {
+            $('#ga-main-map').on('mouseleave', function () {
+                m_this.setCurrentPoint(null);
+            });
+            m_mapEventsSet = true;
+        }
+    };
+
+    /* Show or hide the overlay based on the current point.  If the current
+     * point is off the screen, show the overlay as close to that point as we
+     * can.
+     */
+    this.showOverlay = function () {
+        m_overlayTimer = null;
+        var mapData = m_this.data(),
+            overlay = $('#ga-instagram-overlay');
+        if (m_this.currentPoint === null || !mapData.data ||
+                m_this.currentPoint >= mapData.data.length) {
+            overlay.css('display', 'none');
+            if (overlay.css('display') !== 'none') {
+                geoapp.activityLog.logActivity('inst_overlay_hide', 'map', {
+                    url: null
+                });
+            }
+            return;
+        }
+        var item = mapData.data[m_this.currentPoint];
+        var mapW = $('#ga-main-map').width(),
+            mapH = $('#ga-main-map').height(),
+            pos = m_this.map.getMap().gcsToDisplay({
+                x: item[mapData.columns.longitude],
+                y: item[mapData.columns.latitude]
+            }),
+            offset = 10,
+            url = item[mapData.columns.image_url],
+            imageUrl,
+            caption = item[mapData.columns.caption] || '',
+            date = moment(item[mapData.columns.posted_date]).format(
+                'MM-DD HH:mm');
+        $('.ga-instagram-overlay-date', overlay).text(date).attr('title', date);
+        $('.ga-instagram-overlay-caption', overlay).text(caption).attr(
+            'title', caption);
+        $('.ga-instagram-overlay-link a', overlay).text(url).attr(
+            'href', url);
+        if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
+            $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
+        } else {
+            var dx = 0, dy = 0;
+            /* jscs:disable requireBlocksOnNewline */
+            if (pos.x < 0) {    dx = pos.x;         pos.x = 0; }
+            if (pos.x > mapW) { dx = pos.x - mapW;  pos.x = mapW; }
+            if (pos.y < 0) {    dy = pos.y;         pos.y = 0; }
+            if (pos.y > mapH) { dy = pos.y - mapH;  pos.y = mapH; }
+            /* jscs:enable requireBlocksOnNewline */
+            $('.ga-instagram-overlay-arrow', overlay).css({
+                display: 'block',
+                transform: 'rotate(' + Math.atan2(dy, dx).toFixed(3) + 'rad)'
+            });
+            offset = 0;
+        }
+        // clamp position to the screen, so that the overlay is always on
+        // screen.  Possibly also we should avoid overlaying on top of our
+        // controls.
+        overlay.css({
+            left: pos.x <= mapW / 2 ? (pos.x + offset) + 'px' : '',
+            right: pos.x <= mapW / 2 ? '' : (mapW - pos.x + offset) + 'px',
+            top: pos.y <= mapH / 2 ? (pos.y + offset) + 'px' : '',
+            bottom: pos.y <= mapH / 2 ? '' : (mapH - pos.y + offset) + 'px'
+        }).off('.instagram-overlay'
+        ).on('mouseenter.instagram-overlay', function () {
+            if (m_overlayTimer) {
+                window.clearTimeout(m_overlayTimer);
+                m_overlayTimer = null;
+            }
+        }).on('mouseleave.instagram-overlay', function () {
+            m_overlayTimer = window.setTimeout(function () {
+                m_this.setCurrentPoint(null, true, true);
+            }, 500);
+        });
+        imageUrl = url.replace(/\/$/, '') + '/media?size=m';
+        if ($('img', overlay).attr('orig_url') !== url) {
+            $('img', overlay).css('display', 'none').off('.instagram-overlay'
+            ).on('load.instagram-overlay', function () {
+                $('img', overlay).css('display', 'block');
+                overlay.css('display', 'block');
+                geoapp.activityLog.logActivity('inst_overlay', 'map', {
+                    source: m_this.currentPointSource || '',
+                    imageUrl: imageUrl,
+                    url: url
+                });
+            }).on('error.instagram-overlay', function () {
+                $('img', overlay).css('display', 'none');
+                overlay.css('display', 'block');
+                geoapp.activityLog.logActivity('inst_overlay', 'map', {
+                    source: m_this.currentPointSource || '',
+                    url: url
+                });
+            }).attr({src: imageUrl, orig_url: url});
+        } else {
+            overlay.css('display', 'block');
+        }
     };
 };
 

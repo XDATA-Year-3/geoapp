@@ -140,7 +140,7 @@ geoapp.DataHandler = function (arg) {
             options.params.offset += resp.datacount;
         }
         loadfunc.call(this, options, callNext, moreData);
-        geoapp.activityLog.logActivity('load_data', 'datahandler', {
+        geoapp.activityLog.logSystem('load_data', 'datahandler', {
             data: options.description,
             params: options.params,
             complete: !callNext
@@ -278,6 +278,8 @@ geoapp.dataHandlers.instagram = function (arg) {
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
 
+    var m_this = this;
+
     this.datakey = datakey;
 
     /* Replace or add to the instagram data used for the current map.
@@ -319,6 +321,10 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
         if (!options.data || !options.data.data || !options.data.data.length) {
+            if (!$('#ga-instagram-results-panel').hadClass('hidden')) {
+                geoapp.activityLog.logSystem(
+                    'inst_table_hide', 'datahandler', {});
+            }
             $('#ga-instagram-results-panel').addClass('hidden');
             return;
         }
@@ -366,7 +372,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         if (!data || !data.data || !data.data.length) {
             return moreData;
         }
-        var current = $('tr:has(td)', table).length;
+        var current = $('tr[item]', table).length;
         var date_column = data.columns.posted_date,
             caption_column = data.columns.caption,
             url_column = data.columns.url;
@@ -381,10 +387,13 @@ geoapp.dataHandlers.instagram = function (arg) {
                 })
                 .append($('<td/>').text(moment(data.data[i][date_column])
                     .format('YY-MM-DD HH:mm')))
-                .append($('<td/>').text(data.data[i][caption_column])
-                    .attr('title', data.data[i][caption_column]))
+                .append($('<td/>').text(data.data[i][caption_column]))
+                /* Don't add a tooltip, since we pop up the photo elsewhere */
+                //  .attr('title', data.data[i][caption_column]))
             );
         }
+        geoapp.activityLog.logSystem(
+            !current ? 'inst_table' : 'inst_table_add', 'datahandler', {});
         if (current + page < data.data.length) {
             moreData = true;
             table.append($('<tr/>').attr({
@@ -393,10 +402,29 @@ geoapp.dataHandlers.instagram = function (arg) {
                 colspan: 2
             }).text('More ...')));
         }
-        //TODO:: switch to a bootstrap tooltip with the picture and caption,
-        // highlight the point hovered over, zoom to that point if clicked,
-        // sort data table by date, inverse date, or original
+        /* If hovering over a row, show the relevant instagram point */
+        $('tr', table).off('.instagram-table'
+        ).on('mouseleave.instagram-table', function (evt) {
+            layer.setCurrentPoint(null);
+        }).on('mouseenter.instagram-table', this.instagramTableHighlight
+        );
+        //TODO:: zoom to that point if clicked, sort data table by date,
+        // inverse date, or original
         return moreData;
+    };
+
+    /* Highlight the hovered over row.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.instagramTableHighlight = function (evt) {
+        var layer = geoapp.map.getLayer(m_this.datakey),
+            idx = $(evt.currentTarget).attr('item');
+        if (idx === '') {
+            layer.setCurrentPoint(null);
+            return;
+        }
+        layer.setCurrentPoint(parseInt(idx), undefined, undefined, 'table');
     };
 };
 

@@ -198,7 +198,7 @@ module.exports = function (grunt) {
                         'geojs/bower_components/proj4/dist/proj4-src.js',
                         'geojs/bower_components/d3/d3.js',
                         'geojs/node_modules/pnltri/pnltri.js',
-                        'geojs/dist/built/geo.min.js',
+                        'geojs/dist/built/geo.js',
                         /* daterangepicker */
                         'node_modules/moment/moment.js',
                         'node_modules/daterangepicker/daterangepicker.js',

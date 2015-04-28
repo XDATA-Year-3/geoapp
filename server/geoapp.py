@@ -75,19 +75,23 @@ def tsqueryWrapVal(val):
     return val
 
 
-def tsqueryParse(parts, tsq=None, depth=0):
+def tsqueryParse(parts, quotes={}, tsq=None, depth=0):
     """
     Given an array of strings where the elements of the array are either a
     single character with a special token of ( ) ! |, an empty string, or a
     string, produce a tsquery search string.
 
     :param parts: the array of strings to parse.
+    :param quotes: a dictionary of quoted string.  A negated quoted string
+                   won't be included in the tsquery to allow excluding phrases
+                   with the same lexeme root as a desired lexeme root.
     :param tsq: an optional array of tsquery information.  If present, this
                 must have a one-to-one correspondence with the parts array.
                 Each entry is either None in indicate that that part has not
                 been processed, or a tuple of ((partial tsquery string), (list
                 of strings to potentially include exactly), (list of strings to
                 potentially exclude exactly).
+    :param depth: the depth of the parse tree.  Used for debugging.
     :return: tsquery string.
     :return: number of parts consumed by the parser.
     :return: list of strings to potentially include exactly.
@@ -102,7 +106,7 @@ def tsqueryParse(parts, tsq=None, depth=0):
                              parts.index('(') < parts.index(')'))):
         pos = parts.index('(')
         subtsq, consume, subinc, subexc = tsqueryParse(
-            parts[pos + 1:], tsq[pos + 1:], depth + 1)
+            parts[pos + 1:], quotes, tsq[pos + 1:], depth + 1)
         reduced += len(parts)
         parts[pos:pos + consume + 1] = [None]
         tsq[pos:pos + consume + 1] = [(subtsq, subinc, subexc)]
@@ -135,7 +139,8 @@ def tsqueryParse(parts, tsq=None, depth=0):
                 addval = tsq[pos][0]
                 include.extend(tsq[pos][2 if negate else 1])
                 exclude.extend(tsq[pos][1 if negate else 2])
-            curtsq.append(('!' if negate else '') + tsqueryWrapVal(addval))
+            if not negate or addval not in quotes:
+                curtsq.append(('!' if negate else '') + tsqueryWrapVal(addval))
             negate = False
     tsqueryAddToList(orlist, curtsq)
     if len(orlist) > 1:
@@ -207,7 +212,7 @@ def tsquerySearch(field, query):
     processedQuery = processedQuery.replace('+', ' ').replace(
         '&', ' ').replace(':', ' ').replace('-', '!').strip()
     parts = [part.strip() for part in re.split('([|()!-])', processedQuery)]
-    tsq, _, include, exclude = tsqueryParse(parts)
+    tsq, _, include, exclude = tsqueryParse(parts, quotes)
     for key in quotes:
         tsq = tsq.replace(key, tsqueryWrapVal('&'.join((' '.join(
             re.split('- !()|&+:', quotes[key])).strip()).split())))
