@@ -21,9 +21,11 @@ import cgi
 import cherrypy
 import girder.utility.config
 import girder.utility.server
+import json
 import mako.template
 import os
 import sys
+import xml.sax.saxutils
 from girder import logger
 
 import geoapp
@@ -51,6 +53,9 @@ class GeoAppRoot(object):
         vars = self.vars
         if 'resources' in config:
             vars.update(config['resources'])
+        if 'controls' in config:
+            vars['defaultControls'] = xml.sax.saxutils.escape(
+                json.dumps(config['controls']))
         data = {}
         for dbtype in ('taxidata', 'instagramdata'):
             datalist = []

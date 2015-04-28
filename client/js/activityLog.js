@@ -258,7 +258,7 @@
         }
     };
 
-    var uri = $('body').attr('activity_log_uri');
+    var uri = $('body').attr('activityLogURI');
     if (window.userale && uri) {
         /* jshint -W055 */
         logger = new userale({

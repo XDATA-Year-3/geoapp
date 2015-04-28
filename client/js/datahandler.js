@@ -321,7 +321,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
         if (!options.data || !options.data.data || !options.data.data.length) {
-            if (!$('#ga-instagram-results-panel').hadClass('hidden')) {
+            if (!$('#ga-instagram-results-panel').hasClass('hidden')) {
                 geoapp.activityLog.logSystem(
                     'inst_table_hide', 'datahandler', {});
             }

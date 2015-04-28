@@ -13,6 +13,28 @@
  *  limitations under the License.
  */
 
+
+/* Get a section from a settings dictionary, parsing it as a query string.  If
+ * there are any default values for that section, and those defaults have not
+ * been explicitly specified, use those defaults, too.
+ *
+ * @param settings: a settings dictionary.
+ * @param section: the section within the dictionary to parse.
+ * @return: results dictionary.
+ */
+geoapp.getQuerySection = function (settings, section) {
+    if (geoapp.defaultControlsQuery === undefined) {
+        geoapp.defaultControlsQuery = JSON.parse($('body').attr(
+            'defaultControls'));
+    }
+    var results = geoapp.parseQueryString(settings[section] || '');
+    if (geoapp.defaultControlsQuery[section]) {
+        results = $.extend({}, geoapp.defaultControlsQuery[section], results);
+    }
+    return results;
+};
+
+
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-taxi-filter': function () {
@@ -125,7 +147,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         this.firstRender = true;
         this.render();
         geoapp.View.prototype.initialize.apply(this, arguments);
-        geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 0);
+        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 0);
     },
 
     /* Reinitialize the view.  This is called if we route to this view while
@@ -139,7 +161,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this, update = {};
         _.each(view.controlSections, function (baseSelector, section) {
             var current = view.updateSection(section, false, true);
-            var params = geoapp.parseQueryString(settings[section] || '');
+            var params = geoapp.getQuerySection(settings, section);
             _.each(current, function (value, id) {
                 if (value !== (params[id] || '')) {
                     view.setControlValue(baseSelector + id, params[id] || '');
@@ -148,7 +170,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
-        geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 1000);
+        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 1000);
     },
 
     /* Set the value of a control.  If this is a select control that doesn't
@@ -198,15 +220,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 var settings = view.initialSettings;
                 view.usedInitialSettings = true;
                 _.each(view.controlSections, function (baseSelector, section) {
-                    if (settings[section]) {
-                        var params = geoapp.parseQueryString(settings[section]);
-                        _.each(params, function (value, id) {
-                            if (value !== '' && value !== undefined) {
-                                view.setControlValue(baseSelector + id, value);
-                                update = true;
-                            }
-                        });
-                    }
+                    var params = geoapp.getQuerySection(settings, section);
+                    _.each(params, function (value, id) {
+                        if (value !== '' && value !== undefined) {
+                            view.setControlValue(baseSelector + id, value);
+                            update = true;
+                        }
+                    });
                 });
             }
             $('#ga-main-page .ga-date-range').each(function () {

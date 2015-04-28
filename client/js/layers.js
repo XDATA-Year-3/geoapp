@@ -916,7 +916,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
         })
         .geoOff(geo.event.feature.mouseover)
         .geoOn(geo.event.feature.mouseover, function (evt) {
-            m_this.highlightPoint(evt.index, evt, true);
+            if (m_geoPoints.visible()) {
+                m_this.highlightPoint(evt.index, evt, true);
+            }
         })
         .geoOff(geo.event.feature.mouseout)
         .geoOn(geo.event.feature.mouseout, function (evt) {
