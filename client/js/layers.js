@@ -739,6 +739,9 @@ geoapp.mapLayers.taxi = function (map, arg) {
             dataBin = options.layers[this.datakey].dataBin,
             i, j, v, bin, opac, vis, vpf;
 
+        if (mapParams['data-opacity']) {
+            visOpac = Math.min(mapParams['data-opacity'] * 1.5, 1);
+        }
         if (mapParams['display-process'] === 'binned') {
             this.binMapData(mapParams, options, options.step);
             this.setMapDisplayToBinnedData(mapParams);
@@ -980,6 +983,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
             dataBin = options.layers[this.datakey].dataBin,
             i, j, v, bin, opac, vis, vpf;
 
+        if (mapParams['data-opacity']) {
+            visOpac = Math.min(mapParams['data-opacity'] * 1.5, 1);
+        }
         vpf = m_geoPoints.verticesPerFeature();
         opac = m_geoPoints.actors()[0].mapper().getSourceBuffer('fillOpacity');
         for (i = 0, v = 0; i < mapData.numPoints; i += 1) {
@@ -1148,8 +1154,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
             url = item[mapData.columns.image_url],
             imageUrl,
             caption = item[mapData.columns.caption] || '',
-            date = moment(item[mapData.columns.posted_date]).format(
-                'MM-DD HH:mm');
+            date = moment(item[mapData.columns.posted_date]).utcOffset(0
+                ).format('MM-DD HH:mm');
         $('.ga-instagram-overlay-date', overlay).text(date).attr('title', date);
         $('.ga-instagram-overlay-caption', overlay).text(caption).attr(
             'title', caption);
@@ -1192,9 +1198,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
         });
         imageUrl = url.replace(/\/$/, '') + '/media?size=m';
         if ($('img', overlay).attr('orig_url') !== url) {
-            $('img', overlay).css('display', 'none').off('.instagram-overlay'
+            $('.ga-instagram-overlay-image', overlay).css('display', '');
+            $('img', overlay).off('.instagram-overlay'
             ).on('load.instagram-overlay', function () {
-                $('img', overlay).css('display', 'block');
                 overlay.css('display', 'block');
                 geoapp.activityLog.logActivity('inst_overlay', 'map', {
                     source: m_this.currentPointSource || '',
@@ -1202,7 +1208,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
                     url: url
                 });
             }).on('error.instagram-overlay', function () {
-                $('img', overlay).css('display', 'none');
+                $('.ga-instagram-overlay-image', overlay).css(
+                    'display', 'none');
                 overlay.css('display', 'block');
                 geoapp.activityLog.logActivity('inst_overlay', 'map', {
                     source: m_this.currentPointSource || '',
