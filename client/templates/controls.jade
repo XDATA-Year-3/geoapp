@@ -105,19 +105,11 @@
                 type="checkbox", checked="checked",
                 taxifield="show-instagram-data", taxitype="boolean")
               label(for="ga-show-instagram-data") Instagram
-          .form-group
-            button#ga-place-manhattan.btn.btn-sm.ga-place(
-                data-place="manhattan", title="Show all of Manhattan") 
+          .form-group#ga-place-group
+            //- The place buttons are taken from the ini settings or defaults
+              based on this template
+            button#ga-place-template.btn.btn-sm.ga-place.hidden
               i.icon-target
-              |  Manhattan
-            button#ga-place-midtown.btn.btn-sm.ga-place(
-                data-place="midtown", title="Show Midtown")
-              i.icon-target
-              |  Midtown
-            button#ga-place-timessq.btn.btn-sm.ga-place(
-                data-place="timessq", title="Show Times Square")
-              i.icon-target
-              |  Times Sq.
   .panel-group#ga-anim-settings-panel
     .panel.panel-default
       .panel-heading

@@ -321,7 +321,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
         if (!options.data || !options.data.data || !options.data.data.length) {
-            if (!$('#ga-instagram-results-panel').hadClass('hidden')) {
+            if (!$('#ga-instagram-results-panel').hasClass('hidden')) {
                 geoapp.activityLog.logSystem(
                     'inst_table_hide', 'datahandler', {});
             }
@@ -386,7 +386,7 @@ geoapp.dataHandlers.instagram = function (arg) {
                     url: data.data[i][url_column]
                 })
                 .append($('<td/>').text(moment(data.data[i][date_column])
-                    .format('YY-MM-DD HH:mm')))
+                    .utcOffset(0).format('YY-MM-DD HH:mm')))
                 .append($('<td/>').text(data.data[i][caption_column]))
                 /* Don't add a tooltip, since we pop up the photo elsewhere */
                 //  .attr('title', data.data[i][caption_column]))

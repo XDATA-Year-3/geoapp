@@ -13,6 +13,28 @@
  *  limitations under the License.
  */
 
+
+/* Get a section from a settings dictionary, parsing it as a query string.  If
+ * there are any default values for that section, and those defaults have not
+ * been explicitly specified, use those defaults, too.
+ *
+ * @param settings: a settings dictionary.
+ * @param section: the section within the dictionary to parse.
+ * @return: results dictionary.
+ */
+geoapp.getQuerySection = function (settings, section) {
+    if (geoapp.defaultControlsQuery === undefined) {
+        geoapp.defaultControlsQuery = geoapp.parseJSON($('body').attr(
+            'defaultControls'));
+    }
+    var results = geoapp.parseQueryString(settings[section] || '');
+    if (geoapp.defaultControlsQuery[section]) {
+        results = $.extend({}, geoapp.defaultControlsQuery[section], results);
+    }
+    return results;
+};
+
+
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-taxi-filter': function () {
@@ -70,7 +92,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function (evt) {
             $('#ga-taxi-filter').addClass('btn-needed');
         },
-        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams': function (evt) {
+        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function (evt) {
             $('#ga-instagram-filter').addClass('btn-needed');
         },
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function (evt) {
@@ -123,9 +145,26 @@ geoapp.views.ControlsView = geoapp.View.extend({
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
         this.firstRender = true;
+        /* Load the list of place buttons */
+        if (geoapp.defaultControlsQuery === undefined) {
+            var places = geoapp.parseJSON($('body').attr('placeControls'));
+            if (_.size(places) > 0) {
+                geoapp.placeList = places;
+                geoapp.placeOrder = [];
+                _.each(places, function (place, key) {
+                    geoapp.placeOrder.push(key);
+                });
+                geoapp.placeOrder.sort(function (a, b) {
+                    if (places[b].order !== places[a].order) {
+                        return (places[a].order || 0) - (places[b].order || 0);
+                    }
+                    return places[b].name < places[a].name ? 1 : -1;
+                });
+            }
+        }
         this.render();
         geoapp.View.prototype.initialize.apply(this, arguments);
-        geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 0);
+        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 0);
     },
 
     /* Reinitialize the view.  This is called if we route to this view while
@@ -139,7 +178,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this, update = {};
         _.each(view.controlSections, function (baseSelector, section) {
             var current = view.updateSection(section, false, true);
-            var params = geoapp.parseQueryString(settings[section] || '');
+            var params = geoapp.getQuerySection(settings, section);
             _.each(current, function (value, id) {
                 if (value !== (params[id] || '')) {
                     view.setControlValue(baseSelector + id, params[id] || '');
@@ -148,7 +187,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
-        geoapp.map.fitBounds(geoapp.parseQueryString(settings.map), 1000);
+        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 1000);
     },
 
     /* Set the value of a control.  If this is a select control that doesn't
@@ -198,15 +237,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 var settings = view.initialSettings;
                 view.usedInitialSettings = true;
                 _.each(view.controlSections, function (baseSelector, section) {
-                    if (settings[section]) {
-                        var params = geoapp.parseQueryString(settings[section]);
-                        _.each(params, function (value, id) {
-                            if (value !== '' && value !== undefined) {
-                                view.setControlValue(baseSelector + id, value);
-                                update = true;
-                            }
-                        });
-                    }
+                    var params = geoapp.getQuerySection(settings, section);
+                    _.each(params, function (value, id) {
+                        if (value !== '' && value !== undefined) {
+                            view.setControlValue(baseSelector + id, value);
+                            update = true;
+                        }
+                    });
                 });
             }
             $('#ga-main-page .ga-date-range').each(function () {
@@ -242,6 +279,16 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 /* Make sure our layers are created in the desired order */
                 geoapp.map.ensureLayer('taxi');
                 geoapp.map.ensureLayer('instagram');
+                _.each(geoapp.placeOrder, function (placeKey) {
+                    console.log(geoapp.placeList[placeKey]);
+                    var button = $('#ga-place-template').clone();
+                    button.removeClass('hidden').attr({
+                        'data-place': placeKey,
+                        title: geoapp.placeList[placeKey].title
+                    });
+                    button.append(' ' + geoapp.placeList[placeKey].name);
+                    $('#ga-place-group').append(button);
+                });
             }
             if (update) {
                 view.updateView(false);
@@ -420,8 +467,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 display: results.display
             });
         }
-        if (!results['taxi-filter'] && !results['instagram-filter'] &&
-                results.display) {
+        if (results.display && !results['taxi-filter'] &&
+                !results['instagram-filter']) {
             geoapp.map.updateMapParams('all', results.display);
         }
         if (results.anim) {
@@ -618,20 +665,29 @@ geoapp.views.ControlsView = geoapp.View.extend({
     }
 });
 
+geoapp.placeOrder = [
+    'manhattan', 'midtown', 'timessq'
+];
 geoapp.placeList = {
     manhattan: {
+        name: 'Manhattan',
+        title: 'Show all of Manhattan',
         x0: -74.0276489,
         y0:  40.8304859,
         x1: -73.9161453,
         y1:  40.6877773
     },
     midtown: {
+        name: 'Midtown',
+        title: 'Show Midtown',
         x0: -74.0140000,
         y0:  40.7730000,
         x1: -73.9588000,
         y1:  40.7320000
     },
     timessq: {
+        name: 'Times Sq.',
+        title: 'Show Times Square',
         x0: -74.0048904,
         y0:  40.7687378,
         x1: -73.9708862,

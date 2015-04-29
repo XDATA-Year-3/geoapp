@@ -292,9 +292,12 @@ geoapp.Map = function (arg) {
         });
         if (changed) {
             /* clear animation preparation, but don't clear current step. */
-            if (m_animationData && m_animationData.playState &&
-                    m_animationData.playState.substr(0, 4) !== 'step') {
+            if (m_animationData && m_animationData.playState) {
                 animStartStep = m_animationData.step;
+            }
+            if (m_animationData && m_animationData.playState &&
+                    m_animationOptions && m_animationOptions.playState) {
+                m_animationOptions.playState = m_animationData.playState;
             }
             m_animationData = null;
             _.each(m_layers, function (layer, layerkey) {
