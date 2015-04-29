@@ -280,7 +280,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 geoapp.map.ensureLayer('taxi');
                 geoapp.map.ensureLayer('instagram');
                 _.each(geoapp.placeOrder, function (placeKey) {
-                    console.log(geoapp.placeList[placeKey]);
                     var button = $('#ga-place-template').clone();
                     button.removeClass('hidden').attr({
                         'data-place': placeKey,
