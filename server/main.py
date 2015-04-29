@@ -46,6 +46,9 @@ class GeoAppRoot(object):
         'apiRoot': 'api/v1',
         'staticRoot': 'built',
         'girderRoot': 'girder/static',
+        'activityLogURI': '',
+        'defaultControls': '',
+        'placeControls': ''
     }
 
     def GET(self):
@@ -53,9 +56,14 @@ class GeoAppRoot(object):
         vars = self.vars
         if 'resources' in config:
             vars.update(config['resources'])
-        if 'controls' in config:
-            vars['defaultControls'] = xml.sax.saxutils.escape(
-                json.dumps(config['controls']))
+        sectionList = {
+            'controls': 'defaultControls',
+            'places': 'placeControls'
+        }
+        for key in sectionList:
+            if key in config:
+                vars[sectionList[key]] = xml.sax.saxutils.escape(
+                    json.dumps(config[key]))
         data = {}
         for dbtype in ('taxidata', 'instagramdata'):
             datalist = []

@@ -919,9 +919,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
         })
         .geoOff(geo.event.feature.mouseover)
         .geoOn(geo.event.feature.mouseover, function (evt) {
-            if (m_geoPoints.visible()) {
-                m_this.highlightPoint(evt.index, evt, true);
-            }
+            m_this.highlightPoint(evt.index, evt, true);
         })
         .geoOff(geo.event.feature.mouseout)
         .geoOn(geo.event.feature.mouseout, function (evt) {
@@ -1164,6 +1162,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
         if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
             $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
         } else {
+            /* Clamp position to the screen, so that the overlay is always
+            /* visible.  Point an arrow to where the point is located. */
             var dx = 0, dy = 0;
             /* jscs:disable requireBlocksOnNewline */
             if (pos.x < 0) {    dx = pos.x;         pos.x = 0; }
@@ -1177,9 +1177,6 @@ geoapp.mapLayers.instagram = function (map, arg) {
             });
             offset = 0;
         }
-        // clamp position to the screen, so that the overlay is always on
-        // screen.  Possibly also we should avoid overlaying on top of our
-        // controls.
         overlay.css({
             left: pos.x <= mapW / 2 ? (pos.x + offset) + 'px' : '',
             right: pos.x <= mapW / 2 ? '' : (mapW - pos.x + offset) + 'px',
@@ -1198,9 +1195,11 @@ geoapp.mapLayers.instagram = function (map, arg) {
         });
         imageUrl = url.replace(/\/$/, '') + '/media?size=m';
         if ($('img', overlay).attr('orig_url') !== url) {
-            $('.ga-instagram-overlay-image', overlay).css('display', '');
+            overlay.css('display', 'none');
+            $('.ga-instagram-overlay-image', overlay).css('display', 'none');
             $('img', overlay).off('.instagram-overlay'
             ).on('load.instagram-overlay', function () {
+                $('.ga-instagram-overlay-image', overlay).css('display', '');
                 overlay.css('display', 'block');
                 geoapp.activityLog.logActivity('inst_overlay', 'map', {
                     source: m_this.currentPointSource || '',
@@ -1208,8 +1207,6 @@ geoapp.mapLayers.instagram = function (map, arg) {
                     url: url
                 });
             }).on('error.instagram-overlay', function () {
-                $('.ga-instagram-overlay-image', overlay).css(
-                    'display', 'none');
                 overlay.css('display', 'block');
                 geoapp.activityLog.logActivity('inst_overlay', 'map', {
                     source: m_this.currentPointSource || '',
