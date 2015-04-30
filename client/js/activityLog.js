@@ -110,8 +110,8 @@
                 meta: {
                     /* Disabling this until I know how it needs to be escaped.
                      * See email discussion with Dave Reed.
-                    data: data
                      */
+                    data: data
                 },
                 tags: [
                     /* a list of tags to help define some other meaningful

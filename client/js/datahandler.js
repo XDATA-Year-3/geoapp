@@ -23,7 +23,10 @@ geoapp.DataHandler = function (arg) {
     }
     arg = arg || {};
 
-    var m_verbose = 0;
+    var m_verbose = 0,
+        m_routeSettings,
+        m_routeSettingsCheck = 0,
+        m_routeSettingsTime;
 
     /* maximumDataPoints defaults to the maximum of maximumMapPoints and
      * maximumVectors from the geoapp.map object. */
@@ -193,6 +196,27 @@ geoapp.DataHandler = function (arg) {
             .tooltip().attr('data-original-title', longMsg)
             .tooltip('fixTitle');
     };
+
+    /* Get or set the route settings dictionary.
+     *
+     * @param settings: undefined to get the settings, or a dictionary to set.
+     * @param always: if getting the settings and this is not truthy, return
+     *                null if the settings haven't changed since we last got
+     *                them.
+     * @return: settings if changed or always is truthy, null if unchanged.
+     */
+    this.routeSettings = function (settings, always) {
+        if (settings === undefined) {
+            if (m_routeSettingsCheck < m_routeSettingsTime || always) {
+                m_routeSettingsCheck = new Date().getTime();
+                return m_routeSettings;
+            }
+            return null;
+        }
+        m_routeSettings = settings;
+        m_routeSettingsTime = new Date().getTime();
+        return m_routeSettings;
+    };
 };
 
 /* -------- taxi data handler -------- */
@@ -278,7 +302,11 @@ geoapp.dataHandlers.instagram = function (arg) {
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
 
-    var m_this = this;
+    var m_this = this,
+        m_sortOrder = 'raw',
+        m_sortedIndices,
+        m_sortOrderList = ['raw', 'date', 'date-desc'],
+        m_sortOrderIcons = ['sort', 'sort-down', 'sort-up'];
 
     this.datakey = datakey;
 
@@ -332,8 +360,33 @@ geoapp.dataHandlers.instagram = function (arg) {
         table.attr('count', options.data.data.length);
         /* If the offset is non-zero, we've already started displaying the
          * results. */
-        if (options.params.offset) {
+        if (options.params.offset && m_sortOrder === 'raw') {
             return;
+        }
+        this.instagramTableInit(true);
+    };
+
+    /* Initialize the results table, clearing any old results.
+     *
+     * @param always: if true, always initialize the table.  If false, only
+     *                do so if the table is currently shown.
+     */
+    this.instagramTableInit = function (always) {
+        if (!always && $('#ga-instagram-results-panel').hasClass('hidden')) {
+            return;
+        }
+        m_sortedIndices = null;
+        var settings = this.routeSettings();
+        if (settings && settings['instagram-table-sort']) {
+            if ($.inArray(settings['instagram-table-sort'],
+                          m_sortOrderList) >= 0) {
+                m_sortOrder = settings['instagram-table-sort'];
+            }
+        }
+        var icon = $('#ga-instagram-results-sort i');
+        for (var i = 0; i < m_sortOrderIcons.length; i += 1) {
+            icon.toggleClass('icon-' + m_sortOrderIcons[i],
+                             m_sortOrder === m_sortOrderList[i]);
         }
         $('#ga-instagram-results-panel').removeClass('hidden');
         $('#ga-instagram-results-table tr:has(td)').remove();
@@ -372,24 +425,54 @@ geoapp.dataHandlers.instagram = function (arg) {
         if (!data || !data.data || !data.data.length) {
             return moreData;
         }
-        var current = $('tr[item]', table).length;
-        var date_column = data.columns.posted_date,
+        var current = $('tr[item]', table).length,
+            date_column = data.columns.posted_date,
             caption_column = data.columns.caption,
-            url_column = data.columns.url;
+            url_column = data.columns.url,
+            dataIndices = [],
+            i, item;
         $('.ga-more-results', table).remove();
+        switch (m_sortOrder) {
+            case 'date': case 'date-desc':
+                if (!m_sortedIndices) {
+                    m_sortedIndices = [];
+                    for (i = 0; i < data.data.length; i += 1) {
+                        m_sortedIndices.push(i);
+                    }
+                    m_sortedIndices.sort(function (a, b) {
+                        a = data.data[a];
+                        b = data.data[b];
+                        if (a[date_column] !== b[date_column]) {
+                            return a[date_column] - b[date_column];
+                        }
+                        return b[caption_column] < a[caption_column] ? 1 : -1;
+                    });
+                    if (m_sortOrder === 'date-desc') {
+                        m_sortedIndices.reverse();
+                    }
+                }
+                dataIndices = m_sortedIndices.slice(current, current + page);
+                break;
+            default:
+                for (i = current; i < data.data.length && i < current + page;
+                        i += 1) {
+                    dataIndices.push(i);
+                }
+                break;
+        }
         /* We may want to apply another filter to the data here */
-        for (var i = current; i < data.data.length && i < current + page;
-                i += 1) {
+        for (i = 0; i < dataIndices.length; i += 1) {
+            item = data.data[dataIndices[i]];
             table.append($('<tr/>')
                 .attr({
-                    item: i,
-                    url: data.data[i][url_column]
+                    item: dataIndices[i],
+                    url: item[url_column]
                 })
-                .append($('<td/>').text(moment(data.data[i][date_column])
+                .append($('<td/>').text(moment(item[date_column])
                     .utcOffset(0).format('YY-MM-DD HH:mm')))
-                .append($('<td/>').text(data.data[i][caption_column]))
+                .append($('<td/>').text(item[caption_column]))
                 /* Don't add a tooltip, since we pop up the photo elsewhere */
-                //  .attr('title', data.data[i][caption_column]))
+                //  .attr('title', item[caption_column]))
             );
         }
         geoapp.activityLog.logSystem(
@@ -411,7 +494,6 @@ geoapp.dataHandlers.instagram = function (arg) {
         }).on('click.instagram-table mouseenter.instagram-table',
             this.instagramTableHighlight
         );
-        //TODO:: sort data table by date, inverse date, or original
         return moreData;
     };
 
@@ -434,6 +516,33 @@ geoapp.dataHandlers.instagram = function (arg) {
             }
         }
         layer.currentPoint(idx, isClick, isClick, 'table');
+    };
+
+    /* Get, set, or toggle the sort of the main table between unsorted, date
+     * ascending, and date descending.
+     *
+     * @param newOrder: undefined to get the current sort order.  'toggle' to
+     *                  cycle through the various options.  Otherwise, one of
+     *                  m_sortOrderList[].
+     */
+    this.sortOrder = function (newOrder) {
+        if (newOrder === undefined) {
+            return m_sortOrder;
+        }
+        if ($.inArray(newOrder, m_sortOrderList) < 0) {
+            /* If the specified value isn't in our list, cycle through the
+             * valid values. */
+            newOrder = m_sortOrderList[($.inArray(
+                m_sortOrder, m_sortOrderList) + 1) % m_sortOrderList.length];
+        }
+        if (newOrder !== m_sortOrder) {
+            m_sortOrder = newOrder;
+            geoapp.updateNavigation(
+                undefined, 'results', {'instagram-table-sort': m_sortOrder},
+                true);
+            m_this.instagramTableInit();
+        }
+        return m_sortOrder;
     };
 };
 
