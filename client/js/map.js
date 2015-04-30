@@ -63,7 +63,7 @@ geoapp.Map = function (arg) {
         m_animationData,
         m_animTimer,
 
-        m_verbose = 1;
+        m_verbose = 0;
 
     /* Show a map with data.  If we have already shown the map, just update
      * the data and redraw the map.  The data is an object that contains:

@@ -50,6 +50,8 @@
             desc: 'show instagram overlay'},
         inst_overlay_hide: {elem: 'map',    act: 'hide',
             desc: 'hide instagram overlay'},
+        inst_overlay_stick: {elem: 'map',   act: 'alter',
+            desc: 'persist instagram overlay'},
         inst_table:      {elem: 'listbox',  act: 'show',
             desc: 'show instagram table'},
         inst_table_add:  {elem: 'listbox',  act: 'alter',
@@ -194,9 +196,13 @@
                     value: $(this).attr('href')
                 });
             });
-            $('button', selector).on('click', function (evt) {
+            $('button,.log-as-button', selector).on('click', function (evt) {
+                var ctl = $(this);
                 log.logActivity('button_click', 'controls', {
-                    id: $(this).attr('id')
+                    id: ctl.attr('id'),
+                    closestId: (ctl.attr('id') ? undefined :
+                                ctl.closest('[id]').attr('id')),
+                    classes: ctl.attr('class')
                 });
             });
             $('input[type="checkbox"]:visible', selector)

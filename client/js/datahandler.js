@@ -23,7 +23,7 @@ geoapp.DataHandler = function (arg) {
     }
     arg = arg || {};
 
-    var m_verbose = 1;
+    var m_verbose = 0;
 
     /* maximumDataPoints defaults to the maximum of maximumMapPoints and
      * maximumVectors from the geoapp.map object. */
@@ -405,11 +405,13 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* If hovering over a row, show the relevant instagram point */
         $('tr', table).off('.instagram-table'
         ).on('mouseleave.instagram-table', function (evt) {
-            layer.setCurrentPoint(null);
-        }).on('mouseenter.instagram-table', this.instagramTableHighlight
+            if (!layer.persistentCurrentPoint()) {
+                layer.currentPoint(null);
+            }
+        }).on('click.instagram-table mouseenter.instagram-table',
+            this.instagramTableHighlight
         );
-        //TODO:: zoom to that point if clicked, sort data table by date,
-        // inverse date, or original
+        //TODO:: sort data table by date, inverse date, or original
         return moreData;
     };
 
@@ -419,12 +421,19 @@ geoapp.dataHandlers.instagram = function (arg) {
      */
     this.instagramTableHighlight = function (evt) {
         var layer = geoapp.map.getLayer(m_this.datakey),
-            idx = $(evt.currentTarget).attr('item');
-        if (idx === '') {
-            layer.setCurrentPoint(null);
-            return;
+            idx = $(evt.currentTarget).attr('item'),
+            isClick = evt.type === 'click';
+        if (idx === '' || idx === undefined) {
+            idx = null;
         }
-        layer.setCurrentPoint(parseInt(idx), undefined, undefined, 'table');
+        if (isClick) {
+            layer.persistentCurrentPoint(idx, 'table');
+        } else {
+            if (layer.persistentCurrentPoint()) {
+                return;
+            }
+        }
+        layer.currentPoint(idx, isClick, isClick, 'table');
     };
 };
 

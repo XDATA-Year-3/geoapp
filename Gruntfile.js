@@ -193,7 +193,6 @@ module.exports = function (grunt) {
                 files: {
                     'built/libs.min.js': [
                         /* These items are from geojs, but we exclude jquery */
-                        'geojs/bower_components/jquery-mousewheel/jquery.mousewheel.js',
                         'geojs/bower_components/gl-matrix/dist/gl-matrix.js',
                         'geojs/bower_components/proj4/dist/proj4-src.js',
                         'geojs/bower_components/d3/d3.js',

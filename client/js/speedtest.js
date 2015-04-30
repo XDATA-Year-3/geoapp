@@ -18,7 +18,12 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
 
     displayParams: {
         'display-tile-set': 'mapquest',
-        'display-tile-opacity': 1
+        'display-tile-opacity': 1,
+        'data-opacity': 0.1,
+        'display-max-points': 10000000000,
+        'display-max-lines': 10000000000,
+        'show-taxi-data': true,
+        'show-instagram-data': false
     },
     sizeFactors: [1, 1.5, 2, 3, 5, 7.5],
     tests: [
