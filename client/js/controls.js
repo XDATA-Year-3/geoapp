@@ -98,6 +98,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function (evt) {
             $('#ga-anim-update').addClass('btn-needed');
         },
+        'click #ga-instagram-results-sort': function (evt) {
+            geoapp.dataLoaders.instagram.sortOrder('toggle');
+        },
         'keydown #ga-taxi-filter-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
                 window.setTimeout(function () {
@@ -165,6 +168,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         this.render();
         geoapp.View.prototype.initialize.apply(this, arguments);
         geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 0);
+        geoapp.dataLoaders.instagram.routeSettings(
+            geoapp.getQuerySection(settings, 'results'));
     },
 
     /* Reinitialize the view.  This is called if we route to this view while
@@ -188,6 +193,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         });
         view.updateView(false, update);
         geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 1000);
+        geoapp.dataLoaders.instagram.routeSettings(
+            geoapp.getQuerySection(settings, 'results'));
     },
 
     /* Set the value of a control.  If this is a select control that doesn't
@@ -410,7 +417,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                       just one section, or an object with the keys which
      *                       have thuthy values are the sections to update.
      */
-    updateView: function (updateNav, updateSection, combineNav) {
+    updateView: function (updateNav, updateSection) {
         var results = {}, params;
         if (updateSection && $.type(updateSection) === 'string') {
             var sections = {};

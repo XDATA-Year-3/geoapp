@@ -167,6 +167,25 @@ module.exports = function (grunt) {
             }
         },
 
+        concat: {
+            options: {
+                separator: ';'
+            },
+            app: {
+                src: [
+                    /* main.js must be first */
+                    'client/js/main.js',
+                    'built/templates.js',
+                    'built/geoapp-version.js',
+                    /* Make sure the base files get included before the
+                     * dependent files. */
+                    'client/js/layers.js',
+                    'client/js/**/*.js'
+                ],
+                dest: 'built/app.js'
+            }
+        },
+
         uglify: {
             options: {
                 sourceMap: environment === 'dev',
@@ -179,13 +198,7 @@ module.exports = function (grunt) {
             app: {
                 files: {
                     'built/app.min.js': [
-                        'built/templates.js',
-                        'built/geoapp-version.js',
-                        'client/js/**/*.js',
-                        '!client/js/main.js'
-                    ],
-                    'built/main.min.js': [
-                        'client/js/main.js'
+                        'built/app.js'
                     ]
                 }
             },
@@ -288,45 +301,17 @@ module.exports = function (grunt) {
         grunt.fatal('The "env" argument must be either "dev" or "prod".');
     }
 
-    grunt.loadNpmTasks('grunt-shell');
-    grunt.loadNpmTasks('grunt-contrib-watch');
+    grunt.loadNpmTasks('grunt-contrib-compress');
+    grunt.loadNpmTasks('grunt-contrib-concat');
+    grunt.loadNpmTasks('grunt-contrib-copy');
+    grunt.loadNpmTasks('grunt-contrib-cssmin');
     grunt.loadNpmTasks('grunt-contrib-jade');
     grunt.loadNpmTasks('grunt-contrib-stylus');
     grunt.loadNpmTasks('grunt-contrib-uglify');
-    grunt.loadNpmTasks('grunt-contrib-copy');
-    grunt.loadNpmTasks('grunt-contrib-cssmin');
-    grunt.loadNpmTasks('grunt-gitinfo');
+    grunt.loadNpmTasks('grunt-contrib-watch');
     grunt.loadNpmTasks('grunt-file-creator');
-    grunt.loadNpmTasks('grunt-contrib-compress');
-
-    /*
-    grunt.registerTask('test-env-html', 'Build the phantom test html page.', function () {
-        var buffer = fs.readFileSync('client/test/testEnv.jadehtml');
-        var globs = grunt.config('uglify.app.files')['built/app.min.js'];
-        var inputs = [];
-        globs.forEach(function (glob) {
-            var files = grunt.file.expand(glob);
-            files.forEach(function (file) {
-                inputs.push('/' + file);
-            });
-        });
-
-        var fn = jade.compile(buffer, {
-            client: false,
-            pretty: true
-        });
-        fs.writeFileSync('built/testEnv.html', fn({
-            cssFiles: [
-                '/static/lib/bootstrap/css/bootstrap.min.css',
-                '/static/lib/bootstrap/css/bootstrap-switch.min.css',
-                '/static/lib/fontello/css/fontello.css',
-                '/built/app.min.css'
-            ],
-            jsFiles: inputs,
-            staticRoot: staticRoot
-        }));
-    });
-    */
+    grunt.loadNpmTasks('grunt-gitinfo');
+    grunt.loadNpmTasks('grunt-shell');
 
     grunt.registerTask('version-info', [
         'gitinfo',
@@ -342,8 +327,8 @@ module.exports = function (grunt) {
     grunt.registerTask('build-js', [
         'jade',
         'version-info',
+        'concat:app',
         'uglify:app'
-//        'test-env-html'
     ]);
     grunt.registerTask('init', [
         'libversion-info',
