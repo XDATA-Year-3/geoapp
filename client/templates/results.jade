@@ -1,22 +1,15 @@
 #ga-results-page.ga-results-ui
-  .panel-group#ga-instagram-results-panel.hidden
-    .panel.panel-default
-      .panel-heading
-        a(data-toggle="collapse", data-parent="#ga-instagram-results-panel",
-          href="#ga-instagram-results")
-          .panel-title
-            b Instagram Results
-            i.icon-info-circled(data-placement="top", data-container="body",
-              title="These are the instagram results based on the Caption Search in the Filters panel.")
-      #ga-instagram-results.panel-collapse.collapse.in
-        .panel-body
-          .results-table.al-scroller
-            table#ga-instagram-results-table
-              tr
-                th#ga-instagram-results-sort.log-as-button
-                  i.icon-sort
-                  |  Post Date
-                th Caption
+  +standardPanel('ga-instagram-results-panel', 'ga-instagram-results',
+      'Instagram Results',
+      "These are the instagram results based on the Caption Search in the Filters panel.",
+      'hidden')(class="hidden")
+    .results-table.al-scroller
+      table#ga-instagram-results-table
+        tr
+          th#ga-instagram-results-sort.log-as-button
+            i.icon-sort
+            |  Post Date
+          th Caption
 #ga-instagram-overlay
   .ga-instagram-overlay-title-bar
     button.ga-instagram-overlay-goto.btn.btn-sm
@@ -27,7 +20,7 @@
   .ga-instagram-overlay-image
     img
   .ga-instagram-overlay-text
-    .ga-instagram-overlay-arrow
+    .ga-instagram-overlay-arrow.log-as-button
       i.icon-right-circled
     span.ga-instagram-overlay-date
     span.ga-instagram-overlay-caption

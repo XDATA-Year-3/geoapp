@@ -286,6 +286,10 @@ geoapp.mapLayers.instagram = function (map, arg) {
         if (m_lastMouseDownEvent < m_lastPanEvent) {
             return;
         }
+        if (!m_geoPoints.visible()) {
+            m_this.currentPoint(null, true, true, 'map');
+            return;
+        }
         var idx = m_this.getHighlightPoint();
         m_this.persistentCurrentPoint(idx);
         m_this.currentPoint(idx, true, true, 'map');
@@ -393,8 +397,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         persistent = !!persistent;
         if (persistent !== m_persistentCurrentPoint) {
-            geoapp.activityLog.logActivity('inst_overlay_stick',
-                source || 'map', {});
+            geoapp.activityLog.logActivity('pin_overlay',
+                source || 'map', {}, 'instagram_overlay');
         }
         m_persistentCurrentPoint = persistent;
         return m_persistentCurrentPoint;
@@ -413,9 +417,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
         if (m_currentPoint === null || !mapData.data ||
                 m_currentPoint >= mapData.data.length) {
             if (overlay.css('display') !== 'none') {
-                geoapp.activityLog.logActivity('inst_overlay_hide', 'map', {
+                geoapp.activityLog.logActivity('hide_overlay', 'map', {
                     url: null
-                });
+                }, 'instagram_overlay');
             }
             overlay.css('display', 'none');
             return;
@@ -461,6 +465,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             top:    pos.y < ctrY ? (pos.y + offset) + 'px' : '',
             bottom: pos.y < ctrY ? '' : (mapH - pos.y + offset) + 'px'
         });
+        overlay.attr('point', m_currentPoint);
         if (onlyMove) {
             return;
         }
@@ -487,21 +492,14 @@ geoapp.mapLayers.instagram = function (map, arg) {
             });
         } else {
             $('.ga-instagram-overlay-goto', overlay).on(
-                    'click.instagram-overlay', function () {
-                m_this.map.getMap().transition({
-                    center: {
-                        x: item[mapData.columns.longitude],
-                        y: item[mapData.columns.latitude]
-                    },
-                    interp: d3.interpolateZoom,
-                    duration: 1000
-                });
-            });
+                    'click.instagram-overlay', m_this.centerOnMap);
             $('.ga-instagram-overlay-close-button', overlay).on(
                     'click.instagram-overlay', function () {
                 m_this.currentPoint(null, true, true);
             });
         }
+        $('.ga-instagram-overlay-arrow', overlay).on(
+            'click.instagram-overlay', m_this.centerOnMap);
         imageUrl = url.replace(/\/$/, '') + '/media?size=m';
         if ($('img', overlay).attr('orig_url') !== url) {
             overlay.css('display', 'none');
@@ -510,21 +508,39 @@ geoapp.mapLayers.instagram = function (map, arg) {
             ).on('load.instagram-overlay', function () {
                 $('.ga-instagram-overlay-image', overlay).css('display', '');
                 overlay.css('display', 'block');
-                geoapp.activityLog.logActivity('inst_overlay', 'map', {
+                geoapp.activityLog.logActivity('show_overlay', 'map', {
                     source: m_currentPointSource || '',
                     imageUrl: imageUrl,
                     url: url
-                });
+                }, 'instagram_overlay');
             }).on('error.instagram-overlay', function () {
                 overlay.css('display', 'block');
-                geoapp.activityLog.logActivity('inst_overlay', 'map', {
+                geoapp.activityLog.logActivity('show_overlay', 'map', {
                     source: m_currentPointSource || '',
                     url: url
-                });
+                }, 'instagram_overlay');
             }).attr({src: imageUrl, orig_url: url});
         } else {
             overlay.css('display', 'block');
         }
+    };
+
+    /* Center the currently highlighted point on the map.
+     */
+    this.centerOnMap = function () {
+        var mapData = m_this.data(),
+            overlay = $('#ga-instagram-overlay'),
+            point = (m_currentPoint === null ? overlay.attr('point') :
+                     m_currentPoint);
+        var item = mapData.data[point];
+        m_this.map.getMap().transition({
+            center: {
+                x: item[mapData.columns.longitude],
+                y: item[mapData.columns.latitude]
+            },
+            interp: d3.interpolateZoom,
+            duration: 1000
+        });
     };
 };
 
