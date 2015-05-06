@@ -156,4 +156,10 @@ $(function () {
     _.each(geoapp.dataHandlers, function (handlerFunc, handlerKey) {
         geoapp.dataLoaders[handlerKey] = handlerFunc();
     });
+    $.ajax({
+        url: $('body').attr('staticRoot') + '/weather.json',
+        success: function (data) {
+            geoapp.staticData = geoapp.staticData || {};
+            geoapp.staticData.weather = data;
+        }});
 });

@@ -132,9 +132,9 @@ def tsqueryParse(parts, quotes={}, tsq=None, depth=0):
             if not tsq[pos]:
                 addval = '&'.join(parts[pos].strip().split())
                 if negate:
-                    exclude.append(parts[pos].strip())
+                    exclude.extend(parts[pos].strip().split())
                 else:
-                    include.append(parts[pos].strip())
+                    include.extend(parts[pos].strip().split())
             else:
                 addval = tsq[pos][0]
                 include.extend(tsq[pos][2 if negate else 1])

@@ -307,6 +307,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param evt: the event that triggered this call.
      */
     this.panLayer = function (evt) {
+        if (evt.screenDelta && !evt.screenDelta.x && !evt.screenDelta.y) {
+            return;
+        }
         m_lastPanEvent = new Date().getTime();
         if (m_persistentCurrentPoint && m_currentPoint !== null) {
             m_this.showOverlay(true);
