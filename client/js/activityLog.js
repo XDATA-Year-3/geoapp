@@ -19,7 +19,9 @@
  */
 
 (function () {
-    var logger;
+    var logger,
+        uri = $('body').attr('activityLogURI'),
+        logMeta = ($('body').attr('activityLogMeta') !== 'false');
 
     /* elements: BUTTON CANVAS CHECKBOX COMBOBOX DATAGRID DIALOG_BOX
      *  DROPDOWNLIST FRAME ICON INFOBAR LABEL LINK LISTBOX LISTITEM MAP MENU
@@ -44,14 +46,10 @@
             desc: 'hide date-range picker'},
         date_show:       {elem: 'panel',    act: 'show',
             desc: 'show date-range picker'},
+        hide_overlay:    {elem: 'map',      act: 'hide',
+            desc: 'hide overlay'},
         input_change:    {elem: 'textbox',  act: 'alter',
             desc: 'text input field changed'},
-        inst_overlay:    {elem: 'map',      act: 'show',
-            desc: 'show instagram overlay'},
-        inst_overlay_hide: {elem: 'map',    act: 'hide',
-            desc: 'hide instagram overlay'},
-        inst_overlay_stick: {elem: 'map',   act: 'alter',
-            desc: 'persist instagram overlay'},
         inst_table:      {elem: 'listbox',  act: 'show',
             desc: 'show instagram table'},
         inst_table_add:  {elem: 'listbox',  act: 'alter',
@@ -66,8 +64,12 @@
             desc: 'map pan, zoom, or resize'},
         navigate:        {elem: 'link',     act: 'select',
             desc: 'browser navigation change'},
+        pin_overlay:     {elem: 'map',      act: 'alter',
+            desc: 'persist overlay'},
         select_change:   {elem: 'dropdownlist', act: 'alter',
             desc: 'select box changed'},
+        show_overlay:    {elem: 'map',      act: 'show',
+            desc: 'show overlay'},
         show_tooltip:    {elem: 'tooltip',  act: 'show',
             desc: 'show tooltip'},
         show_view:       {elem: 'window',   act: 'show',
@@ -93,9 +95,10 @@
          * @param data: an object with data to log about the activity.  For
          *              instance, the id of the control, or the coordinates of
          *              the mouse.
+         * @param subElement: a strign to pass as the elementSub.
          * @param system: true if system.
          */
-        logActivity: function (activity, group, data, system) {
+        logActivity: function (activity, group, data, subElement, system) {
             if (!logger) {
                 return;
             }
@@ -104,14 +107,11 @@
                 activity: activity,
                 action: activity,
                 elementType: 'element_type',
-                elementSub: '' + (data.value !== undefined ? data.value : ''),
+                elementSub: subElement || '',
                 elementGroup: group,
                 source: system ? 'system' : 'user',
                 meta: {
-                    /* Disabling this until I know how it needs to be escaped.
-                     * See email discussion with Dave Reed.
-                     */
-                    data: data
+                    data: logMeta ? data : undefined
                 },
                 tags: [
                     /* a list of tags to help define some other meaningful
@@ -119,6 +119,7 @@
                      * altering 'visual' elements */
                 ]
             };
+
             if (!system) {
                 msg.elementId = data.id;
             }
@@ -155,11 +156,11 @@
          * @param group: element group to log.
          * @param data: an object with data to log about the activity.
          */
-        logSystem: function (activityDesc, group, data) {
+        logSystem: function (activityDesc, group, data, subElement) {
             if (!logger) {
                 return;
             }
-            this.logActivity(activityDesc, group, data, true);
+            this.logActivity(activityDesc, group, data, subElement, true);
         },
 
         /* Set up logging for all standard controls on the page.
@@ -190,8 +191,11 @@
                 });
             });
             $('a', selector).on('click', function (evt) {
+                var ctl = $(this);
                 log.logActivity('link_click', 'controls', {
-                    id: $(this).attr('id'),
+                    id: ctl.attr('id'),
+                    closestId: (ctl.attr('id') ? undefined :
+                                ctl.closest('[id]').attr('id')),
                     href: $(this).attr('href'),
                     value: $(this).attr('href')
                 });
@@ -264,7 +268,6 @@
         }
     };
 
-    var uri = $('body').attr('activityLogURI');
     if (window.userale && uri) {
         /* jshint -W055 */
         logger = new userale({

@@ -128,6 +128,18 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     $('#ga-anim-update').click();
                 }, 10);
             }
+        },
+        'click .panel-heading a': function (evt) {
+            var elem = $('.panel-collapse', $(evt.currentTarget).closest(
+                    '[id]')),
+                id = elem.attr('id'),
+                trigger = $('[data-toggle="collapse"][href="#' + id + '"],' +
+                    '[data-toggle="collapse"][data-target="#' + id + '"]'),
+                panel = {};
+
+            panel[id] = trigger.hasClass('collapsed');
+            geoapp.updateNavigation('mapview', 'panels', panel, true,
+                                    true);
         }
     },
 
@@ -141,8 +153,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* Initialize the view.
      *
-     * @params settings: the initial settings.  This can include defaults for
-     *                   the different control groups.
+     * @param settings: the initial settings.  This can include defaults for
+     *                  the different control groups.
      */
     initialize: function (settings) {
         this.initialSettings = settings;
@@ -167,17 +179,39 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         this.render();
         geoapp.View.prototype.initialize.apply(this, arguments);
-        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 0);
+        this.finalizeInit(settings, 0);
+    },
+
+    /* Finish initializing or reinitializting the view.
+     *
+     * @param settings: the initial settings.  This can include defaults for
+     *                  the different control groups.
+     * @param speed: the number of milliseconds to take to pan the map.
+     */
+    finalizeInit: function (settings, speed) {
+        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), speed);
         geoapp.dataLoaders.instagram.routeSettings(
             geoapp.getQuerySection(settings, 'results'));
+        var panels = geoapp.getQuerySection(settings, 'panels');
+        _.each(panels, function (show, id) {
+            var trigger = $('[data-toggle="collapse"][href="#' + id + '"],' +
+                '[data-toggle="collapse"][data-target="#' + id + '"]');
+            show = (show && show !== 'false');
+            var currentlyShown = !trigger.hasClass('collapsed');
+            if (show !== currentlyShown) {
+                var panel = $('.panel-collapse', trigger.attr('data-parent'));
+                trigger.toggleClass('collapsed', !show);
+                panel.collapse(show ? 'show' : 'hide');
+            }
+        });
     },
 
     /* Reinitialize the view.  This is called if we route to this view while
      * already showing it.  This ensures that the controls are appropriately
      * populated and only reloads things that have changed.
      *
-     * @params settings: the initial settings.  This can include defaults for
-     *                   the different control groups.
+     * @param settings: the initial settings.  This can include defaults for
+     *                  the different control groups.
      */
     reinitialize: function (settings) {
         var view = this, update = {};
@@ -192,9 +226,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
-        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), 1000);
-        geoapp.dataLoaders.instagram.routeSettings(
-            geoapp.getQuerySection(settings, 'results'));
+        this.finalizeInit(settings, 1000);
     },
 
     /* Set the value of a control.  If this is a select control that doesn't
@@ -268,7 +300,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     timePickerIncrement: 5
                 });
             });
-            $('[title]').tooltip({delay: {show: 250}});
+            $('[title]').tooltip({delay: {show: 500}});
             $('#ga-step-slider').slider({
                 focus: true,
                 formatter: geoapp.map.getStepDescription
