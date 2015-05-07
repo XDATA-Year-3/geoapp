@@ -160,6 +160,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param options: animation options.
      */
     this.animateFrame = function (options) {
+        if (!options.layers[this.datakey]) {
+            return;
+        }
         var mapParams = m_this.map.getMapParams(),
             mapData = m_this.data(),
             visOpac = (options.opacity || 0.1),
