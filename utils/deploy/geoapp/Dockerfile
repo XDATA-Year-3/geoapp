@@ -7,29 +7,34 @@ ENV KWDEMO_READY FALSE
 
 EXPOSE 8080
 
-RUN apt-get update && apt-get install -y curl \
-    software-properties-common \
-    python-software-properties \
+RUN apt-get update && apt-get install -y \
     build-essential \
+    curl \
+    git \
     libffi-dev \
+    libpq-dev \
     libpython-dev \
-    python-pip \
     postgresql-client \
     postgresql-common \
-    libpq-dev \
-    vim \
-    git
+    python-pip \
+    python-software-properties \
+    software-properties-common \
+    vim
 
 # Get nodejs apt source
 RUN curl -sL https://deb.nodesource.com/setup | sudo bash -
 # Add mongo apt source
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10 && \
     echo "deb http://repo.mongodb.org/apt/ubuntu "$(lsb_release -sc)"/mongodb-org/3.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.0.list
+
 # Install packages requiring additional sources
 RUN apt-get update && apt-get install -y \
     mongodb-org-shell \
     mongodb-org-tools \
     nodejs
+
+RUN npm install -g npm@next && \
+    npm --version
 
 RUN npm install -g grunt-cli
 
@@ -50,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 6e4c74e094d37b46f999559dc0ffe41f8405b18f && \
+    git checkout c2d4bf15333a5556c9d0445a72db197860dd0775 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN pip install --user -r requirements.txt && \
@@ -60,12 +65,12 @@ RUN pip install --user -r requirements.txt && \
 RUN git submodule update --init --recursive && \
     git submodule update --recursive && \
     cd geojs && \
-    npm install && \
+    npm install --production && \
     grunt library
 RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
     curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
-RUN npm install
+RUN npm install --production
 
 COPY makelocalcfg.py /home/kwuser/makelocalcfg.py
 
