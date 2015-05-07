@@ -19,6 +19,9 @@ before_install:
     - popd
     - cmake --version
 
+    - npm install -g npm@next
+    - npm --version
+
     - git submodule update --init --recursive
     - git submodule update --recursive
     - cd geojs
