@@ -175,7 +175,7 @@ geoapp.DataHandler = function (arg) {
      *
      * @param selector: jquery selector of are where the laoding message shou;d
      *                  be shown.
-     * @param count: number of items loaded.
+     * @param count: number of items loaded.  undefined for error.
      * @param callNext: true if more data is going to be fetched.
      * @param modeData: true if there is more data that could be loaded.
      * @param singleItem: single form of item loaded (e.g., 'trip').
@@ -183,14 +183,22 @@ geoapp.DataHandler = function (arg) {
      */
     this.loadedMessage = function (selector, count, callNext, moreData,
                                    singleItem, pluralItem) {
-        var shortMsg = sprintf('%s %d', callNext ? 'Loading' : (
-            moreData ? 'First' : 'All'), count);
-        var longMsg = sprintf('Load%s %s %d %s', callNext ? 'ing' : 'ed',
+        var shortMsg, longMsg;
+        if (count === undefined) {
+            shortMsg = 'Error';
+            longMsg = sprintf(
+                'Error loading %s.  Check the network and database access.',
+                pluralItem);
+        } else {
+            shortMsg = sprintf('%s %d', callNext ? 'Loading' : (
+                moreData ? 'First' : 'All'), count);
+            longMsg = sprintf('Load%s %s %d %s', callNext ? 'ing' : 'ed',
                                moreData ? 'first' : 'all', count,
                               count === 1 ? singleItem : pluralItem);
-        if (!callNext && moreData) {
-            longMsg += sprintf('.  Increase Max %s to load more data.',
-                pluralItem[0].toUpperCase() + pluralItem.substring(1));
+            if (!callNext && moreData) {
+                longMsg += sprintf('.  Increase Max %s to load more data.',
+                    pluralItem[0].toUpperCase() + pluralItem.substring(1));
+            }
         }
         $(selector).text(shortMsg).attr('title', longMsg)
             .tooltip().attr('data-original-title', longMsg)
@@ -257,6 +265,10 @@ geoapp.dataHandlers.taxi = function (arg) {
         }).done(_.bind(function (resp) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
+        }, this)).error(_.bind(function (err) {
+            this.loadingAnimation('#ga-taxi-loading', true);
+            this.loadedMessage('#ga-points-loaded', undefined, false, false,
+                               'trip', 'trips');
         }, this));
         xhr.girder = {taxidata: true};
     };
@@ -332,6 +344,10 @@ geoapp.dataHandlers.instagram = function (arg) {
         }).done(_.bind(function (resp) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
+        }, this)).error(_.bind(function (err) {
+            this.loadingAnimation('#ga-instagram-loading', true);
+            this.loadedMessage('#ga-inst-points-loaded', undefined, false,
+                               false, 'message', 'messages');
         }, this));
         xhr.girder = {instagramdata: true};
     };
