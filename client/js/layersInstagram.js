@@ -117,8 +117,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
      *
      * @return: the date column, or null if undefined. */
     this.getDateColumn = function () {
-        var params = m_this.map.getMapParams(),
-            data = m_this.data();
+        var data = m_this.data();
         if (!data || !data.columns) {
             return null;
         }
@@ -136,8 +135,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param binWidth: width of each bin in milliseconds.
      */
     this.binForAnimation = function (params, start, range, binWidth) {
-        var mapParams = m_this.map.getMapParams(),
-            mapData = m_this.data(),
+        var mapData = m_this.data(),
             dateColumn = this.getDateColumn(),
             data, i;
 
@@ -167,7 +165,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             mapData = m_this.data(),
             visOpac = (options.opacity || 0.1),
             dataBin = options.layers[this.datakey].dataBin,
-            i, j, v, bin, opac, vis, vpf;
+            i, j, v, opac, vis, vpf;
 
         if (mapParams['data-opacity']) {
             visOpac = Math.min(mapParams['data-opacity'] * 1.5, 1);
@@ -234,7 +232,6 @@ geoapp.mapLayers.instagram = function (map, arg) {
      */
     this.highlightPoint = function (idx, evt, over) {
         var vpf = m_geoPoints.verticesPerFeature(),
-            cur = null,
             opac;
         if (over) {
             opac = m_geoPoints.actors()[0].mapper().getSourceBuffer(

@@ -15,7 +15,6 @@
 
 /* global geoapp: true */
 var geoapp = girder;
-var app;
 var m_lastUpdateNavigationSection;
 
 moment.suppressDeprecationWarnings = true;
@@ -23,10 +22,10 @@ moment.suppressDeprecationWarnings = true;
 geoapp.version = '0.1';
 
 geoapp.App = geoapp.View.extend({
-    initialize: function (settings) {
+    initialize: function () {
         geoapp.restRequest({
             path: 'user/me'
-        }).done(_.bind(function (user) {
+        }).done(_.bind(function () {
             geoapp.eventStream = new geoapp.EventStream();
 
             this.globalNavView = new geoapp.views.LayoutGlobalNavView({
@@ -40,6 +39,7 @@ geoapp.App = geoapp.View.extend({
         }, this));
         geoapp.events.on('ga:navigateTo', this.navigateTo, this);
     },
+
     render: function () {
         return this;
     },
@@ -49,8 +49,6 @@ geoapp.App = geoapp.View.extend({
      * @param [settings={}] Settings to pass to the view initialize() method.
      */
     navigateTo: function (view, settings) {
-        var container = this.$('#app-container');
-
         this.globalNavView.deactivateAll();
 
         settings = settings || {};

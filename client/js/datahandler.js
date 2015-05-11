@@ -266,7 +266,7 @@ geoapp.dataHandlers.taxi = function (arg) {
         }).done(_.bind(function (resp) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
-        }, this)).error(_.bind(function (err) {
+        }, this)).error(_.bind(function () {
             this.loadingAnimation('#ga-taxi-loading', true);
             this.loadedMessage('#ga-points-loaded', undefined, false, false,
                                'trip', 'trips');
@@ -345,7 +345,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         }).done(_.bind(function (resp) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
-        }, this)).error(_.bind(function (err) {
+        }, this)).error(_.bind(function () {
             this.loadingAnimation('#ga-instagram-loading', true);
             this.loadedMessage('#ga-inst-points-loaded', undefined, false,
                                false, 'message', 'messages');
@@ -504,7 +504,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         }
         /* If hovering over a row, show the relevant instagram point */
         $('tr', table).off('.instagram-table'
-        ).on('mouseleave.instagram-table', function (evt) {
+        ).on('mouseleave.instagram-table', function () {
             if (!layer.persistentCurrentPoint()) {
                 layer.currentPoint(null);
             }

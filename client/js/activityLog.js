@@ -36,6 +36,8 @@
             desc: 'animation action', value: 'action'},
         button_click:    {elem: 'button',   act: 'select',
             desc: 'click on a button'},
+        calendar_click:  {elem: 'datagrid', act: 'select',
+            desc: 'click on a calendar element'},
         checkbox_change: {elem: 'checkbox', act: 'alter',
             desc: 'checkbox changed'},
         date_apply:      {elem: 'panel',    act: 'alter',
@@ -68,6 +70,10 @@
             desc: 'persist overlay'},
         select_change:   {elem: 'dropdownlist', act: 'alter',
             desc: 'select box changed'},
+        select_close:    {elem: 'dropdownlist', act: 'hide',
+            desc: 'select box list unfocused'},
+        select_open:     {elem: 'dropdownlist', act: 'show',
+            desc: 'select box list focused'},
         show_overlay:    {elem: 'map',      act: 'show',
             desc: 'show overlay'},
         show_tooltip:    {elem: 'tooltip',  act: 'show',
@@ -178,19 +184,35 @@
                 log.logSystem('show_view', 'main', {view: viewName});
             }
             $('input[type="text"]:visible', selector)
-            .on('change', function (evt) {
+            .on('change', function () {
                 log.logActivity('input_change', 'controls', {
                     id: $(this).attr('id'),
                     value: $(this).val()
                 });
             });
-            $('select:visible', selector).on('change', function (evt) {
+            $('select:visible', selector).on('change', function () {
                 log.logActivity('select_change', 'controls', {
                     id: $(this).attr('id'),
                     value: $(this).val()
                 });
+            }).on('focus', function () {
+                var ctl = $(this);
+                if (!ctl.hasClass('hasFocus')) {
+                    ctl.addClass('hasFocus');
+                    log.logActivity('select_open', 'controls', {
+                        id: ctl.attr('id')
+                    });
+                }
+            }).on('blur', function () {
+                var ctl = $(this);
+                if (ctl.hasClass('hasFocus')) {
+                    ctl.removeClass('hasFocus');
+                    log.logActivity('select_close', 'controls', {
+                        id: ctl.attr('id')
+                    });
+                }
             });
-            $('a', selector).on('click', function (evt) {
+            $('a', selector).on('click', function () {
                 var ctl = $(this);
                 log.logActivity('link_click', 'controls', {
                     id: ctl.attr('id'),
@@ -200,7 +222,7 @@
                     value: $(this).attr('href')
                 });
             });
-            $('button,.log-as-button', selector).on('click', function (evt) {
+            $('button,.log-as-button', selector).on('click', function () {
                 var ctl = $(this);
                 log.logActivity('button_click', 'controls', {
                     id: ctl.attr('id'),
@@ -210,25 +232,11 @@
                 });
             });
             $('input[type="checkbox"]:visible', selector)
-            .on('change', function (evt) {
+            .on('change', function () {
                 log.logActivity('checkbox_change', 'controls', {
                     id: $(this).attr('id'),
                     value: $(this).is(':checked')
                 });
-            });
-            $('[title]', selector).on('shown.bs.tooltip', function (evt) {
-                var ctl = $(this);
-                /* If we don't show a tooltip for a minimum amount of time,
-                 * don't bother logging it -- the user won't have read it. */
-                window.setTimeout(function () {
-                    if (ctl.next('div.tooltip:visible').length) {
-                        log.logActivity('show_tooltip', 'controls', {
-                            id: ctl.attr('id'),
-                            closestId: (ctl.attr('id') ? undefined :
-                                        ctl.closest('[id]').attr('id'))
-                        });
-                    }
-                }, 500);
             });
             $('.slider', selector)
             .on('slide slideStart slideStop', function (evt) {
@@ -246,7 +254,7 @@
                     });
                 });
             $('.al-scroller', selector)
-            .on('scroll', function (evt) {
+            .on('scroll', function () {
                 /* log scrolling with a maximum rate and some delay.  This will
                  * show where the scrolling ended up and prevent swamping the
                  * log system with scroll events. */
@@ -263,6 +271,80 @@
                             value: elem.scrollTop() || elem.scrollLeft()
                         });
                     }, 333);
+                }
+            });
+        },
+
+        /* Set up logging for global controls anywhere in the document.  This
+         * clears the existing logging and readds it.
+         */
+        logGlobalControls: function () {
+            if (!logger) {
+                return;
+            }
+            var log = this;
+
+            $('[title]').off('shown.bs.tooltip')
+            .on('shown.bs.tooltip', function (evt) {
+                var ctl = $(evt.target);
+                /* If we don't show a tooltip for a minimum amount of time,
+                 * don't bother logging it -- the user won't have read it. */
+                window.setTimeout(function () {
+                    if (ctl.next('.tooltip.in').length ||
+                            $('body>.tooltip.in').length) {
+                        log.logActivity('show_tooltip', 'controls', {
+                            id: ctl.closest('[id]').attr('id')
+                        });
+                    }
+                }, 500);
+            });
+
+            $('.daterangepicker *').off('.activityLog');
+            $('.daterangepicker input[type="text"]:visible')
+            .on('change.activityLog', function () {
+                log.logActivity('input_change', 'controls', {
+                    id: $(this).attr('name'),
+                    value: $(this).val()
+                });
+            });
+            $('.daterangepicker button').on('click.activityLog', function () {
+                var ctl = $(this);
+                log.logActivity('button_click', 'controls', {
+                    id: ctl.text().toLowerCase(),
+                    classes: ctl.attr('class')
+                });
+            });
+            $('.daterangepicker .available')
+            .on('click.activityLog', function () {
+                var ctl = $(this);
+                log.logActivity('calendar_click', 'controls', {
+                    id: ctl.attr('data-title'),
+                    side: ctl.closest('.calendar').attr('class'),
+                    classes: ctl.attr('class')
+                });
+                window.setTimeout(_.bind(log.logGlobalControls, log), 1);
+            });
+            $('.daterangepicker select').on('change.activityLog', function () {
+                log.logActivity('select_change', 'controls', {
+                    id: $(this).attr('id'),
+                    value: $(this).val()
+                });
+                window.setTimeout(_.bind(log.logGlobalControls, log), 1);
+            }).on('focus.activityLog', function () {
+                var ctl = $(this);
+                if (!ctl.hasClass('hasFocus')) {
+                    ctl.addClass('hasFocus');
+                    log.logActivity('select_open', 'controls', {
+                        id: ctl.attr('id')
+                    });
+                }
+            }).on('blur.activityLog', function () {
+                var ctl = $(this);
+                if (ctl.hasClass('hasFocus')) {
+                    ctl.removeClass('hasFocus');
+                    log.logActivity('select_close', 'controls', {
+                        id: ctl.attr('id')
+                    });
                 }
             });
         }
@@ -290,6 +372,7 @@
             origInit.apply(this, arguments);
             geoapp.activityLog.logControls($(this.el).children(),
                                            $(this.el).children().attr('id'));
+            geoapp.activityLog.logGlobalControls();
         };
         geoapp.router.on('route', function (route, params) {
             if (params.length) {

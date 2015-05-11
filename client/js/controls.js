@@ -89,16 +89,16 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function (evt) {
+        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function () {
             $('#ga-taxi-filter').addClass('btn-needed');
         },
-        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function (evt) {
+        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function () {
             $('#ga-instagram-filter').addClass('btn-needed');
         },
-        'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function (evt) {
+        'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function () {
             $('#ga-anim-update').addClass('btn-needed');
         },
-        'click #ga-instagram-results-sort': function (evt) {
+        'click #ga-instagram-results-sort': function () {
             geoapp.dataLoaders.instagram.sortOrder('toggle');
         },
         'keydown #ga-taxi-filter-settings input[type="text"]': function (evt) {
@@ -556,7 +556,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                   is the same as the last changed.
      * @return: the new animation parameters.
      */
-    updateAnimValues: function (updateNav, results) {
+    updateAnimValues: function (updateNav) {
         var params = this.updateSection('anim', updateNav);
         params.statusElem = '#ga-cycle-anim';
         params.sliderElem = '#ga-step-slider';

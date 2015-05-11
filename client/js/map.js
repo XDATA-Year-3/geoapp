@@ -52,7 +52,7 @@ geoapp.Map = function (arg) {
         m_drawTimer, m_drawQueued,
         m_panTimer, m_panQueued, m_panIgnore,
 
-        m_baseUrl, m_baseUrlCredit,
+        m_baseUrl,
         m_defaultCenter = {x: -73.978165, y: 40.757977},
         m_defaultGoodZone = 5, /* in degrees of latitude and longitude */
         m_goodExtents,
@@ -88,7 +88,6 @@ geoapp.Map = function (arg) {
         var displayInfo = this.updateMapParams(datakey, params, false);
 
         if (!m_geoMap) {
-            var geoLayer;
             m_baseUrl = displayInfo.baseUrl;
             $('#ga-main-map').empty();
             m_geoMap = geo.map({
@@ -191,9 +190,7 @@ geoapp.Map = function (arg) {
     this.fitBounds = function (bounds, duration, sendMoveEvent) {
         bounds = bounds || {};
         var view = this;
-        var node = m_geoMap.node(),
-            width = node.width(), height = node.height(),
-            curBounds = m_geoMap.bounds(),
+        var curBounds = m_geoMap.bounds(),
             curZoom = m_geoMap.zoom();
         var params = {
             interp: d3.interpolateZoom,
@@ -455,7 +452,6 @@ geoapp.Map = function (arg) {
         };
         options = options || m_animationOptions;
         m_animationOptions = options;
-        var oldData = m_animationData;
         m_animationData = null;
         if (!this.hasAnyData() || options.playState === 'stop') {
             return;
@@ -593,7 +589,6 @@ geoapp.Map = function (arg) {
      * @param startStep: step to start on within the animation.
      */
     this.animate = function (options, startStep) {
-        var view = this;
         if (m_animTimer) {
             window.clearTimeout(m_animTimer);
             m_animTimer = null;
@@ -625,7 +620,7 @@ geoapp.Map = function (arg) {
      *                 maintain the current play state.
      */
     this.animationAction = function (action, stepnum) {
-        var curPlayState = null, startStep;
+        var curPlayState = null;
 
         if (action === 'jump' && m_animationData &&
                 m_animationData.step === stepnum) {

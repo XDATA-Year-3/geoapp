@@ -20,7 +20,7 @@ geoapp.graph = {
      *
      * @param evt: the event that triggered this call.
      */
-    addGraph: function (evt) {
+    addGraph: function () {
         $('#ga-graph .no-graph').css('display', 'none');
         var newGraph = $('#ga-graph #ga-graph-template').clone().attr(
             'id', '').removeClass('hidden');
@@ -73,8 +73,6 @@ geoapp.graphData.weather = function (arg) {
     }
     arg = arg || {};
     geoapp.GraphData.call(this, arg);
-
-    var m_this = this;
 
     this.dataItems = {
         temp_mean: {
@@ -299,8 +297,6 @@ geoapp.graphData.instagram = function (arg) {
     }
     arg = arg || {};
     geoapp.GraphData.call(this, arg);
-
-    var m_this = this;
 
     this.dataItems = {
         messages: {
