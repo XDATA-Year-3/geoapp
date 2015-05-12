@@ -140,8 +140,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             panel[id] = trigger.hasClass('collapsed');
             geoapp.updateNavigation('mapview', 'panels', panel, true,
                                     true);
-        },
-        'click .ga-add-graph': geoapp.graph.addGraph
+        }
     },
 
     /* This is a dictionary of control sections used in routing. */
@@ -179,6 +178,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         }
         this.render();
+        geoapp.graph.initialize(this);
         geoapp.View.prototype.initialize.apply(this, arguments);
         this.finalizeInit(settings, 0);
     },

@@ -17,6 +17,7 @@
     "bootstrap-slider": "~4.8",
     "c3": "~0.4",
     "daterangepicker": "~0.0.3",
+    "d3": "~3.5",
     "grunt": "~0.4",
     "grunt-cli": "~0.1",
     "grunt-contrib-compress": "~0.13",
@@ -33,6 +34,7 @@
     "jquery": "~2.1",
     "markdown": "~0.5",
     "moment": "~2.10",
+    "sortablejs": "~1.1",
     "underscore": "~1.8"
   },
   "devDependencies": {

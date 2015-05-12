@@ -125,12 +125,23 @@ geoapp.DataHandler = function (arg) {
         if (!_.isEqual(currentMapParams, options.origMapParams)) {
             options.display = currentMapParams;
         }
-        showfunc.call(this, options);
-        options.callNumber += 1;
-        options.showTime += new Date().getTime();
         var moreData = (options.data.datacount < options.data.count ||
             (resp.datacount === options.params.limit &&
             options.data.count === undefined));
+        if (!moreData) {
+            options.data.loadFactor = 1;
+        } else if (options.data.count !== undefined) {
+            options.data.loadFactor = (
+                options.data.datacount / options.data.count);
+        } else if (options.data.maxid && options.data.columns &&
+                options.data.columns._id !== undefined) {
+            options.data.loadFactor = (
+                (options.data.data[options.data.datacount - 1][
+                options.data.columns._id] + 1) / (options.data.maxid + 1));
+        }
+        showfunc.call(this, options);
+        options.callNumber += 1;
+        options.showTime += new Date().getTime();
         var callNext = (moreData && options.data.datacount < options.maxcount);
         if (m_verbose >= 1) {
             console.log(
@@ -178,12 +189,15 @@ geoapp.DataHandler = function (arg) {
      *                  be shown.
      * @param count: number of items loaded.  undefined for error.
      * @param callNext: true if more data is going to be fetched.
-     * @param modeData: true if there is more data that could be loaded.
+     * @param moreData: true if there is more data that could be loaded.
      * @param singleItem: single form of item loaded (e.g., 'trip').
      * @param pluralItem: plural form of item loaded (e.g., 'trips').
+     * @param loadFactor: if moreData could be loaded and this is set, this is
+     *                    the estimated amount of data that has been loaded so
+     *                    far (on a scale of [0-1]).
      */
     this.loadedMessage = function (selector, count, callNext, moreData,
-                                   singleItem, pluralItem) {
+                                   singleItem, pluralItem, loadFactor) {
         var shortMsg, longMsg;
         if (count === undefined) {
             shortMsg = 'Error';
@@ -196,6 +210,13 @@ geoapp.DataHandler = function (arg) {
             longMsg = sprintf('Load%s %s %d %s', callNext ? 'ing' : 'ed',
                                moreData ? 'first' : 'all', count,
                               count === 1 ? singleItem : pluralItem);
+            if (moreData && loadFactor) {
+                var digits = Math.max(1, Math.ceil(
+                    -1 - Math.log10(loadFactor)));
+                longMsg += sprintf(
+                    ', about %' + (digits + 2) + '.' + digits + 'f%%',
+                    loadFactor * 100);
+            }
             if (!callNext && moreData) {
                 longMsg += sprintf('.  Increase Max %s to load more data.',
                     pluralItem[0].toUpperCase() + pluralItem.substring(1));
@@ -254,7 +275,7 @@ geoapp.dataHandlers.taxi = function (arg) {
             Math.max(geoapp.map.maximumMapPoints,
                      geoapp.map.maximumVectors)));
         if (!options.params.fields) {
-            options.params.fields = '' + //'medallion,hack_license,' +
+            options.params.fields = '_id,' +
                 'pickup_datetime,pickup_longitude,pickup_latitude,' +
                 'dropoff_datetime,dropoff_longitude,dropoff_latitude';
         }
@@ -292,7 +313,8 @@ geoapp.dataHandlers.taxi = function (arg) {
      */
     this.dataLoaded = function (options, callNext, moreData) {
         this.loadedMessage('#ga-points-loaded', options.data.datacount,
-                           callNext, moreData, 'trip', 'trips');
+                           callNext, moreData, 'trip', 'trips',
+                           options.data.loadFactor);
         if (callNext) {
             this.dataLoad(options);
         } else {
@@ -334,7 +356,7 @@ geoapp.dataHandlers.instagram = function (arg) {
             options.params.max_instagrams || this.maximumDataPoints ||
             geoapp.map.maximumMapPoints));
         if (!options.params.fields) {
-            options.params.fields = '' +
+            options.params.fields = '_id,' +
                 'posted_date,caption,image_url,latitude,longitude';
         }
         geoapp.cancelRestRequests('instagramdata');
@@ -422,7 +444,8 @@ geoapp.dataHandlers.instagram = function (arg) {
      */
     this.dataLoaded = function (options, callNext, moreData) {
         this.loadedMessage('#ga-inst-points-loaded', options.data.datacount,
-                           callNext, moreData, 'message', 'messages');
+                           callNext, moreData, 'message', 'messages',
+                           options.data.loadFactor);
         if (callNext) {
             this.dataLoad(options);
         } else {

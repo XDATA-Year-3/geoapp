@@ -4,8 +4,11 @@ html, body
   height 100%
   overflow hidden
 
-*
+*:not(i)
   font-family 'Droid Sans',sans-serif,'Apple Color Emoji','Segoe UI Emoji','NotoColorEmoji','Segoe UI Symbol','Android Emoji','EmojiSymbols'
+  font-smoothing antialiased
+
+i
   font-smoothing antialiased
 
 body
@@ -17,301 +20,23 @@ a
   cursor pointer
   text-decoration none !important
 
-#ga-main-map
-  width 100%
-  height 100%
-  position absolute
-
-#ga-map-credit-box
-  position absolute
-  left 0
-  bottom 0
-  font-size 10px
-  margin-right 5px
-  margin-bottom 2px
-  background rgba(255,255,255,0.5)
-  z-index 1
-
-.ga-main-ui,.ga-results-ui
-  user-select none
-  position absolute
-  .panel
-    background none
-  .panel-title
-    font-size 14px
-    color black
-  .panel-heading
-    padding 3px 5px
-    background-color rgba(255,128,0,0.75)
-  .panel-default
-    border 0
-  .panel-body
-    padding 5px
-    background-color rgba(255,160,160,0.75)
-  .panel-group
-    margin-bottom 1px
-  .panel-title i
-    float right
-  .form-group
-    margin-bottom 0
-  .form-control
-    width auto
-    display inline-block
-    color black
-  label
-    padding-right 5px
-    font-size 12px
-    margin 0
-  .btn-sm
+.modal
+  overflow-y auto
+  .btn-small
+    padding 3px 6px
+  h4
+    font-size 16px
     font-weight bold
-    margin-top 2px
-    margin-right 5px
-    padding 3px 6px
-
-.ga-main-ui
-  .ga-date-range
-    width 230px
-  #ga-play
-    width 70px
-    span.canpause
-      display none
-    &[value=play] span.canplay
-      display none
-    &[value=play] span.canpause
-      display inherit
-  .animate-spin
-    animation spin 3s infinite linear
-  .ga-loading-spinner
-    font-size 20px
-    line-height 1em
-    display inline-block
-    position relative
-    top 5px
-    left 4px
-    color black
-  .ga-loading-spinner.second-load
-    color #555555
-  .btn-needed
-    color black
-    background-color #40e040
-    border-color black
-  .btn-needed:hover,.btn-needed:focus,.btn-needed.focus,.btn-needed:active,.btn-needed.active
-    background-color #39ac39
-  .input-sm
-    height 26px
-    padding 3px 6px
-  .ga-place
-    padding 1px 4px 1px 0px
-  [taxitype="int"]
-    width 60px
-  [taxitype="float"]
-    width 80px
-  label:not(:first-child)
-    padding-left 10px
-  input[type="checkbox"]+label
-    padding-left: 0
-  .slider
-    margin-left 5px
-    height 30px
-    .slider-handle
-      width 6px
-      height 18px
-      margin-left -3px
-      margin-top -4px
-      &:focus
-        outline none
-    .slider-selection
-      background none
-    .tooltip.top
-      margin-top -28px
-      pointer-events none
-      .tooltip-inner
-        padding 2px 5px
-      .tooltip-arrow
-        pointer-events auto
-  #ga-step-slider-ctl
-    width 290px
-  #ga-tile-opacity-ctl,#ga-data-opacity-ctl
-    width 25px
-  .ga-slider-label
-    padding-right 1px
-  #ga-data-trips-ctl,#ga-display-max-points-ctl,#ga-display-max-lines-ctl,#ga-inst-data-grams-ctl
-    width 56px
-  #ga-display-max-points-group,#ga-display-max-lines-group
-    .slider
-      height 26px
-  .ga-loading-spinner.hidden
-    visibility hidden !important
-    display inline-block !important
-  .ga-data-loaded
-    font-size 12px
-    width 60px
-    overflow hidden
-    display inline-block
-    white-space normal
-    word-wrap break-word
-    vertical-align middle
-    padding-left 10px
-    line-height 1.2em
-    margin-top 1px
-  #ga-cycle-anim,.ga-data-loaded
-    user-select text
-
-.ga-results-ui
-  right 0
-  bottom 0
-  #ga-instagram-results
-    .results-table
-      overflow-y auto
-      overflow-x hidden
-      height 300px
-      resize vertical
-      table
-        font-size 12px
-        background rgba(232, 255, 255, 0.75)
-        color black
-        td
-          user-select text
-          overflow hidden
-          white-space nowrap
-          max-width 350px
-        td:first-child
-          max-width 100px
-          padding-right 7px
-  .ga-more-results
-    td
-      text-align center
-      font-weight bold
-
-.daterangepicker
-  .ranges
-    width auto
-    .range_inputs>div
-      float none
-      &:nth-child(2)
-        padding-left 0
-    .input-mini
-      width 105px
-  .applyBtn, .cancelBtn
-    width 60px
-  .cancelBtn
-    display block
-    margin-top 5px
-  .calendar td, .calendar th
-    min-width 28px
-    padding 2px
-  [class^="icon-"]:before, [class*=" icon-"]:before
-    font-family inherit
-#ga-cycle-display
-  max-width 205px
-  white-space nowrap
-  overflow hidden
-
-#ga-instagram-overlay
-  display none
-  position fixed
-  z-index 3
-  border 4px solid #AAA
-  border-radius 3px
-  background #AAA
-  font-size 12px
+.modal-header
+  padding 8px
+  background #FF8000
   color black
-  box-sizing content-box
-  width 225px
-  .ga-instagram-overlay-image
-    height 225px
-    img
-      height 225px
-      width 100%
-  .ga-instagram-overlay-text
-    width 100%
-    max-height 56px
-    line-height 16px
-    overflow hidden
-    word-wrap break-word
-    white-space normal
-  .ga-instagram-overlay-date
-    padding-right 5px
-    font-weight bold
-    color #333
-  .ga-instagram-overlay-link a
-    color #214565
-    overflow hidden
-    white-space nowrap
-    text-overflow ellipsis
-    width 100%
-    display block
-    padding-top 3px
-  .ga-instagram-overlay-arrow
-    display none
-    float right
-    font-size 24px
-    transform rotate(0deg)
-  .ga-instagram-overlay-title-bar
-    font-size 20px
-    line-height 1em
-    height 15px
-    display none
-    .ga-instagram-overlay-close-button
-      position absolute
-      top -5px
-      right -5px
-      width 1.2em
-      :hover
-        text-shadow 1px 1px 1px white,-1px 1px 1px white,-1px -1px 1px white,1px -1px 1px white
-    .ga-instagram-overlay-goto
-      padding 0 4px 0 0
-      line-height 1em
-      font-weight bold
-      margin -12px 0 0 0
-
-.panel-heading
-  .toggle-icon
-    display inline-block
-    margin-left 5px
-  .open-icon
-    display none
-  .collapsed
-    .close-icon
-      display none
-    .open-icon
-      display block
-
-#ga-graph-page
-  left 0
-  right inherit
-  z-index 2
-  .circle-btn
-    margin 0
-    border-radius 50%
-    width 19px
-    height 19px
-    padding 0
-  .no-graph
-    .ga-add-graph
-      float right
-  .graph
-    line-height 0
-  .button-region
-    display inline-block
-    width 19px
-    vertical-align top
-    margin-left 3px
-    .circle-btn
-        margin-bottom 20px
-  .graph-region
-    width 500px
-    height 200px
-    display inline-block
-    svg
-      font-size 10px
-      width 100%
-      height 100%
-      background rgba(232, 255, 255, 0.75)
-      .line
-        fill none
-        stroke-width 1px
-      .axis path,.axis line
-        fill none
-        stroke black
-        shape-rendering crispEdges
+.modal-body
+  padding 8px
+.modal-content
+  border-radius 0
+.modal-footer
+  margin-top 5px
+  padding 8px
+.modal-backdrop.in
+  opacity .25

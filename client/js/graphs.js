@@ -15,21 +15,357 @@
 
 geoapp.graphData = {};
 
-geoapp.graph = {
+geoapp.Graph = function (arg) {
+    'use strict';
+
+    if (!(this instanceof geoapp.Graph)) {
+        return new geoapp.Graph(arg);
+    }
+    arg = arg || {};
+
+    var m_this = this,
+        m_view,
+        m_numGraphs = 0,
+        m_colorList = [
+            '#d73027', '#4575b4', '#fdae61', '#abd9e9',
+            '#f46d43', '#74add1', '#fee090', '#e0f3f8'
+        ],
+        m_defaultGraphSpec = {
+            line : {
+                axis: {
+                    x: {
+                        localtime: false,
+                        padding: { left: 0, right: 1},
+                        tick: {
+                            count: 13,
+                            fit: false,
+                            format: '%-m-%-d',
+                            outer: false
+                        },
+                        type: 'timeseries'
+                    },
+                    y: {
+                        padding: { top: 0, bottom: 0},
+                        tick: {
+                            fit: false,
+                            outer: false
+                        }
+                    }
+                },
+                data: { type: 'line' },
+                point: { show: false },
+                zoom: { enabled: true }
+            },
+            scatter: {
+                axis: {
+                    x: {
+                        padding: { left: 0, right: 1},
+                        tick: {
+                            fit: false,
+                            outer: false
+                        }
+                    },
+                    y: {
+                        padding: { top: 0, bottom: 0},
+                        tick: {
+                            fit: false,
+                            outer: false
+                        }
+                    }
+                },
+                data: { type: 'scatter' },
+                point: { show: true },
+                zoom: { enabled: true }
+            }
+        };
+
+    this.graphOpts = [];
+
+    /* Bind graph events.
+     *
+     * @param view: the owner backbone view.
+     */
+    this.initialize = function (view) {
+        m_view = view;
+        $.extend(view.events, {
+            'click .ga-add-graph': _.bind(this.addGraph, this),
+            'click .ga-graph-settings': _.bind(this.graphSettings, this),
+            'click .ga-remove-graph': _.bind(this.removeGraph, this)
+        });
+    };
+
     /* Add a graph to our display.
      *
      * @param evt: the event that triggered this call.
+     * @param minimum: if specified, make sure that there are at least this
+     *                 many graphs being displayed.
      */
-    addGraph: function () {
+    this.addGraph = function (evt, minimum) {
         $('#ga-graph .no-graph').css('display', 'none');
-        var newGraph = $('#ga-graph #ga-graph-template').clone().attr(
-            'id', '').removeClass('hidden');
-        $('#ga-graph .panel-body').append(newGraph);
-        //DWM:: set some default data
-    }
+        if (!minimum) {
+            minimum = m_numGraphs + 1;
+        }
+        while (m_numGraphs < minimum) {
+            var pos = m_numGraphs,
+                newGraph = $('#ga-graph #ga-graph-template').clone().attr({
+                    id: 'ga-graph-' + pos,
+                    'graph-position': pos
+                }).removeClass('hidden');
+            $('#ga-graph .panel-body').append(newGraph);
+            /* Ensure we have associated data. */
+            this.graphOpts[m_numGraphs] = {
+                position: m_numGraphs,
+                series: [],
+                opts: {}
+            };
+            m_numGraphs += 1;
+            /* Set some default data if this is an event. */
+            if (evt) {
+                this.createGraph(m_numGraphs - 1, ['weather.temp_mean']);
+            }
+        }
+    };
+
+    /* Create or replace a graph.  The options can include:
+     *  dateRange: {start: (starting epoch ms), end: (ending epoch ms)}
+     *  type: 'line' or 'scatter'
+     *
+     * @param position: 0 based graph position to update.  This ensures that
+     *                  graph exists.  null to always create another graph.
+     * @param series: an array of data series to plot.  Each entry is a period-
+     *                delimited string of  "(data class).(data key)".  For
+     *                example, "weather.temp_mean" is the mean daily
+     *                temperature.  Only available data series are plotted.
+     * @param opts: options dictionary for the graph.  See above.
+     */
+    this.createGraph = function (position, series, opts) {
+        position = (position === null ? m_numGraphs + 1 : position);
+        m_this.addGraph(null, position + 1);
+
+        opts = opts || {};
+        this.graphOpts[position] = {
+            position: position,
+            series: series,
+            opts: opts
+        };
+        opts.type = m_defaultGraphSpec[opts.type] ? opts.type : 'line';
+        var dataPos = 1,
+            dateRange,
+            tickTime,
+            graphType = opts.type,
+            spec = $.extend(true, {}, m_defaultGraphSpec[graphType], {
+                bindto: '#ga-graph-' + position + ' .graph-region',
+                data: {
+                    colors: {},
+                    columns: [],
+                    names: {},
+                    xs: {}
+                }
+            });
+        _.each(series, function (seriesName) {
+            var seriesInfo = seriesName.split('.'),
+                srcName = seriesInfo[0],
+                datakey = seriesInfo[1],
+                dataSrc = geoapp.graphData[srcName];
+            if (!dataSrc || !dataSrc.available(datakey)) {
+                return;
+            }
+            var desc = dataSrc.describe(datakey),
+                dr = dataSrc.dateRange(datakey),
+                seriesData = dataSrc.data(datakey),
+                xcol = ['x' + dataPos],
+                ycol = ['y' + dataPos];
+            if (!dateRange) {
+                dateRange = dr;
+            }
+            dateRange.start = Math.min(dr.start, dateRange.start);
+            dateRange.end = Math.max(dr.end, dateRange.end);
+            spec.data.names[ycol[0]] = desc.name;
+            spec.data.colors[ycol[0]] = m_colorList[dataPos - 1];
+            _.each(seriesData, function (d) {
+                xcol.push(d.x);
+                ycol.push(d.y);
+            });
+            spec.data.columns.push(ycol);
+            if (graphType !== 'scatter') {
+                spec.data.columns.push(xcol);
+                spec.data.xs[ycol[0]] = xcol[0];
+            }
+            dataPos += 1;
+        });
+        if (graphType !== 'scatter') {
+            dateRange.start = ((opts.dateRange && opts.dateRange.start) ?
+                opts.dateRange.start : dateRange.start);
+            dateRange.end = ((opts.dateRange && opts.dateRange.end) ?
+                opts.dateRange.end : dateRange.end);
+            spec.axis.x.min = dateRange.start;
+            spec.axis.x.max = dateRange.end;
+            if (moment(dateRange.end) - moment(dateRange.start) >
+                    moment.duration(2, moment.normalizeUnits('months'))) {
+                spec.axis.x.tick.values = [];
+                for (tickTime = moment.utc(dateRange.start).startOf('month');
+                        tickTime < moment.utc(dateRange.end).startOf('month');
+                        tickTime = tickTime.add(1, 'month')) {
+                    spec.axis.x.tick.values.push(0 + tickTime);
+                }
+            }
+        } else {
+            /* scatterplot */
+            spec.data.x = spec.data.columns[0][0];
+            delete spec.data.xs;
+        }
+        c3.generate(spec);
+        this.graphOpts[position].spec = spec;
+        //DWM:: record nav
+    };
+
+    /* Remove a graph from our display.
+     *
+     * @param evt: the event that triggered this call.
+     * @param position: if set and event is null or undefined, remove the graph
+     *                  at the specified position.
+     */
+    this.removeGraph = function (evt, position) {
+        if (evt) {
+            position = parseInt($(evt.target).closest('.graph').attr(
+                'graph-position'));
+        }
+        if (position >= m_numGraphs) {
+            return;
+        }
+        $('#ga-graph-' + position).remove();
+        for (var pos = position; pos < m_numGraphs - 1; pos += 1) {
+            $('#ga-graph-' + (pos + 1)).attr({
+                id: 'ga-graph-' + pos,
+                'graph-position': pos
+            });
+            this.graphOpts[pos] = this.graphOpts[pos + 1];
+        }
+        delete this.graphOpts[m_numGraphs - 1];
+        m_numGraphs -= 1;
+        if (!m_numGraphs) {
+            $('#ga-graph .no-graph').css('display', '');
+        }
+        //DWM:: record nav
+    };
+
+    /* Change the settings for a graph.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.graphSettings = function (evt) {
+        var position = parseInt($(evt.target).closest('.graph').attr(
+                'graph-position'));
+        var widget = new geoapp.views.GraphSettingsWidget({
+            el: $('#g-dialog-container'),
+            position: position,
+            graph: m_this,
+            parentView: m_view
+        });
+        widget.render();
+    };
 };
 
-/* -------- base class -------- */
+geoapp.graph = geoapp.Graph();
+
+
+/* -------- Graph settings widget -------- */
+
+geoapp.views.GraphSettingsWidget = geoapp.View.extend({
+    events: {
+        'click .ga-save-graph-settings': function () {
+            var position = this.settings.position,
+                graph = this.settings.graph,
+                opts = graph.graphOpts[position].opts,
+                series = graph.graphOpts[position].series;
+            opts.type = $('.ga-graph-type .radio input:checked').attr(
+                'graph-type') || opts.type;
+            opts.datasetOrder = [];
+            series = [];
+            $('#ga-dataset-list li').each(function () {
+                var elem = $(this),
+                    datakey = elem.attr('datakey');
+                opts.datasetOrder.push(datakey);
+                if ($('input[type="checkbox"]', elem).prop('checked')) {
+                    series.push(datakey);
+                }
+            });
+            graph.createGraph(position, series, opts);
+            //DWM:: record nav
+            return false;
+        }
+    },
+
+    /* Initialize the widget.  The settings include:
+     *  el: the container element for the widget.  Typically
+     *      $('#g-dialog-container').
+     *  position: the calling graph 0-based position.
+     *  parentView: the graph object's view.
+     *
+     * @param settings: settings dictionary, as above.
+     */
+    initialize: function (settings) {
+        this.settings = settings || {};
+    },
+
+    /* Draw the dialog and populate the controls.
+     */
+    render: function () {
+        var view = this,
+            position = this.settings.position,
+            graph = this.settings.graph,
+            opts = graph.graphOpts[position].opts,
+            series = graph.graphOpts[position].series,
+            datasets = [],
+            datasetInfo = {};
+        _.each(geoapp.graphData, function (dataSrc, srcName) {
+            _.each(dataSrc.available(), function (datakey) {
+                var key = srcName + '.' + datakey;
+                datasets.push(key);
+                datasetInfo[key] = dataSrc.describe(datakey);
+            });
+        });
+        /* Sort datasets so selected items are first and in order, then
+         * previously sorted items, then by datasetInfo.sort, then by name. */
+        datasets.sort(function (a, b) {
+            var ina, inb;
+
+            ina = $.inArray(a, series);
+            inb = $.inArray(b, series);
+            if (ina !== inb) {
+                return ina === -1 ? 1 : (inb === -1 ? -1 : ina - inb);
+            }
+            if (opts.datasetOrder) {
+                ina = $.inArray(a, opts.datasetOrder);
+                inb = $.inArray(b, opts.datasetOrder);
+                if (ina !== inb) {
+                    return ina === -1 ? 1 : (inb === -1 ? -1 : ina - inb);
+                }
+            }
+            ina = datasetInfo[a].sort !== undefined ? datasetInfo[a].sort : -1;
+            inb = datasetInfo[b].sort !== undefined ? datasetInfo[b].sort : -1;
+            if (ina !== inb) {
+                return ina === -1 ? 1 : (inb === -1 ? -1 : ina - inb);
+            }
+            return datasetInfo[a].name > datasetInfo[b].name ? 1 : -1;
+        });
+        var modal = this.$el.html(geoapp.templates.graphSettingsWidget({
+            opts: opts,
+            datasets: datasets,
+            datasetInfo: datasetInfo,
+            series: series
+        })).girderModal(this).on('ready.geoapp.modal', function () {
+            console.log(view.$el);
+            $('[title]', view.$el).tooltip({delay: {show: 500}});
+            $('#ga-dataset-list', view.$el).sortable({});
+        });
+        modal.trigger($.Event('ready.geoapp.modal', {relatedTarget: modal}));
+        return this;
+    }
+});
+
+
+/* -------- base data class -------- */
 
 geoapp.GraphData = function (arg) {
     'use strict';
@@ -41,25 +377,44 @@ geoapp.GraphData = function (arg) {
 
     this.dataItems = {};
 
-    /* List what data, if any, is available to be graphed.  This must be
-     * overridden by a subclass.
+    /* List what data, if any, is available to be graphed.
      *
-     * @returns: a list of available data keys.
+     * @param datakey: if present, check if this datakey is available.
+     * @returns: a list of available data keys if datakey is undefined, or a
+     *           boolean indicating if the specified datakey is available.
      */
-    this.available = function () {
-        return [];
+    this.available = function (datakey) {
+        return datakey ? false : [];
     };
 
-    /* Based on a datakey, provide a short and long description of the data.
+    /* Based on a datakey, provide a description of the data.  name and
+     * description keys are required.  There are optional keys:
+     *  data: reserved for internal data buffering.
+     *  dataTime: reserved for internal data buffering.
+     *  sort: 0-based preferred sort order, lower sorts first.
      *
      * @param datakey: the data that is should be described.
-     * @returns: a dictionary with 'name' and 'desc' key values describing the
-     *           specified data key.
+     * @returns: a dictionary with at least 'name' and 'description' key values
+     *           describing the specified data.
      */
     this.describe = function (datakey) {
         return this.dataItems[datakey];
     };
 
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function (datakey) {
+        var data = this.data(datakey),
+            day = 0 + moment.duration(1, moment.normalizeUnits('day'));
+        return {
+            start: Math.floor(data[0].x / day) * day,
+            end: Math.ceil((data[data.length - 1].x + 1.0) / day) * day
+        };
+    };
 };
 
 /* -------- weather graph data -------- */
@@ -84,23 +439,34 @@ geoapp.graphData.weather = function (arg) {
             description: 'Daily cloud cover value'
         },
         precipitation: {
-            name: 'Precip.',
+            name: 'Precipitation',
             description: 'Daily precipitation in inches'
+        },
+        wind_gust: {
+            name: 'Wind Gust',
+            description: 'Daily gust speed in mph'
+        },
+        wind_max: {
+            name: 'Wind Max',
+            description: 'Max daily wind speed in mph'
         },
         wind_mean: {
             name: 'Wind',
-            description: 'Mean daily wind speed in mpg'
+            description: 'Mean daily wind speed in mph',
+            sort: 0
         }
     };
 
     /* List what data, if any, is available to be graphed.
      *
-     * @returns: a list of available data keys.
+     * @param datakey: if present, check if this datakey is available.
+     * @returns: a list of available data keys if datakey is undefined, or a
+     *           boolean indicating if the specified datakey is available.
      */
-    this.available = function () {
+    this.available = function (datakey) {
         var data = geoapp.staticData.weather;
         if (!data) {
-            return [];
+            return datakey ? false : [];
         }
         var avail = [];
         _.each(this.dataItems, function (item, key) {
@@ -108,7 +474,7 @@ geoapp.graphData.weather = function (arg) {
                 avail.push(key);
             }
         });
-        return avail;
+        return datakey ? ($.inArray(datakey, avail) >= 0) : avail;
     };
 
     /* Given a datakey, return the associated data.
@@ -131,156 +497,6 @@ geoapp.graphData.weather = function (arg) {
         }
         return this.dataItems[datakey].data;
     };
-
-    var m_svg;
-
-    this.create = function () {
-        var selector = '#ga-graph-page .graph:last-of-type .graph-region',
-            /* The margin must leave space for the axes */
-            margin = {top: 5, right: 0, bottom: 18, left: 35},
-            fullWidth = $(selector).width(),
-            fullHeight = $(selector).height(),
-            width = fullWidth - margin.left - margin.right,
-            height = fullHeight - margin.top - margin.bottom,
-            data = geoapp.staticData.weather;
-        var svg = d3.select(selector).append('svg');
-        svg = svg.append('g').attr(
-            'transform', 'translate(' + margin.left + ',' + margin.top + ')');
-        m_svg = svg;
-
-        var x = d3.time.scale().range([0, width]);
-        x.domain(d3.extent(data.data, function (d) {
-            return d[data.columns.date_start];
-        }));
-        var xAxis = d3.svg.axis().scale(x).orient('bottom').tickSize(3, 0)
-            .tickFormat(d3.time.format('%-m-%-d'));
-        svg.append('g')
-            .attr('class', 'x axis')
-            .attr('transform', 'translate(0,' + height + ')')
-            .call(xAxis);
-
-        var items = {
-            temp_mean:     {name: 'Avg. Temp',   color: '#d73027'},
-            cloudcover:    {name: 'Cloud Cover', color: '#4575b4'},
-            precipitation: {name: 'Precip.',     color: '#fdae61'},
-            wind_mean:     {name: 'Wind',        color: '#74add1'}
-        };
-        /* colors: '#d73027','#f46d43','#fdae61','#fee090',
-         *         '#e0f3f8','#abd9e9','#74add1','#4575b4' */
-        var order = ['temp_mean', 'wind_mean', 'precipitation'];
-        _.each(order, function (colname, colnum) {
-            var item = items[colname],
-                ycol = data.columns[colname];
-
-            var y = d3.scale.linear().range([height, 0]);
-            y.domain(d3.extent(data.data, function (d) {
-                return d[ycol];
-            }));
-            var yAxis = d3.svg.axis().scale(y).orient('left').tickSize(3, 0)
-                .ticks(3);
-            svg.append('g')
-                .attr({
-                    'class': 'y axis',
-                    'data-key': colname
-                })
-                .call(yAxis)
-                .append('text')
-                    .attr({
-                        fill: item.color,
-                        transform: 'rotate(-90)',
-                        x: -fullHeight / (_.size(order) + 1) * colnum + margin.top,
-                        y: -25
-                    })
-                    .style('text-anchor', 'end')
-                    .text(item.name);
-            $('svg [data-key="' + colname + '"] .tick', selector).css({
-                fill: item.color
-            });
-
-            var line = d3.svg.line()
-                .x(function (d) {
-                    return x(d[data.columns.date_start]);
-                })
-                .y(function (d) {
-                    return y(d[ycol]);
-                });
-            svg.append('path')
-                .datum(data.data)
-                .attr('class', 'line')
-                .attr('d', line)
-                .attr('stroke', item.color);
-        });
-    };
-
-    this.add = function () {
-        var data = geoapp.map.getLayer('instagram').data(),
-            start = 0 + moment.utc('2013-1-1'),
-            end = 0 + moment.utc('2014-1-1'),
-            interval = 0 + moment.duration(1, moment.normalizeUnits('day')),
-            datecol = data.columns.posted_date,
-            bins = [],
-            i, numBins;
-        for (i = start; i < end; i += interval) {
-            bins.push({x: i, y: 0});
-        }
-        numBins = bins.length;
-        _.each(data.data, function (item) {
-            var bin = parseInt((item[datecol] - start) / interval);
-            if (bin >= 0 && bin < numBins) {
-                bins[bin].y += 1;
-            }
-        });
-        var svg = m_svg;
-
-        var selector = '#ga-graph-page .graph:last-of-type .graph-region',
-            /* The margin must leave space for the axes */
-            margin = {top: 5, right: 0, bottom: 18, left: 35},
-            fullWidth = $(selector).width(),
-            fullHeight = $(selector).height(),
-            width = fullWidth - margin.left - margin.right,
-            height = fullHeight - margin.top - margin.bottom;
-        var x = d3.time.scale().range([0, width]);
-        x.domain(d3.extent(bins, function (d) {
-            return d.x;
-        }));
-        var y = d3.scale.linear().range([height, 0]);
-        y.domain(d3.extent(bins, function (d) {
-            return d.y;
-        }));
-        var yAxis = d3.svg.axis().scale(y).orient('left').tickSize(3, 0)
-            .ticks(3);
-        svg.append('g')
-            .attr({
-                'class': 'y axis',
-                'data-key': 'Messages'
-            })
-            .call(yAxis)
-            .append('text')
-                .attr({
-                    fill: 'black',
-                    transform: 'rotate(-90)',
-                    x: -fullHeight / 4 * 3 + margin.top,
-                    y: -25
-                })
-                .style('text-anchor', 'end')
-                .text('Message');
-        $('svg [data-key="msg"] .tick', selector).css({
-            fill: 'black'
-        });
-
-        var line = d3.svg.line()
-            .x(function (d) {
-                return x(d.x);
-            })
-            .y(function (d) {
-                return y(d.y);
-            });
-        svg.append('path')
-            .datum(bins)
-            .attr('class', 'line')
-            .attr('d', line)
-            .attr('stroke', 'black');
-    };
 };
 
 inherit(geoapp.graphData.weather, geoapp.GraphData);
@@ -301,21 +517,24 @@ geoapp.graphData.instagram = function (arg) {
     this.dataItems = {
         messages: {
             name: 'Messages',
-            description: 'Daily number of messages'
+            description: 'Daily number of Instagram messages'
         }
         //DWM:: add hourly messages
     };
 
     /* List what data, if any, is available to be graphed.
      *
-     * @returns: a list of available data keys.
+     * @param datakey: if present, check if this datakey is available.
+     * @returns: a list of available data keys if datakey is undefined, or a
+     *           boolean indicating if the specified datakey is available.
      */
-    this.available = function () {
+    this.available = function (datakey) {
         var data = geoapp.map.getLayer('instagram').data();
         if (!data || !data.columns || !data.data) {
-            return [];
+            return datakey ? false : [];
         }
-        return _.keys(this.dataItems);
+        return (datakey ? (this.dataItems[datakey] !== undefined) :
+            _.keys(this.dataItems));
     };
 
     /* Given a datakey, return the associated data.
@@ -325,19 +544,20 @@ geoapp.graphData.instagram = function (arg) {
      *               epoch, and 'y', the data value.
      */
     this.data = function (datakey) {
-        var layer = geoapp.map.getLayer('instagram'),
-            data = layer.data();
+        var data = geoapp.map.getLayer('instagram').data();
         if (this.dataItems[datakey].data &&
                 this.dataItems[datakey].dataTime >= data.requestTime) {
             return this.dataItems[datakey].data;
         }
-        var dateRange = layer.cycleDateRange(),
-            start = 0 + (dateRange.start || moment.utc('2013-1-1')),
-            end = 0 + (dateRange.end || moment.utc('2014-1-1')),
+        var dateRange = this.dateRange(datakey),
+            start = dateRange.start,
+            end = dateRange.end,
             interval = 0 + moment.duration(1, moment.normalizeUnits('day')),
             datecol = data.columns.posted_date,
             bins = [],
             i, numBins;
+        start = 0 + moment.utc(start).startOf('day');
+        end = 0 + moment.utc(end - 1).startOf('day').add(1, 'day');
         for (i = start; i < end; i += interval) {
             bins.push({x: i, y: 0});
         }
@@ -348,9 +568,31 @@ geoapp.graphData.instagram = function (arg) {
                 bins[bin].y += 1;
             }
         });
+        /* Scale based on partial data.
+        if (data.loadFactor && data.loadFactor !== 1) {
+            _.each(bins, function (d) {
+                d.y = parseInt(d.y / data.loadFactor);
+            });
+        }
+         */
         this.dataItems[datakey].data = bins;
         this.dataItems[datakey].dataTime = new Date().getTime();
         return this.dataItems[datakey].data;
+    };
+
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function () {
+        var layer = geoapp.map.getLayer('instagram'),
+            dateRange = layer.cycleDateRange();
+        return {
+            start: 0 + (dateRange.start || moment.utc('2013-1-1')),
+            end: 0 + (dateRange.end || moment.utc('2014-1-1'))
+        };
     };
 };
 
