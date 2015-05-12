@@ -24,7 +24,8 @@ geoapp.MapLayer = function (map, datakey, arg) {
     arg = arg || {};
 
     var m_this = this,
-        m_data;
+        m_data,
+        m_cycleDateRange;
     this.datakey = datakey;
     this.map = map;
     this.maximumMapPoints = 100000;
@@ -103,5 +104,53 @@ geoapp.MapLayer = function (map, datakey, arg) {
         }
         return ((bin >= step && bin < step + substeps) ||
             bin + numBins < step + substeps);
+    };
+
+    /* Set the date range to use for the data cycle.
+     *
+     * @param params: an object to extract the dates from.
+     * @param minkey: the key to use within the object to get the minimum date
+     *                in epoch milliseconds.  The key doesn't have to exist.
+     * @param maxkey: the key to use within the object to get the maximum date
+     *                in epoch milliseconds.  The key doesn't have to exist.
+     */
+    this.setCycleDateRange = function (params, minkey, maxkey) {
+        if (params && params[minkey] !== params[maxkey]) {
+            m_cycleDateRange = {
+                date_min: params[minkey],
+                date_max: params[maxkey]
+            };
+        } else {
+            m_cycleDateRange = null;
+        }
+        geoapp.map.setCycleDateRange(params, minkey, maxkey);
+    };
+
+    /* Get the cycle date range for this data layer.
+     *
+     * @returns: the start and end of the cycle range as either defined by the
+     *           original request or by the data itself.  The results are in
+     *           epoch milliseconds.
+     */
+    this.cycleDateRange = function () {
+        var end = null, start;
+        if (m_cycleDateRange) {
+            start = moment.utc('2013-01-01');
+            end = moment.utc('2014-01-01');
+            if (m_cycleDateRange.date_min) {
+                start = moment.utc(m_cycleDateRange.date_min);
+            }
+            if (m_cycleDateRange.date_max) {
+                end = moment.utc(m_cycleDateRange.date_max);
+            }
+        }
+        if (!end) {
+            var dateRange = this.getDateRange();
+            if (dateRange && dateRange.start && dateRange.end) {
+                start = dateRange.start;
+                end = dateRange.end;
+            }
+        }
+        return {start: 0 + start, end: 0 + end};
     };
 };

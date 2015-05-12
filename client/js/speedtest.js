@@ -61,7 +61,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             type: 'GET',
             url: 'https://data.kitware.com/api/v1/file/54f70b248d777f1460ce7315/download',
             dataType: 'json',
-            success: function (data, status, jqxhr) {
+            success: function (data) {
                 view.data = data;
                 $('#ga-run-speed-test').prop('disabled', false);
             },

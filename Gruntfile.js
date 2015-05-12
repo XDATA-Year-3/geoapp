@@ -108,7 +108,10 @@ module.exports = function (grunt) {
             optional: {
                 expand: true,
                 cwd: 'client/optional/static',
-                src: ['**/*.js'],
+                src: [
+                    '**/*.js',
+                    '**/*.json'
+                ],
                 dest: 'built'
             }
         },
@@ -128,9 +131,11 @@ module.exports = function (grunt) {
             libs: {
                 files: {
                     'built/libs.min.css': [
-                        // daterangepicker
+                        /* c3 */
+                        'node_modules/c3/c3.css',
+                        /* daterangepicker */
                         'node_modules/daterangepicker/daterangepicker-bs3.css',
-                        // bootstrap-slider
+                        /* bootstrap-slider */
                         'node_modules/bootstrap-slider/dist/css/bootstrap-slider.css'
                     ]
                 }
@@ -179,6 +184,7 @@ module.exports = function (grunt) {
                     'built/geoapp-version.js',
                     /* Make sure the base files get included before the
                      * dependent files. */
+                    'client/js/graphs.js',
                     'client/js/layers.js',
                     'client/js/**/*.js'
                 ],
@@ -211,6 +217,8 @@ module.exports = function (grunt) {
                         'geojs/bower_components/d3/d3.js',
                         'geojs/node_modules/pnltri/pnltri.js',
                         'geojs/dist/built/geo.js',
+                        /* c3 */
+                        'node_modules/c3/c3.js',
                         /* daterangepicker */
                         'node_modules/moment/moment.js',
                         'node_modules/daterangepicker/daterangepicker.js',

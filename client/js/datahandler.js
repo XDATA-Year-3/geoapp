@@ -114,6 +114,7 @@ geoapp.DataHandler = function (arg) {
             $.merge(options.data.data, resp.data);
             options.data.datacount += resp.datacount;
         }
+        options.data.requestTime = new Date().getTime();
         options.requestTime += new Date().getTime();
         options.showTime -= new Date().getTime();
         if (m_verbose >= 1) {
@@ -265,7 +266,7 @@ geoapp.dataHandlers.taxi = function (arg) {
         }).done(_.bind(function (resp) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
-        }, this)).error(_.bind(function (err) {
+        }, this)).error(_.bind(function () {
             this.loadingAnimation('#ga-taxi-loading', true);
             this.loadedMessage('#ga-points-loaded', undefined, false, false,
                                'trip', 'trips');
@@ -278,8 +279,8 @@ geoapp.dataHandlers.taxi = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
-        geoapp.map.setCycleDateRange(options.params, 'pickup_datetime_min',
-                                     'pickup_datetime_max');
+        geoapp.map.getLayer(this.datakey).setCycleDateRange(
+            options.params, 'pickup_datetime_min', 'pickup_datetime_max');
         geoapp.map.showMap(options.description, options.data, options.display);
     };
 
@@ -344,7 +345,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         }).done(_.bind(function (resp) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
-        }, this)).error(_.bind(function (err) {
+        }, this)).error(_.bind(function () {
             this.loadingAnimation('#ga-instagram-loading', true);
             this.loadedMessage('#ga-inst-points-loaded', undefined, false,
                                false, 'message', 'messages');
@@ -359,8 +360,8 @@ geoapp.dataHandlers.instagram = function (arg) {
     this.dataShow = function (options) {
         /* Note that this competes with the taxi setCycleDateRange, and I need
          * to do something other than let the last one win. */
-        geoapp.map.setCycleDateRange(options.params, 'posted_date_min',
-                                     'posted_date_max');
+        geoapp.map.getLayer(this.datakey).setCycleDateRange(
+            options.params, 'posted_date_min', 'posted_date_max');
         geoapp.map.showMap(options.description, options.data, options.display);
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
@@ -503,7 +504,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         }
         /* If hovering over a row, show the relevant instagram point */
         $('tr', table).off('.instagram-table'
-        ).on('mouseleave.instagram-table', function (evt) {
+        ).on('mouseleave.instagram-table', function () {
             if (!layer.persistentCurrentPoint()) {
                 layer.currentPoint(null);
             }

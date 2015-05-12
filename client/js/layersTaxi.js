@@ -402,8 +402,8 @@ geoapp.mapLayers.taxi = function (map, arg) {
         var polyData = [];
         var coor = [{x: 0, y: 0}, {x: 0, y: 1}, {x: 1, y: 1}, {x: 1, y: 0},
                     {x: 0, y: 0}];
-        _.each(data.bins, function (binx, x) {
-            _.each(binx, function (bin, y) {
+        _.each(data.bins, function (binx) {
+            _.each(binx, function (bin) {
                 polyData.push({bin: bin, outer: coor});
             });
         });
@@ -644,7 +644,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
             mapData = m_this.data(),
             visOpac = (options.opacity || 0.1),
             dataBin = options.layers[this.datakey].dataBin,
-            i, j, v, bin, opac, vis, vpf;
+            i, j, v, opac, vis, vpf;
 
         if (mapParams['data-opacity']) {
             visOpac = Math.min(mapParams['data-opacity'] * 1.5, 1);
