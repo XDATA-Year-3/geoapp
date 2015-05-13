@@ -34,9 +34,9 @@ WORKDIR /home/kwuser
 RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/girder/girder.git && \
-    cd girder && \
-    git checkout ac66979e7c092a35addec7979c09d2e9f3d7e473 && \
-    git reset --hard && \
+#    cd girder && \
+#    git checkout ac66979e7c092a35addec7979c09d2e9f3d7e473 && \
+#    git reset --hard && \
     true
 
 WORKDIR /home/kwuser/girder
