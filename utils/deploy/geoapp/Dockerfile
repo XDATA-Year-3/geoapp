@@ -55,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout c2d4bf15333a5556c9d0445a72db197860dd0775 && \
+    git checkout 84b7220b28c3afbaeeb4e11283d893d190f0dce1 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 RUN pip install --user -r requirements.txt && \
@@ -67,6 +67,7 @@ RUN git submodule update --init --recursive && \
     cd geojs && \
     npm install --production && \
     grunt library
+RUN curl https://data.kitware.com/api/v1/file/5550e5e18d777f082b592f3e/download -o client/optional/static/weather.json    
 RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
     curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
