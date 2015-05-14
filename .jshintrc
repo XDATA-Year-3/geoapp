@@ -122,6 +122,7 @@
         "console",
         "alert",
         "marked",
-        "d3"
+        "d3",
+        "c3"
     ]
 }

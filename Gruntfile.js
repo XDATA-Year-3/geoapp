@@ -14,31 +14,15 @@
  * limitations under the License.
  */
 
+/* global module, require */
+
 module.exports = function (grunt) {
-    var staticRoot;
-    var fs = require('fs');
-    var jade = require('jade');
     var path = require('path');
 
     var defaultTasks = ['stylus', 'build-js', 'copy:static'];
 
     // Pass a "--env=<value>" argument to grunt. Default value is "dev".
     var environment = grunt.option('env') || 'dev';
-
-    var setServerConfig = function (err, stdout, stderr, callback) {
-        if (err) {
-            grunt.fail.fatal('config_parse failed on local.server.cfg: ' + stderr);
-        }
-        try {
-            var cfg = JSON.parse(stdout);
-            staticRoot = ((cfg.server && cfg.server.static_root) || '/static').replace(/\"/g, "");
-            console.log('Static root: ' + staticRoot.bold);
-        }
-        catch (e) {
-            grunt.warn('Invalid json from config_parse: ' + stdout);
-        }
-        callback();
-    };
 
     // Returns a json string containing information from the current git repository.
     var versionInfoObject = function () {
@@ -51,12 +35,12 @@ module.exports = function (grunt) {
                 git: !!current.SHA,
                 SHA: current.SHA,
                 shortSHA: current.shortSHA,
-                date: grunt.template.date(new Date(), "isoDateTime", true),
+                date: grunt.template.date(new Date(), 'isoDateTime', true),
                 apiVersion: grunt.config.get('pkg').version,
                 describe: gitVersionObject
             },
             null,
-            "  "
+            '  '
         );
     };
 
@@ -64,9 +48,9 @@ module.exports = function (grunt) {
      * this object. */
     var libVersionInfoObject = function () {
         return JSON.stringify({
-            date: grunt.template.date(new Date(), "isoDateTime", true),
+            date: grunt.template.date(new Date(), 'isoDateTime', true),
             geojsVersion: geojsVersionObject
-        }, null, "  ");
+        }, null, '  ');
     };
     var geojsVersionObject, gitVersionObject;
 
@@ -211,20 +195,23 @@ module.exports = function (grunt) {
             libs: {
                 files: {
                     'built/libs.min.js': [
+                        /* d3 and c3 */
+                        'node_modules/d3/d3.js',
+                        'node_modules/c3/c3.js',
                         /* These items are from geojs, but we exclude jquery */
                         'geojs/bower_components/gl-matrix/dist/gl-matrix.js',
                         'geojs/bower_components/proj4/dist/proj4-src.js',
-                        'geojs/bower_components/d3/d3.js',
                         'geojs/node_modules/pnltri/pnltri.js',
                         'geojs/dist/built/geo.js',
-                        /* c3 */
-                        'node_modules/c3/c3.js',
                         /* daterangepicker */
                         'node_modules/moment/moment.js',
                         'node_modules/daterangepicker/daterangepicker.js',
                         /* bootstrap-slider */
                         'node_modules/bootstrap-slider/js/bootstrap-slider.js',
-                        'built/geoapplib-version.js'
+                        'built/geoapplib-version.js',
+                        /* Sortable */
+                        'node_modules/sortablejs/Sortable.js',
+                        'node_modules/sortablejs/jquery.binding.js'
                     ],
                     'built/optional.min.js': [
                         /* optional libraries */
@@ -263,7 +250,7 @@ module.exports = function (grunt) {
         'file-creator': {
             app: {
                 'built/geoapp-version.js': function (fs, fd, done) {
-                    geoappVersion = versionInfoObject();
+                    var geoappVersion = versionInfoObject();
                     fs.writeSync(
                         fd,
                         [
@@ -285,7 +272,7 @@ module.exports = function (grunt) {
             },
             libs: {
                 'built/geoapplib-version.js': function (fs, fd, done) {
-                    geoappLibVersion = libVersionInfoObject();
+                    var geoappLibVersion = libVersionInfoObject();
                     fs.writeSync(
                         fd,
                         [

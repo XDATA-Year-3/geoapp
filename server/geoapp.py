@@ -244,6 +244,7 @@ class ViaPostgres():
         self.connect()
         self.useMilliseconds = False
         self.alwaysUseIdSort = True
+        self.maxId = None
 
     def adjustReturnFields(self, fields):
         """
@@ -258,7 +259,8 @@ class ViaPostgres():
             return fields
         newfields = []
         for field in fields:
-            if self.fieldTable[field][0] == 'date':
+            if (field in self.fieldTable and
+                    self.fieldTable[field][0] == 'date'):
                 newfields.append(field + ' * 1000::bigint')
             else:
                 newfields.append(field)
@@ -286,6 +288,21 @@ class ViaPostgres():
                 pass
         self.db = pgdb.connect(**self.dbparams)
 
+    def checkMaxId(self):
+        """
+        Check the max ID for this table.  This can be reported with the results
+        to aid in determining what percentage of the total data was retreived.
+        """
+        if self.maxId is None:
+            c = self.db.cursor()
+            try:
+                c.execute('SELECT max(_id) FROM %s' % self.tableName)
+                row = c.fetchone()
+                self.maxId = int(row[0])
+            except (pgdb.Error, ValueError):
+                self.maxId = 0
+            c.close()
+
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None):
         """
         Get data from a postgres database.
@@ -304,6 +321,7 @@ class ViaPostgres():
         :returns: a dictionary of results.
         """
         starttime = time.time()
+        self.checkMaxId()
         if sort is None or self.alwaysUseIdSort:
             # shuffled order
             sort = [('_id', 1)]
@@ -353,6 +371,7 @@ class ViaPostgres():
             'format': 'list',
             'fields': fields,
             'columns': columns,
+            'maxid': self.maxId,
             'data': c.fetchmany()
             }
         logger.info('Fetching first items (%5.3fs including query execution)',
