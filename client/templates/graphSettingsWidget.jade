@@ -7,20 +7,32 @@
         | Graph Settings
     .modal-body
       .ga-graph-type
-        .radio
-          label
+        label
+          .radio
             input(type="radio", name="graph-type", "graph-type"="line",
                 checked=(opts.type === "line" ? "checked" : undefined))
             i.icon-calendar
             | Plot by Date &mdash; Horizontal axis is the date
-          div Select at least one data set
-        .radio
-          label
+            div Select at least one data set
+        label
+          .radio
             input(type="radio", name="graph-type", "graph-type"="scatter",
                 checked=(opts.type === "scatter" ? "checked" : undefined))
             i.icon-picture-1
             | Scatter Plot &mdash; Horizontal axis is first selected data set
-          div Select at least two data sets
+            div Select at least two data sets
+      .ga-graph-bin
+        | Plot Resolution:
+        label
+          .radio-inline
+            input(type="radio", name="graph-bin", "graph-bin"="hour",
+                checked=(opts.bin === "hour" ? "checked" : undefined))
+            | Hourly
+        label
+          .radio-inline
+            input(type="radio", name="graph-bin", "graph-bin"="day",
+                checked=(opts.bin === "day" ? "checked" : undefined))
+            | Daily
       | Available Data Sets:
       ul#ga-dataset-list
         each datakey in datasets
@@ -31,9 +43,10 @@
                 "checked" : undefined))
             .ga-dataset-name
               = datasetInfo[datakey].name
+      .g-validation-failed-message
     .modal-footer
       a.btn.btn-small.btn-default(data-dismiss="modal") Cancel
       button.ga-save-graph-settings.btn.btn-small.btn-primary(type="submit",
-          data-dismiss="modal")
+          xdata-dismiss="modal")
         i.icon-edit
         |  Apply

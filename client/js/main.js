@@ -154,10 +154,19 @@ $(function () {
     _.each(geoapp.dataHandlers, function (handlerFunc, handlerKey) {
         geoapp.dataLoaders[handlerKey] = handlerFunc();
     });
-    $.ajax({
-        url: $('body').attr('staticRoot') + '/weather.json',
-        success: function (data) {
-            geoapp.staticData = geoapp.staticData || {};
-            geoapp.staticData.weather = data;
-        }});
+    var staticData = {
+        weather: 'weather.json',
+        taximodel: 'taximodel.json'
+    };
+    _.each(staticData, function (url, key) {
+        if (url.indexOf('/') < 0) {
+            url = $('body').attr('staticRoot') + '/' + url;
+        }
+        $.ajax({
+            url: url,
+            success: function (data) {
+                geoapp.staticData = geoapp.staticData || {};
+                geoapp.staticData[key] = data;
+            }});
+    });
 });
