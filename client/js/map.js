@@ -16,11 +16,11 @@
 geoapp.TileSets = {
     mapquest: {
         url: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
-        credit: 'Tiles Courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
+        credit: 'Tiles courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
     },
     mqsat: {
         url: 'http://otile1.mqcdn.com/tiles/1.0.0/sat/',
-        credit: 'Tiles Courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
+        credit: 'Tiles courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
     },
     openstreetmap: {
         url: 'http://tile.openstreetmap.org/',

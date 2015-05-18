@@ -19,11 +19,11 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
 
 #ga-main-page.ga-main-ui
   +standardPanel('ga-filter-settings-panel', 'ga-filter-settings', 'Filters',
-      "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data from the database.")
+      "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.")
     include taxifilters.jade
     include instagramfilters.jade
   +standardPanel('ga-display-settings-panel', 'ga-display-settings', 'Display',
-      "These parameters update the display as soon as they are changed.  The do not affect what data is used, only how it appears.")
+      "These parameters update the display as soon as they are changed.  They do not affect what data is used, only how it appears.")
     .form-group
       label(for="ga-tile-set") Tile Set
       select#ga-tile-set.form-control.input-sm(title="Tile Set",
@@ -109,7 +109,7 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
     .form-group#ga-place-group
       //- The place buttons are taken from the ini settings or defaults
         based on this template
-      button#ga-place-template.btn.btn-sm.ga-place.hidden
+      button#ga-place-template.btn.btn-info.btn-sm.ga-place.hidden
         i.icon-target
   +standardPanel('ga-anim-settings-panel', 'ga-anim-settings', 'Animation',
       "After changing animation parameters, select Update to use the new values.")
