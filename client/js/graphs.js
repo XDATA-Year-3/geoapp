@@ -181,7 +181,7 @@ geoapp.Graph = function (arg) {
         opts.bin = $.inArray(opts.bin, ['day', 'hour']) >= 0 ? opts.bin : 'day';
         var dataPos = 1,
             dateRange,
-            xScatter, xScatterCount,
+            xScatter, xScatterCount, scatterDate = [],
             graphType = opts.type,
             spec = $.extend(true, {}, m_generalGraphSpec,
                 m_defaultGraphSpec[graphType], {
@@ -190,9 +190,14 @@ geoapp.Graph = function (arg) {
                         colors: {},
                         columns: [],
                         names: {},
+                        cols: {},
                         xs: {}
                     }
                 });
+        spec.tooltip.format.title = function (value) {
+            return d3.time.format.utc(
+                opts.bin === 'day' ? '%-m-%-d' : '%-m-%-d %-H:%M')(value);
+        };
         _.each(series, function (seriesName) {
             var seriesInfo = seriesName.split('.'),
                 srcName = seriesInfo[0],
@@ -216,25 +221,29 @@ geoapp.Graph = function (arg) {
             dateRange.start = Math.min(dr.start, dateRange.start);
             dateRange.end = Math.max(dr.end, dateRange.end);
             spec.data.names[ycol[0]] = desc.name;
-            spec.data.colors[ycol[0]] = m_colorList[dataPos - 1];
+            spec.data.cols[ycol[0]] = spec.data.columns.length;
             if (graphType !== 'scatter') {
                 _.each(seriesData, function (d) {
                     xcol.push(d.x);
                     ycol.push(d.y);
                 });
                 spec.data.columns.push(ycol);
+                spec.data.cols[xcol[0]] = spec.data.columns.length;
                 spec.data.columns.push(xcol);
                 spec.data.xs[ycol[0]] = xcol[0];
+                spec.data.colors[ycol[0]] = m_colorList[dataPos - 1];
             } else {
                 if (!xScatter) {
                     xScatter = {};
                     _.each(seriesData, function (d) {
                         if (d.x !== undefined && d.y !== undefined) {
                             xScatter[d.x] = ycol.length;
+                            scatterDate.push(d.x);
                             ycol.push(d.y);
                         }
                     });
                     xScatterCount = ycol.length;
+                    spec.data.colors[ycol[0]] = 'rgba(0,0,0,0)';
                 } else {
                     for (var i = ycol.length; i < xScatterCount; i += 1) {
                         ycol.push(null);
@@ -244,6 +253,7 @@ geoapp.Graph = function (arg) {
                             ycol[xScatter[d.x]] = d.y;
                         }
                     });
+                    spec.data.colors[ycol[0]] = m_colorList[dataPos - 2];
                 }
                 spec.data.columns.push(ycol);
             }
@@ -251,7 +261,7 @@ geoapp.Graph = function (arg) {
         });
         var funcName = 'adjustGraph_' + graphType;
         if (this[funcName]) {
-            this[funcName](spec, opts, dateRange);
+            this[funcName](spec, opts, dateRange, scatterDate);
         }
         c3.generate(spec);
         this.graphOpts[position].spec = spec;
@@ -262,7 +272,8 @@ geoapp.Graph = function (arg) {
      *
      * @param spec: the c3 specification.  Modified.
      * @param opts: the graph options.
-     * @param dateRange: the computer date range of the data.
+     * @param dateRange: the computed date range of the data.
+     * @param scatterDate: an array of dates if this is a scatter plot.
      */
     this.adjustGraph_line = function (spec, opts, dateRange) {
         var tickTime;
@@ -288,9 +299,10 @@ geoapp.Graph = function (arg) {
      *
      * @param spec: the c3 specification.  Modified.
      * @param opts: the graph options.
-     * @param dateRange: the computer date range of the data.
+     * @param dateRange: the computed date range of the data.
+     * @param scatterDate: an array of dates if this is a scatter plot.
      */
-    this.adjustGraph_scatter = function (spec) {
+    this.adjustGraph_scatter = function (spec, opts, dateRange, scatterDate) {
         var minx, maxx, miny, maxy;
 
         spec.data.x = spec.data.columns[0][0];
@@ -335,6 +347,50 @@ geoapp.Graph = function (arg) {
         } else {
             spec.axis.x.label.position = 'outer-right';
         }
+        /* Use the tooltip contents function to call the c3 internal function.
+         * This places all data series in the table and uses the data as the
+         * title.  It is complex because c3 doesn't expose this in a nice
+         * manner.
+         */
+        spec.tooltip.contents = function (d, titleFormat, valueFormat, color) {
+            var i, j, k, x, idx;
+
+            /* Insert the original data into the list and use the date as the
+             * title of the tooltip. */
+            for (i = 1; i < spec.data.columns[1].length; i += 1) {
+                for (j = 0; j < d.length; j += 1) {
+                    k = spec.data.cols[d[j].id];
+                    /* Allow type coercion here */
+                    /* jshint ignore:start */
+                    if (d[j].value != spec.data.columns[k][i] ||
+                            d[0].x != spec.data.columns[0][i]) {
+                        break;
+                    }
+                    /* jshint ignore:end */
+                }
+                if (j === d.length) {
+                    idx = i;
+                    break;
+                }
+            }
+
+            /* Insert the first data series so that the title will be the
+             * date and the first data series will be in the list. */
+            x = new Date(scatterDate[idx - 1]);
+            d = d.slice();
+            d.unshift({
+                id: spec.data.columns[0][0],
+                index: d[0].index,
+                name: spec.data.names[spec.data.columns[0][0]],
+                value: spec.data.columns[0][idx]
+            });
+            for (i = 0; i < d.length; i += 1) {
+                d[i] = $.extend({}, d[i], {x: x});
+            }
+            return c3.chart.internal.fn.getTooltipContent.call({
+                config: spec
+            }, d, spec.tooltip.format.title, spec.tooltip.format.value, color);
+        };
     };
 
     /* Remove a graph from our display.
