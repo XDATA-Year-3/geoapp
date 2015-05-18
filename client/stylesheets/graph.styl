@@ -50,6 +50,21 @@
         stroke black
         shape-rendering crispEdges
 #ga-graph-settings
+  label
+    font-weight normal
+    margin-bottom 0
+  .radio
+    margin 0
+  .ga-graph-type
+    margin-bottom 10px
+  .ga-graph-bin
+    margin-bottom 10px
+    .radio-inline
+      padding-left 10px
+      input[type="radio"]
+        float inherit
+        margin-left 0
+        margin-right 5px
   #ga-dataset-list
     margin 0
     padding-left 15px
@@ -68,8 +83,12 @@
     &.sortable-ghost
       background #CCC
       opacity 0.25
+  .g-validation-failed-message:empty
+    display none
 
 .c3-tooltip
   th
     line-height 1em
     font-size 13px
+.c3-axis-x-label,.c3-axis-y-label
+  font-size 12px
