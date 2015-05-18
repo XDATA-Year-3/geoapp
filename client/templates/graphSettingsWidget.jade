@@ -34,7 +34,7 @@
                 checked=(opts.bin === "day" ? "checked" : undefined))
             | Daily
       | Available Data Sets:
-      ul#ga-dataset-list
+      ul#ga-dataset-list.g-sort-parent
         each datakey in datasets
           li.ga-dataset-entry(title=datasetInfo[datakey].description,
               data-placement="left", datakey=datakey)

@@ -30,6 +30,10 @@ geoapp.TileSets = {
         url: 'http://tile.stamen.com/toner-lite/',
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
+    stamenterrain: {
+        url: 'http://tile.stamen.com/terrain/',
+        credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+    },
     blank: {url: 'api/v1/geoapp/tiles/blank/'}
 };
 geoapp.TileSets.default = geoapp.TileSets.mqsat;
@@ -165,7 +169,10 @@ geoapp.Map = function (arg) {
                 y1: bounds.lowerRight.y.toFixed(7),
                 zoom: zoom.toFixed(2)
             }, false, true);
-            $('#ga-main-map').trigger('ga.map.moved');
+            $('#ga-main-map').trigger('ga.map.moved', {
+                bounds: bounds,
+                zoom: zoom
+            });
             m_panQueued = false;
             m_panTimer = window.setTimeout(function () {
                 view.mapMovedEvent();

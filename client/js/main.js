@@ -167,6 +167,7 @@ $(function () {
             success: function (data) {
                 geoapp.staticData = geoapp.staticData || {};
                 geoapp.staticData[key] = data;
+                geoapp.events.trigger('ga:staticDataLoaded.' + key, key);
             }});
     });
 });

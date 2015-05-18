@@ -158,7 +158,8 @@ module.exports = function (grunt) {
 
         concat: {
             options: {
-                separator: ';'
+                separator: ';',
+                sourceMap: true
             },
             app: {
                 src: [
@@ -186,6 +187,9 @@ module.exports = function (grunt) {
                 }
             },
             app: {
+                options: {
+                    sourceMapIn: 'built/app.js.map'
+                },
                 files: {
                     'built/app.min.js': [
                         'built/app.js'
