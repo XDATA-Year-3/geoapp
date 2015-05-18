@@ -140,6 +140,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
             panel[id] = trigger.hasClass('collapsed');
             geoapp.updateNavigation('mapview', 'panels', panel, true,
                                     true);
+        },
+        'apply.daterangepicker #ga-taxi-filter-settings .ga-date-range':  function () {
+            $('#ga-taxi-filter').addClass('btn-needed');
+        },
+        'apply.daterangepicker #ga-instagram-filter-settings':  function () {
+            $('#ga-instagram-filter').addClass('btn-needed');
         }
     },
 
