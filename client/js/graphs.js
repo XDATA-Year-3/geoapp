@@ -359,9 +359,9 @@ geoapp.Graph = function (arg) {
         spec.data.x = spec.data.columns[0][0];
         delete spec.data.xs;
         if (xminmax[0] !== 0) {
-            spec.axis.x.padding.left = (xminmax[1] - xminmax[0]) * 0.005;
+            spec.axis.x.padding.left = (xminmax[1] - xminmax[0]) * 0.01;
         }
-        spec.axis.x.padding.right = (xminmax[1] - xminmax[0]) * 0.005;
+        spec.axis.x.padding.right = (xminmax[1] - xminmax[0]) * 0.01;
         _.each(spec.data.columns.slice(1), function (data) {
             _.each(data.slice(1), function (y) {
                 if (miny === undefined) {
@@ -841,7 +841,7 @@ geoapp.graphData.weather = function (arg) {
         temp_mean: {
             name: 'Avg. Temp',
             description: 'Mean temperature in degrees F',
-            sort: 0,
+            sort: 1,
             units: '&deg;F'
         },
         cloudcover: {
@@ -1240,6 +1240,7 @@ geoapp.graphData.instagram = function (arg) {
         messages: {
             name: 'Instagram Messages',
             description: 'Number of Instagram messages',
+            sort: 0,
             unit: 'msg',
             units: 'msgs'
         }
