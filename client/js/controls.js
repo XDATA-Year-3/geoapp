@@ -103,6 +103,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'keydown #ga-taxi-filter-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
+                $('#ga-taxi-filter-settings .ga-date-range'
+                    ).daterangepicker('hide');
                 window.setTimeout(function () {
                     $('#ga-taxi-filter').click();
                 }, 10);
@@ -110,6 +112,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'keydown #ga-instagram-filter-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
+                $('#ga-instagram-filter-settings .ga-date-range'
+                    ).daterangepicker('hide');
                 window.setTimeout(function () {
                     $('#ga-instagram-filter').click();
                 }, 10);
@@ -185,7 +189,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         this.render();
         geoapp.graph.initialize(this);
-        geoapp.View.prototype.initialize.apply(this, arguments);
         this.finalizeInit(settings, 0);
     },
 
@@ -199,6 +202,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), speed);
         geoapp.dataLoaders.instagram.routeSettings(
             geoapp.getQuerySection(settings, 'results'));
+        geoapp.graph.graphsFromNavigation(
+            geoapp.getQuerySection(settings, 'graph'));
         var panels = geoapp.getQuerySection(settings, 'panels');
         _.each(panels, function (show, id) {
             var trigger = $('[data-toggle="collapse"][href="#' + id + '"],' +
@@ -343,6 +348,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-main-map').off('ga.map.moved').on('ga.map.moved', function () {
             view.mapMoved();
         });
+        geoapp.View.prototype.render.apply(this, arguments);
         return this;
     },
 

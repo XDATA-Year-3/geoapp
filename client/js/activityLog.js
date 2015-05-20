@@ -21,7 +21,10 @@
 (function () {
     var logger,
         uri = $('body').attr('activityLogURI'),
-        logMeta = ($('body').attr('activityLogMeta') !== 'false');
+        logMeta = ($('body').attr('activityLogMeta') !== 'false'),
+        logLimit = {
+            frequency: 1000 /* in milliseconds */
+        };
 
     /* elements: BUTTON CANVAS CHECKBOX COMBOBOX DATAGRID DIALOG_BOX
      *  DROPDOWNLIST FRAME ICON INFOBAR LABEL LINK LISTBOX LISTITEM MAP MENU
@@ -36,6 +39,12 @@
             desc: 'animation action', value: 'action'},
         button_click:    {elem: 'button',   act: 'select',
             desc: 'click on a button'},
+        c3_brush:        {elem: 'panel',    act: 'inspect',
+            desc: 'select a time span on the subchart', name: 'graph_select'},
+        c3_zoomend:      {elem: 'panel',    act: 'inspect',
+            desc: 'zoom in on the graph', name: 'graph_zoom'},
+        c3_zoomstart:    {elem: 'panel',    act: 'inspect',
+            desc: 'start zooming on the graph', name: 'graph_zoomstart'},
         calendar_click:  {elem: 'datagrid', act: 'select',
             desc: 'click on a calendar element'},
         checkbox_change: {elem: 'checkbox', act: 'alter',
@@ -48,6 +57,10 @@
             desc: 'hide date-range picker'},
         date_show:       {elem: 'panel',    act: 'show',
             desc: 'show date-range picker'},
+        drag_sortable:   {elem: 'listbox',  act: 'alter',
+            desc: 'drag and reposition sortable item'},
+        graph_tooltip:   {elem: 'tooltip',  act: 'show',
+            desc: 'show graph tooltip'},
         hide_overlay:    {elem: 'map',      act: 'hide',
             desc: 'hide overlay'},
         input_change:    {elem: 'textbox',  act: 'alter',
@@ -68,6 +81,8 @@
             desc: 'browser navigation change'},
         pin_overlay:     {elem: 'map',      act: 'alter',
             desc: 'persist overlay'},
+        radio_click:     {elem: 'radiobutton', act: 'select',
+            desc: 'radiobutton selected'},
         select_change:   {elem: 'dropdownlist', act: 'alter',
             desc: 'select box changed'},
         select_close:    {elem: 'dropdownlist', act: 'hide',
@@ -103,9 +118,18 @@
          *              the mouse.
          * @param subElement: a strign to pass as the elementSub.
          * @param system: true if system.
+         * @param limit: if not falsy, rate limit activity of this sort.  If
+         *               the most recent call to logActivity has the same
+         *               activity, group, and this limit value, then no more
+         *               than one log message of this sort is recorded per
+         *               logLimit.frequency milliseconds.
          */
-        logActivity: function (activity, group, data, subElement, system) {
+        logActivity: function (activity, group, data, subElement, system,
+                               limit) {
             if (!logger) {
+                return;
+            }
+            if (this.limitActivity(activity, group, limit)) {
                 return;
             }
             data = data || {};
@@ -161,12 +185,51 @@
          * @param activityDesc: a description of the activity.
          * @param group: element group to log.
          * @param data: an object with data to log about the activity.
+         * @param subElement: a strign to pass as the elementSub.
+         * @param limit: if not falsy, rate limit activity of this sort.  If
+         *               the most recent call to logActivity has the same
+         *               activity, group, and this limit value, then no more
+         *               than one log message of this sort is recorded per
+         *               logLimit.frequency milliseconds.
          */
-        logSystem: function (activityDesc, group, data, subElement) {
+        logSystem: function (activityDesc, group, data, subElement, limit) {
             if (!logger) {
                 return;
             }
-            this.logActivity(activityDesc, group, data, subElement, true);
+            this.logActivity(activityDesc, group, data, subElement, true,
+                             limit);
+        },
+
+        /* Log user activity with appropriate workflow information.
+         *
+         * @param activity: the activity name.
+         * @param group: element group to log.
+         * @param limit: if not falsy, rate limit activity of this sort.  If
+         *               the most recent call to logActivity has the same
+         *               activity, group, and this limit value, then no more
+         *               than one log message of this sort is recorded per
+         *               logLimit.frequency milliseconds.
+         * @return: true if this log message should be skipped.
+         */
+        limitActivity: function (activity, group, limit) {
+            if (limit && activity === logLimit.activity &&
+                    group === logLimit.group &&
+                    _.isEqual(limit, logLimit.limit) && logLimit.timer) {
+                return true;
+            }
+            if (logLimit.timer) {
+                window.clearTimeout(logLimit.timer);
+                logLimit.timer = null;
+            }
+            if (limit) {
+                logLimit.activity = activity;
+                logLimit.group = group;
+                logLimit.limit = limit;
+                logLimit.timer = window.setTimeout(function () {
+                    logLimit.timer = null;
+                }, logLimit.frequency);
+            }
+            return false;
         },
 
         /* Set up logging for all standard controls on the page.
@@ -174,87 +237,103 @@
          * @param selector: optional jquery selector to limit the scope of the
          *                  logging.
          * @param viewName: if specified, log that we instrumented this for
-         *                  logging. */
+         *                  logging.
+         */
         logControls: function (selector, viewName) {
             if (!logger) {
                 return;
             }
-            var log = this;
+            var log = this,
+                parent = $(selector);
             if (viewName) {
                 log.logSystem('show_view', 'main', {view: viewName});
             }
-            $('input[type="text"]:visible', selector)
-            .on('change', function () {
+            parent.on('change', 'input[type="text"]:visible', function () {
                 log.logActivity('input_change', 'controls', {
-                    id: $(this).attr('id'),
+                    id: log.getControlId(this),
                     value: $(this).val()
                 });
             });
-            $('select:visible', selector).on('change', function () {
+            parent.on('change', 'select:visible', function () {
                 log.logActivity('select_change', 'controls', {
-                    id: $(this).attr('id'),
+                    id: log.getControlId(this),
                     value: $(this).val()
                 });
-            }).on('focus', function () {
+            }).on('focus', 'select:visible', function () {
                 var ctl = $(this);
                 if (!ctl.hasClass('hasFocus')) {
                     ctl.addClass('hasFocus');
                     log.logActivity('select_open', 'controls', {
-                        id: ctl.attr('id')
+                        id: log.getControlId(ctl)
                     });
                 }
-            }).on('blur', function () {
+            }).on('blur', 'select:visible', function () {
                 var ctl = $(this);
                 if (ctl.hasClass('hasFocus')) {
                     ctl.removeClass('hasFocus');
                     log.logActivity('select_close', 'controls', {
-                        id: ctl.attr('id')
+                        id: log.getControlId(ctl)
                     });
                 }
             });
-            $('a', selector).on('click', function () {
+            parent.on('click', 'a', function () {
                 var ctl = $(this);
-                log.logActivity('link_click', 'controls', {
-                    id: ctl.attr('id'),
-                    closestId: (ctl.attr('id') ? undefined :
-                                ctl.closest('[id]').attr('id')),
-                    href: $(this).attr('href'),
-                    value: $(this).attr('href')
-                });
+                if (ctl.attr('href')) {
+                    log.logActivity('link_click', 'controls', {
+                        id: log.getControlId(ctl),
+                        closestId: (ctl.attr('id') ? undefined :
+                                    ctl.closest('[id]').attr('id')),
+                        href: ctl.attr('href'),
+                        value: ctl.attr('href')
+                    });
+                } else {
+                    log.logActivity('button_click', 'controls', {
+                        id: log.getControlId(ctl),
+                        closestId: (ctl.attr('id') ? undefined :
+                                    ctl.closest('[id]').attr('id')),
+                        classes: ctl.attr('class')
+                    });
+                }
             });
-            $('button,.log-as-button', selector).on('click', function () {
+            parent.on('click', 'button,.log-as-button', function () {
                 var ctl = $(this);
                 log.logActivity('button_click', 'controls', {
-                    id: ctl.attr('id'),
+                    id: log.getControlId(ctl),
                     closestId: (ctl.attr('id') ? undefined :
                                 ctl.closest('[id]').attr('id')),
                     classes: ctl.attr('class')
                 });
             });
-            $('input[type="checkbox"]:visible', selector)
-            .on('change', function () {
+            parent.on('change', 'input[type="checkbox"]:visible', function () {
                 log.logActivity('checkbox_change', 'controls', {
-                    id: $(this).attr('id'),
+                    id: log.getControlId(this),
                     value: $(this).is(':checked')
                 });
             });
-            $('.slider', selector)
-            .on('slide slideStart slideStop', function (evt) {
+            parent.on('click', 'input[type="radio"]', function () {
+                var ctl = $(this);
+                log.logActivity('radio_click', 'controls', {
+                    id: log.getControlId(ctl) || ctl.attr('name'),
+                    closestId: (ctl.attr('id') ? undefined :
+                                ctl.closest('[id]').attr('id')),
+                    value: ctl.attr(ctl.attr('name')) || ctl.is(':checked')
+                });
+            });
+            parent.on('slide slideStart slideStop', '.slider', function (evt) {
                 log.logActivity(evt.type, 'controls', {
-                    id: $(this).attr('id'),
+                    id: log.getControlId(this),
                     value: evt.value
                 });
             });
-            $('.ga-date-range', selector).on('apply.daterangepicker ' +
-                'cancel.daterangepicker hide.daterangepicker ' +
-                'show.daterangepicker', function (evt) {
-                    log.logActivity('date_' + evt.type, 'controls', {
-                        id: $(this).attr('id'),
-                        value: $(this).val()
-                    });
+            parent.on('apply.daterangepicker cancel.daterangepicker ' +
+                'hide.daterangepicker show.daterangepicker', '.ga-date-range',
+                function (evt) {
+                log.logActivity('date_' + evt.type, 'controls', {
+                    id: $(this).attr('id'),
+                    value: $(this).val()
                 });
-            $('.al-scroller', selector)
-            .on('scroll', function () {
+            });
+            parent.on('scroll', '.al-scroller', function () {
                 /* log scrolling with a maximum rate and some delay.  This will
                  * show where the scrolling ended up and prevent swamping the
                  * log system with scroll events. */
@@ -273,6 +352,35 @@
                     }, 333);
                 }
             });
+            parent.on('sort', '.g-sort-parent', function (evt) {
+                var ctl = $(evt.originalEvent.item);
+                log.logActivity('drag_sortable', 'controls', {
+                    id: ctl.attr('datakey') || log.getControlId(ctl),
+                    value: evt.originalEvent.newIndex,
+                    newIndex: evt.originalEvent.newIndex,
+                    oldIndex: evt.originalEvent.oldIndex,
+                    closestId: (ctl.attr('id') ? undefined :
+                                ctl.closest('[id]').attr('id')),
+                    classes: ctl.attr('class')
+                });
+            });
+            parent.on('c3_zoomstart c3_zoomend c3_brush', '.c3',
+                    function (evt, range) {
+                var ctl = $(this);
+                log.logActivity(evt.type, 'controls', {
+                    id: ctl.closest('[id]').attr('id'),
+                    range: range
+                });
+            });
+            parent.on('c3_tooltip', '.c3',
+                    function (evt, elem, title) {
+                var ctl = $(elem),
+                    id = ctl.closest('[id]').attr('id');
+                log.logActivity('graph_tooltip', 'controls', {
+                    id: id,
+                    title: title
+                }, undefined, undefined, {id: id});
+            });
         },
 
         /* Set up logging for global controls anywhere in the document.  This
@@ -282,10 +390,12 @@
             if (!logger) {
                 return;
             }
-            var log = this;
+            var log = this,
+                doc = $(document);
 
-            $('[title]').off('shown.bs.tooltip')
-            .on('shown.bs.tooltip', function (evt) {
+            doc.off('.activityLog');
+            doc.on('shown.bs.tooltip.activityLog', '[title]',
+                    function (evt) {
                 var ctl = $(evt.target);
                 /* If we don't show a tooltip for a minimum amount of time,
                  * don't bother logging it -- the user won't have read it. */
@@ -326,7 +436,7 @@
             });
             $('.daterangepicker select').on('change.activityLog', function () {
                 log.logActivity('select_change', 'controls', {
-                    id: $(this).attr('id'),
+                    id: log.getControlId(this),
                     value: $(this).val()
                 });
                 window.setTimeout(_.bind(log.logGlobalControls, log), 1);
@@ -335,7 +445,7 @@
                 if (!ctl.hasClass('hasFocus')) {
                     ctl.addClass('hasFocus');
                     log.logActivity('select_open', 'controls', {
-                        id: ctl.attr('id')
+                        id: log.getControlId(ctl)
                     });
                 }
             }).on('blur.activityLog', function () {
@@ -343,10 +453,28 @@
                 if (ctl.hasClass('hasFocus')) {
                     ctl.removeClass('hasFocus');
                     log.logActivity('select_close', 'controls', {
-                        id: ctl.attr('id')
+                        id: log.getControlId(ctl)
                     });
                 }
             });
+        },
+
+        getControlId: function (ctl) {
+            ctl = $(ctl);
+            var id = ctl.attr('id'),
+                classes = ctl.attr('class');
+            if (!id && classes) {
+                classes = classes.split(' ');
+                for (var i = 0; i < classes.length; i += 1) {
+                    if (classes[i].substr(0, 3) === 'ga-') {
+                        if (id) {
+                            return undefined;
+                        }
+                        id = '.' + classes[i];
+                    }
+                }
+            }
+            return id;
         }
     };
 
@@ -367,12 +495,15 @@
             sendLogs: true
         });
         logger.register();
-        var origInit = geoapp.View.prototype.initialize;
-        geoapp.View.prototype.initialize = function () {
-            origInit.apply(this, arguments);
-            geoapp.activityLog.logControls($(this.el).children(),
-                                           $(this.el).children().attr('id'));
-            geoapp.activityLog.logGlobalControls();
+        var origRender = geoapp.View.prototype.render;
+        geoapp.View.prototype.render = function () {
+            origRender.apply(this, arguments);
+            if (!this.activityLogOn) {
+                geoapp.activityLog.logControls(
+                    $(this.el), this.viewName || $(this.el).attr('id'));
+                geoapp.activityLog.logGlobalControls();
+                this.activityLogOn = true;
+            }
         };
         geoapp.router.on('route', function (route, params) {
             if (params.length) {

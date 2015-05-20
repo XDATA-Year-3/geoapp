@@ -160,6 +160,7 @@ geoapp.DataHandler = function (arg) {
             params: options.params,
             complete: !callNext
         });
+        geoapp.events.trigger('ga:dataLoaded.' + this.datakey, options);
     };
 
     /* Set or clear the loading animation.

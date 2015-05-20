@@ -1,9 +1,10 @@
 @import 'nib'
 
 #ga-graph-page
-  left 0
-  right inherit
-  bottom 25px
+  left inherit
+  bottom inherit
+  right 0
+  top 0
   z-index 2
   width 545px
   .circle-btn
@@ -39,17 +40,25 @@
     width 500px
     height 200px
     display inline-block
-    svg
-      font-size 10px
-      width 100%
-      height 100%
-      .line
-        fill none
-        stroke-width 1px
-      .axis path,.axis line
-        fill none
-        stroke black
-        shape-rendering crispEdges
+    .graph-waiting
+      position absolute
+      font-size 14px
+      top 50%
+      left 50%
+      margin 0 -50% 0 0
+      transform: translate(-50%, -50%)
+    .graph-plot
+      svg
+        font-size 10px
+        width 100%
+        height 100%
+        .line
+          fill none
+          stroke-width 1px
+        .axis path,.axis line
+          fill none
+          stroke black
+          shape-rendering crispEdges
 #ga-graph-settings
   label
     font-weight normal

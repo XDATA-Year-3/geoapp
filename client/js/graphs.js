@@ -30,6 +30,7 @@ geoapp.Graph = function (arg) {
             '#d73027', '#4575b4', '#fdae61', '#abd9e9',
             '#f46d43', '#74add1', '#fee090', '#e0f3f8'
         ],
+        m_navigableGraphOptions = ['type', 'bin', 'left', 'right'],
         m_graphInfo = {},
         m_generalGraphSpec = {
             axis: {
@@ -48,6 +49,12 @@ geoapp.Graph = function (arg) {
                 }
             },
             tooltip: {
+                contents: function (d, titleFormat, valueFormat, color) {
+                    $(this.api.element).trigger('c3_tooltip', this.api.element,
+                        titleFormat[d[0].x]);
+                    return c3.chart.internal.fn.getTooltipContent.call(
+                        this, d, titleFormat, valueFormat, color);
+                },
                 format: {
                     value: function (value, ratio, id, index) {
                         index = index;  /* prevent unused warning */
@@ -63,7 +70,19 @@ geoapp.Graph = function (arg) {
                     }
                 }
             },
-            zoom: { enabled: true }
+            zoom: {
+                enabled: true,
+                onzoom: function (evt) {
+                    $(this.element).trigger('c3_zoom', evt);
+                },
+                onzoomend: function (evt) {
+                    $(this.element).trigger('c3_zoomend', evt);
+                    m_this.handleGraphZoom(this, evt);
+                },
+                onzoomstart: function () {
+                    $(this.element).trigger('c3_zoomstart');
+                }
+            }
         },
         m_defaultGraphSpec = {
             line : {
@@ -82,8 +101,12 @@ geoapp.Graph = function (arg) {
                 data: { type: 'line' },
                 point: { show: false },
                 subchart: {
+                    onbrush: function (evt) {
+                        $(this.element).trigger('c3_brush', evt);
+                        m_this.handleGraphZoom(this, evt);
+                    },
                     show: true,
-                    size: { height: 25 }
+                    size: { height: 20 }
                 }
             },
             scatter: {
@@ -166,8 +189,9 @@ geoapp.Graph = function (arg) {
      *                example, "weather.temp_mean" is the mean daily
      *                temperature.  Only available data series are plotted.
      * @param opts: options dictionary for the graph.  See above.
+     * @param updateNav: if not === false, update navigation.
      */
-    this.createGraph = function (position, series, opts) {
+    this.createGraph = function (position, series, opts, updateNav) {
         position = (position === null ? m_numGraphs : position);
         m_this.graphExists(position);
 
@@ -175,7 +199,8 @@ geoapp.Graph = function (arg) {
         this.graphOpts[position] = {
             position: position,
             series: series,
-            opts: opts
+            opts: opts,
+            xminmax: null
         };
         opts.type = m_defaultGraphSpec[opts.type] ? opts.type : 'line';
         opts.bin = $.inArray(opts.bin, ['day', 'hour']) >= 0 ? opts.bin : 'day';
@@ -183,9 +208,10 @@ geoapp.Graph = function (arg) {
             dateRange,
             xScatter, xScatterCount, scatterDate = [],
             graphType = opts.type,
+            missing = 0,
             spec = $.extend(true, {}, m_generalGraphSpec,
                 m_defaultGraphSpec[graphType], {
-                    bindto: '#ga-graph-' + position + ' .graph-region',
+                    bindto: '#ga-graph-' + position + ' .graph-plot',
                     data: {
                         colors: {},
                         columns: [],
@@ -204,6 +230,7 @@ geoapp.Graph = function (arg) {
                 datakey = seriesInfo[1],
                 dataSrc = geoapp.graphData[srcName];
             if (!dataSrc || !dataSrc.available(datakey)) {
+                missing += 1;
                 return;
             }
             var desc = dataSrc.describe(datakey),
@@ -221,15 +248,17 @@ geoapp.Graph = function (arg) {
             dateRange.start = Math.min(dr.start, dateRange.start);
             dateRange.end = Math.max(dr.end, dateRange.end);
             spec.data.names[ycol[0]] = desc.name;
-            spec.data.cols[ycol[0]] = spec.data.columns.length;
             if (graphType !== 'scatter') {
                 _.each(seriesData, function (d) {
                     xcol.push(d.x);
                     ycol.push(d.y);
                 });
-                spec.data.columns.push(ycol);
                 spec.data.cols[xcol[0]] = spec.data.columns.length;
                 spec.data.columns.push(xcol);
+                m_this.graphOpts[position].xminmax = m_this.computeMinMax(
+                    m_this.graphOpts[position].xminmax, xcol.slice(1));
+                spec.data.cols[ycol[0]] = spec.data.columns.length;
+                spec.data.columns.push(ycol);
                 spec.data.xs[ycol[0]] = xcol[0];
                 spec.data.colors[ycol[0]] = m_colorList[dataPos - 1];
             } else {
@@ -242,6 +271,8 @@ geoapp.Graph = function (arg) {
                             ycol.push(d.y);
                         }
                     });
+                    m_this.graphOpts[position].xminmax = m_this.computeMinMax(
+                        null, ycol.slice(1));
                     xScatterCount = ycol.length;
                     spec.data.colors[ycol[0]] = 'rgba(0,0,0,0)';
                 } else {
@@ -255,17 +286,35 @@ geoapp.Graph = function (arg) {
                     });
                     spec.data.colors[ycol[0]] = m_colorList[dataPos - 2];
                 }
+                spec.data.cols[ycol[0]] = spec.data.columns.length;
                 spec.data.columns.push(ycol);
             }
             dataPos += 1;
         });
-        var funcName = 'adjustGraph_' + graphType;
-        if (this[funcName]) {
-            this[funcName](spec, opts, dateRange, scatterDate);
+        $('#ga-graph-' + position + ' .graph-waiting').toggleClass(
+            'hidden', missing === 0);
+        $(spec.bindto).toggleClass('hidden', missing !== 0).css({
+            width: $(spec.bindto).parent().innerWidth() + 'px',
+            height: $(spec.bindto).parent().innerHeight() + 'px'
+        });
+        if (!missing) {
+            var funcName = 'adjustGraph_' + graphType;
+            if (this[funcName]) {
+                this[funcName](spec, opts, dateRange || {}, scatterDate,
+                m_this.graphOpts[position].xminmax);
+            }
+            this.graphOpts[position].c3 = c3.generate(spec);
+            if (opts.left && opts.right) {
+                this.graphOpts[position].c3.zoom(
+                    [parseFloat(opts.left), parseFloat(opts.right)]);
+            }
         }
-        c3.generate(spec);
+        this.graphOpts[position].renderTime = (missing ? 0 :
+            new Date().getTime());
         this.graphOpts[position].spec = spec;
-        //DWM:: record nav
+        if (updateNav !== false) {
+            this.updateGraphNavigation();
+        }
     };
 
     /* Adjust the c3 specification for a line plot.
@@ -301,25 +350,18 @@ geoapp.Graph = function (arg) {
      * @param opts: the graph options.
      * @param dateRange: the computed date range of the data.
      * @param scatterDate: an array of dates if this is a scatter plot.
+     * @param xminmax: the minimum and maximum x values for the whole graph.
      */
-    this.adjustGraph_scatter = function (spec, opts, dateRange, scatterDate) {
-        var minx, maxx, miny, maxy;
+    this.adjustGraph_scatter = function (spec, opts, dateRange, scatterDate,
+                                         xminmax) {
+        var miny, maxy;
 
         spec.data.x = spec.data.columns[0][0];
         delete spec.data.xs;
-        /* Add a bit of padding to the x and y direcctions.  Padding is in
-         * pixels vertically and in teh data domain horizontally. */
-        _.each(spec.data.columns[0].slice(1), function (x) {
-            if (minx === undefined) {
-                minx = maxx = x;
-            }
-            minx = x < minx ? x : minx;
-            maxx = x > maxx ? x : maxx;
-        });
-        if (minx !== 0) {
-            spec.axis.x.padding.left = (maxx - minx) * 0.005;
+        if (xminmax[0] !== 0) {
+            spec.axis.x.padding.left = (xminmax[1] - xminmax[0]) * 0.005;
         }
-        spec.axis.x.padding.right = (maxx - minx) * 0.005;
+        spec.axis.x.padding.right = (xminmax[1] - xminmax[0]) * 0.005;
         _.each(spec.data.columns.slice(1), function (data) {
             _.each(data.slice(1), function (y) {
                 if (miny === undefined) {
@@ -387,9 +429,11 @@ geoapp.Graph = function (arg) {
             for (i = 0; i < d.length; i += 1) {
                 d[i] = $.extend({}, d[i], {x: x});
             }
-            return c3.chart.internal.fn.getTooltipContent.call({
-                config: spec
-            }, d, spec.tooltip.format.title, spec.tooltip.format.value, color);
+            /* Trigger an event to indicate we are showing a tooltip */
+            $(this.api.element).trigger('c3_tooltip', this.api.element,
+                titleFormat[d[0].x]);
+            return c3.chart.internal.fn.getTooltipContent.call(
+                this, d, titleFormat, valueFormat, color);
         };
     };
 
@@ -420,7 +464,7 @@ geoapp.Graph = function (arg) {
         if (!m_numGraphs) {
             $('#ga-graph .no-graph').css('display', '');
         }
-        //DWM:: record nav
+        this.updateGraphNavigation();
     };
 
     /* Change the settings for a graph.
@@ -487,6 +531,144 @@ geoapp.Graph = function (arg) {
         });
         return {datasets: datasets, datasetInfo: datasetInfo};
     };
+
+    /* Record the graphs that are being displayed in the navigation route.
+     *
+     * @param combine: if true and the last call to updateNavigation was the
+     *                 same section, replace the previous navigation rather
+     *                 than adding to the history.
+     */
+    this.updateGraphNavigation = function (combine) {
+        var params = {};
+        _.each(m_this.graphOpts, function (opts, pos) {
+            params['series' + pos] = opts.series.join(',');
+            _.each(m_navigableGraphOptions, function (opt) {
+                if (opts.opts[opt] !== undefined) {
+                    params[opt + pos] = opts.opts[opt];
+                }
+            });
+        });
+        geoapp.updateNavigation(undefined, 'graph', params, false, combine);
+    };
+
+    /* Based on the navigation route, replace existing graphs so that they are
+     * what is listed in the route.
+     *
+     * @param settings: graph settings.
+     */
+    this.graphsFromNavigation = function (settings) {
+        var pos, opts, used = {}, update, old;
+
+        _.each(settings, function (series, key) {
+            if (key.substr(0, 6) === 'series') {
+                series = series.split(',');
+                opts = {};
+                pos = parseInt(key.substr(6));
+                old = m_this.graphOpts[pos];
+                update = (!old || !_.isEqual(series, old.series));
+                _.each(m_navigableGraphOptions, function (opt) {
+                    opts[opt] = settings[opt + pos];
+                    if (old) {
+                        update = update || old.opts[opt] !== opts[opt];
+                    }
+                });
+                if (update) {
+                    m_this.createGraph(pos, series, opts, false);
+                }
+                used[pos] = true;
+            }
+        });
+        for (pos = m_numGraphs - 1; pos >= 0; pos -= 1) {
+            if (!used[pos]) {
+                this.removeGraphs(undefined, pos);
+            }
+        }
+    };
+
+    /* Update a graph with new data if necessary.  Graphs are only updated if
+     * they were not rendered or the data timestamp is later than the render
+     * timestamp or the always flag is true.
+     *
+     * @param position: the 0-based position of the graph, or undefined to
+     *                  update all graphs.
+     * @param always: if true, always update the graph.
+     */
+    this.updateGraph = function (position, always) {
+        if (position === undefined) {
+            for (position = 0; position < m_numGraphs; position += 1) {
+                this.updateGraph(position, always);
+            }
+            return;
+        }
+        var opts = this.graphOpts[position],
+            update = (always === true);
+        _.each(opts.series, function (seriesName) {
+            var seriesInfo = seriesName.split('.'),
+                srcName = seriesInfo[0],
+                dataSrc = geoapp.graphData[srcName];
+            update = (update || (m_this.graphOpts[position].renderTime <
+                dataSrc.dataTime()));
+        });
+        if (update) {
+            this.createGraph(position, opts.series, opts.opts, false);
+        }
+    };
+
+    /* Process that a graph has been zoomed.  Save the zoom range to
+     * navigation, and update the opts so that a data update won't affect the
+     * range.
+     *
+     * @param c3graph: the c3 object that owns this graph.
+     * @param range: the new x-axis range.
+     */
+    this.handleGraphZoom = function (c3graph, range) {
+        var pos = parseInt($(c3graph.element).closest('[graph-position]').attr(
+            'graph-position'));
+        var graphOpts = m_this.graphOpts[pos];
+        range = range.slice(); /* copy so we don't modify the calling object */
+        if (range[0].getTime) {
+            range[0] = range[0].getTime();
+            range[1] = range[1].getTime();
+        }
+        if (range[0] <= graphOpts.xminmax[0] &&
+                range[1] >= graphOpts.xminmax[1]) {
+            range[0] = range[1] = undefined;
+        }
+        graphOpts.opts.left = range[0];
+        graphOpts.opts.right = range[1];
+        this.updateGraphNavigation(true);
+    };
+
+    /* Compute or extend the minimum and maximum values of an array.
+     *
+     * @param minmax: the existing [minimum, maximum] values to update.  This
+     *                allows the total minimum and maximum of multiple arrays
+     *                to be computer by passing the results from a previous
+     *                call to this funcion (or nesting this function).  Null to
+     *                just compute the minimum and maximum of the specified
+     *                values.
+     * @param values: an array of values.  If null or zero length, the min and
+     *                max won't be adjusted.
+     * @returns: [minimum, maximum], unless the values array was undefined or
+     *           of zero length and minmax was null, in which case, null.
+     */
+    this.computeMinMax = function (minmax, values) {
+        if (!values || !values.length) {
+            return minmax;
+        }
+        if (!minmax) {
+            minmax = [values[0], values[0]];
+        }
+        _.each(values, function (value) {
+            if (value < minmax[0]) {
+                minmax[0] = value;
+            }
+            if (value > minmax[1]) {
+                minmax[1] = value;
+            }
+        });
+        return minmax;
+    };
 };
 
 geoapp.graph = geoapp.Graph();
@@ -505,6 +687,8 @@ geoapp.views.GraphSettingsWidget = geoapp.View.extend({
                 'graph-type') || opts.type || 'line';
             opts.bin = $('.ga-graph-bin .radio-inline input:checked').attr(
                 'graph-bin') || opts.bin || 'hour';
+            /* Clear previous zoom / subchart brush */
+            opts.left = opts.right = undefined;
             opts.datasetOrder = [];
             series = [];
             $('#ga-dataset-list li').each(function () {
@@ -522,8 +706,7 @@ geoapp.views.GraphSettingsWidget = geoapp.View.extend({
                     opts.type === 'line' ? '1 dataset' : '2 datasets') + '.');
                 return;
             }
-            graph.createGraph(position, series, opts);
-            //DWM:: record nav
+            graph.createGraph(position, series, opts, true);
             this.$el.modal('hide');
         }
     },
@@ -538,6 +721,7 @@ geoapp.views.GraphSettingsWidget = geoapp.View.extend({
      */
     initialize: function (settings) {
         this.settings = settings || {};
+        this.viewName = 'GraphSettingsWidget';
     },
 
     /* Draw the dialog and populate the controls.
@@ -561,6 +745,7 @@ geoapp.views.GraphSettingsWidget = geoapp.View.extend({
             $('#ga-dataset-list', view.$el).sortable({});
         });
         modal.trigger($.Event('ready.geoapp.modal', {relatedTarget: modal}));
+        geoapp.View.prototype.render.apply(this, arguments);
         return this;
     }
 });
@@ -575,6 +760,8 @@ geoapp.GraphData = function (arg) {
         return new geoapp.GraphData(arg);
     }
     arg = arg || {};
+
+    var m_updateTime = 0;
 
     this.dataItems = {};
 
@@ -618,6 +805,23 @@ geoapp.GraphData = function (arg) {
             start: Math.floor(data[0].x / day) * day,
             end: Math.ceil((data[data.length - 1].x + 1.0) / day) * day
         };
+    };
+
+    /* Mark the data as updated, or return the last update time.
+     *
+     * @param update: if true, update the time to the current time.  If a
+     *                number, set the time to the specified millisecond epoch,
+     *                if undefined, just return the update time.
+     * @return updateTime: the update time for the data.
+     */
+    this.dataTime = function (update) {
+        if (update === true) {
+            update = new Date().getTime();
+        }
+        if (update !== undefined) {
+            m_updateTime = update;
+        }
+        return m_updateTime;
     };
 };
 
@@ -665,6 +869,11 @@ geoapp.graphData.weather = function (arg) {
             units: 'mph'
         }
     };
+
+    geoapp.events.on('ga:staticDataLoaded.' + m_datakey, function () {
+        this.dataTime(true);
+        geoapp.graph.updateGraph();
+    }, this);
 
     /* List what data, if any, is available to be graphed.
      *
@@ -757,6 +966,11 @@ geoapp.graphData.taximodel = function (arg) {
             column: 'raw'
         }
     };
+
+    geoapp.events.on('ga:staticDataLoaded.' + m_datakey, function () {
+        this.dataTime(true);
+        geoapp.graph.updateGraph();
+    }, this);
 
     /* List what data, if any, is available to be graphed.
      *
@@ -875,6 +1089,141 @@ geoapp.graphData.taximodel = function (arg) {
 inherit(geoapp.graphData.taximodel, geoapp.GraphData);
 geoapp.graphData.taximodel = geoapp.graphData.taximodel();
 
+/* -------- taxi graph data -------- */
+
+geoapp.graphData.taxi = function (arg) {
+    'use strict';
+    var m_datakey = 'taxi';
+
+    if (!(this instanceof geoapp.graphData[m_datakey])) {
+        return new geoapp.graphData[m_datakey](arg);
+    }
+    arg = arg || {};
+    geoapp.GraphData.call(this, arg);
+
+    this.dataItems = {
+        pickups: {
+            name: 'Taxi Pickups',
+            description: 'Filtered taxi pickups',
+            column: 'pickup_datetime',
+            unit: 'trip',
+            units: 'trips'
+        },
+        dropoffs: {
+            name: 'Taxi Dropoffs',
+            description: 'Filtered taxi dropoffs',
+            column: 'dropoff_datetime',
+            unit: 'trip',
+            units: 'trips'
+        },
+        scaledpickups: {
+            name: 'Taxi Scaled Pickups',
+            description: 'Filtered taxi pickups scaled to full data range',
+            column: 'pickup_datetime',
+            scaled: true,
+            unit: 'trip',
+            units: 'trips'
+        },
+        scaleddropoffs: {
+            name: 'Taxi Scaled Dropoffs',
+            description: 'Filtered taxi dropoffs scaled to full data range',
+            column: 'dropoff_datetime',
+            scaled: true,
+            unit: 'trip',
+            units: 'trips'
+        }
+    };
+
+    geoapp.events.on('ga:dataLoaded.' + m_datakey, function () {
+        this.dataTime(true);
+        geoapp.graph.updateGraph();
+    }, this);
+
+    /* List what data, if any, is available to be graphed.
+     *
+     * @param datakey: if present, check if this datakey is available.
+     * @returns: a list of available data keys if datakey is undefined, or a
+     *           boolean indicating if the specified datakey is available.
+     */
+    this.available = function (datakey) {
+        var data = geoapp.map.getLayer(m_datakey).data();
+        if (!data || !data.columns || !data.data) {
+            return datakey ? false : [];
+        }
+        return (datakey ? (this.dataItems[datakey] !== undefined) :
+            _.keys(this.dataItems));
+    };
+
+    /* Given a datakey, return the associated data.
+     *
+     * @param datakey: the datakey to retreive.
+     * @param opts: options that may affect the date range returned.
+     * @return data: an array of data.  Each item contains 'x', the millisecond
+     *               epoch, and 'y', the data value.
+     */
+    this.data = function (datakey, opts) {
+        var binName = opts.bin === 'day' ? 'dataHourly' : 'data',
+            data = geoapp.map.getLayer(m_datakey).data();
+        if (this.dataItems[datakey][binName] && this.dataItems[datakey][
+                binName + 'Time'] >= data.requestTime) {
+            return this.dataItems[datakey][binName];
+        }
+        var dateRange = this.dateRange(datakey, opts),
+            start = dateRange.start,
+            end = dateRange.end,
+            interval = 0 + moment.duration(1, moment.normalizeUnits(opts.bin)),
+            datecol = data.columns[this.dataItems[datakey].column],
+            bins = [],
+            i, numBins;
+        start = 0 + moment.utc(start).startOf('day');
+        end = 0 + moment.utc(end - 1).startOf('day').add(1, 'day');
+        for (i = start; i < end; i += interval) {
+            bins.push({x: i, y: 0});
+        }
+        numBins = bins.length;
+        _.each(data.data, function (item) {
+            var bin = parseInt((item[datecol] - start) / interval);
+            if (bin >= 0 && bin < numBins) {
+                bins[bin].y += 1;
+            }
+        });
+        if (this.dataItems[datakey].scaled) {
+            /* Scale based on partial data and convert to log2 */
+            if (data.loadFactor && data.loadFactor !== 1) {
+                _.each(bins, function (d) {
+                    d.y = parseInt(d.y / data.loadFactor);
+                });
+            }
+            var log2 = Math.log(2);
+            _.each(bins, function (d) {
+                d.y = d.y ? Math.log(d.y) / log2 : 0;
+            });
+        }
+        this.dataItems[datakey][binName] = bins;
+        this.dataItems[datakey][binName + 'Time'] = new Date().getTime();
+        return this.dataItems[datakey][binName];
+    };
+
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @param opts: options that may affect the date range returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function () {
+        var layer = geoapp.map.getLayer(m_datakey),
+            dateRange = layer.cycleDateRange();
+        return {
+            start: 0 + (dateRange.start || moment.utc('2013-1-1')),
+            end: 0 + (dateRange.end || moment.utc('2014-1-1'))
+        };
+    };
+};
+
+inherit(geoapp.graphData.taxi, geoapp.GraphData);
+geoapp.graphData.taxi = geoapp.graphData.taxi();
+
 /* -------- instagram graph data -------- */
 
 geoapp.graphData.instagram = function (arg) {
@@ -896,6 +1245,11 @@ geoapp.graphData.instagram = function (arg) {
         }
     };
 
+    geoapp.events.on('ga:dataLoaded.' + m_datakey, function () {
+        this.dataTime(true);
+        geoapp.graph.updateGraph();
+    }, this);
+
     /* List what data, if any, is available to be graphed.
      *
      * @param datakey: if present, check if this datakey is available.
@@ -903,7 +1257,7 @@ geoapp.graphData.instagram = function (arg) {
      *           boolean indicating if the specified datakey is available.
      */
     this.available = function (datakey) {
-        var data = geoapp.map.getLayer('instagram').data();
+        var data = geoapp.map.getLayer(m_datakey).data();
         if (!data || !data.columns || !data.data) {
             return datakey ? false : [];
         }
@@ -920,7 +1274,7 @@ geoapp.graphData.instagram = function (arg) {
      */
     this.data = function (datakey, opts) {
         var binName = opts.bin === 'day' ? 'dataHourly' : 'data',
-            data = geoapp.map.getLayer('instagram').data();
+            data = geoapp.map.getLayer(m_datakey).data();
         if (this.dataItems[datakey][binName] && this.dataItems[datakey][
                 binName + 'Time'] >= data.requestTime) {
             return this.dataItems[datakey][binName];
@@ -964,7 +1318,7 @@ geoapp.graphData.instagram = function (arg) {
      *           data.
      */
     this.dateRange = function () {
-        var layer = geoapp.map.getLayer('instagram'),
+        var layer = geoapp.map.getLayer(m_datakey),
             dateRange = layer.cycleDateRange();
         return {
             start: 0 + (dateRange.start || moment.utc('2013-1-1')),
