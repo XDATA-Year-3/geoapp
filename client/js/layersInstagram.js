@@ -439,7 +439,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             imageUrl,
             caption = item[mapData.columns.caption] || '',
             date = moment(item[mapData.columns.posted_date]).utcOffset(0
-                ).format('MM-DD HH:mm');
+                ).format('YYYY MMM D HH:mm');
         if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
             $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
         } else {

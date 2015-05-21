@@ -510,7 +510,7 @@ geoapp.dataHandlers.instagram = function (arg) {
                     url: item[url_column]
                 })
                 .append($('<td/>').text(moment(item[date_column])
-                    .utcOffset(0).format('YY-MM-DD HH:mm')))
+                    .utcOffset(0).format('MMM D HH:mm')))
                 .append($('<td/>').text(item[caption_column]))
                 /* Don't add a tooltip, since we pop up the photo elsewhere */
                 //  .attr('title', item[caption_column]))

@@ -461,8 +461,8 @@ geoapp.Map = function (arg) {
         var i, cycle, start, range, end, duration,
             steps, substeps, numBins, group;
         var units = {
-            none: {format: 'ddd MM-DD HH:mm'},
-            year: {format: 'ddd MM-DD HH:mm'},
+            none: {format: 'ddd MMM D HH:mm'},
+            year: {format: 'ddd MMM D HH:mm'},
             month: {format: 'DD HH:mm'},
             week: {format: 'ddd HH:mm', start: moment.utc('2013-1-1').day(0)},
             day: {format: 'HH:mm'},

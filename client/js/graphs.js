@@ -92,7 +92,7 @@ geoapp.Graph = function (arg) {
                         tick: {
                             count: 13,
                             fit: false,
-                            format: '%-m-%-d',
+                            format: '%b %-d',
                             outer: false
                         },
                         type: 'timeseries'
@@ -222,7 +222,7 @@ geoapp.Graph = function (arg) {
                 });
         spec.tooltip.format.title = function (value) {
             return d3.time.format.utc(
-                opts.bin === 'day' ? '%-m-%-d' : '%-m-%-d %-H:%M')(value);
+                opts.bin === 'day' ? '%b %-d' : '%b %-d %-H:%M')(value);
         };
         _.each(series, function (seriesName) {
             var seriesInfo = seriesName.split('.'),

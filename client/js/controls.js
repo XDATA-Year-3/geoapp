@@ -370,16 +370,21 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (val === '') {
             return;
         }
-        var parts = val.split(' - ');
+        var parts = val.split('- ');
+        if (parts.length === 1) {
+            parts = val.split(' -');
+        }
         if (parts.length === 1) {
             params[baseKey] = val;
             return;
         }
         if (parts[0].trim() !== '') {
-            params[baseKey + '_min'] = parts[0].trim();
+            params[baseKey + '_min'] = moment.utc(
+                parts[0].trim()).format('YYYY-MM-DD HH:mm:ss');
         }
         if (parts[1].trim() !== '') {
-            params[baseKey + '_max'] = parts[1].trim();
+            params[baseKey + '_max'] = moment.utc(
+                parts[1].trim()).format('YYYY-MM-DD HH:mm:ss');
         }
     },
 
