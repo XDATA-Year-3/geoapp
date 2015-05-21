@@ -191,6 +191,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
             mapData = m_this.data(),
             vpf, opac, v;
 
+        if (!mapData) {
+            return;
+        }
         vpf = m_geoPoints.verticesPerFeature();
         opac = m_geoPoints.actors()[0].mapper().getSourceBuffer('fillOpacity');
         for (v = 0; v < mapData.numPoints * vpf; v += 1) {

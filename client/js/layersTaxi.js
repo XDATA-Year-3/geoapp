@@ -691,6 +691,9 @@ geoapp.mapLayers.taxi = function (map, arg) {
             mapData = m_this.data(),
             vpf, opac, v;
 
+        if (!mapData) {
+            return;
+        }
         if (mapParams['display-process'] === 'binned') {
             this.binMapData(mapParams);
             this.setMapDisplayToBinnedData(mapParams);

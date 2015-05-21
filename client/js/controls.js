@@ -69,7 +69,15 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         },
         'click #ga-play': function () {
-            this.animationAction('playpause');
+            if (_.isEqual(geoapp.map.getAnimationOptions(), {})) {
+                $('#ga-anim-update').removeClass('btn-primary');
+                if ($('#ga-play').val() === 'stop') {
+                    $('#ga-play').val('play');
+                }
+                this.updateView(true, 'anim');
+            } else {
+                this.animationAction('playpause');
+            }
         },
         'click #ga-anim-step-back': function () {
             this.animationAction('stepback');

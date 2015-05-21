@@ -436,6 +436,14 @@ geoapp.Map = function (arg) {
         }
     };
 
+    /* Get the current animation options.
+     *
+     * @return: a copy of the animation options.
+     */
+    this.getAnimationOptions = function () {
+        return $.extend({}, m_animationOptions);
+    };
+
     /* Check if there is any data associated with any layer.
      *
      * @returns: true if any data exists.
@@ -486,8 +494,6 @@ geoapp.Map = function (arg) {
         if (cycle === 'none') {
             end = null;
             if (m_cycleDateRange) {
-                /* This will need to change if we use something other than
-                 * pickup date */
                 start = moment.utc('2013-01-01');
                 end = moment.utc('2014-01-01');
                 if (m_cycleDateRange.date_min) {
