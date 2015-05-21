@@ -1,0 +1,30 @@
+.header .rel {
+  display: none;
+}
+.header .headertitle {
+  padding-left: 1em;
+}
+div.content {
+  width: inherit;
+}
+div.document {
+  width: inherit;
+  float: inherit;
+  line-height: 1.2em;
+}
+div.document p {
+  margin-bottom: .2em;
+}
+.documentwrapper .body {
+  max-width: 1000px;
+  padding-left: 2em;
+}
+.sidebar {
+  display: none;
+}
+.footer .left {
+  display: none;
+}
+div.footer-wrapper {
+  min-height: inherit;
+}
