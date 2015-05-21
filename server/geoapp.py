@@ -27,6 +27,7 @@ import json
 import pymongo
 import re
 import time
+import threading
 import urllib
 
 import girder.api.rest
@@ -237,14 +238,20 @@ class ViaPostgres():
     def __init__(self, db=None, **params):
         self.dbname = db
         self.dbparams = params.copy()
+        self.dbLock = threading.RLock()
+        self.db = None
+        self.dbLastUsed = 0
         if db is not None:
             self.dbparams['database'] = db
         if not self.dbparams['database'] and not self.dbparams['dsn']:
             self.dbparams['dsn'] = 'parakon:taxi12r:taxi:taxi#1'
-        self.connect()
         self.useMilliseconds = False
         self.alwaysUseIdSort = True
         self.maxId = None
+        self.dbIdleTime = 300
+        self.closeThread = threading.Thread(target=self.closeWhenIdle)
+        self.closeThread.daemon = True
+        self.closeThread.start()
 
     def adjustReturnFields(self, fields):
         """
@@ -266,27 +273,46 @@ class ViaPostgres():
                 newfields.append(field)
         return newfields
 
-    def connect(self):
+    def connect(self, alwaysNew=False):
         """
         Connect to the database.
         """
         global pgdb
         if not pgdb:
             # We can use either psycopg2 or pgdb.  Provided one only uses %s
-            # formatting, the interface is equiavlent.  psycopg2 starts much
-            # slower than pgdb (seemingly, the first connection takes 5 seconds
-            # for some reason).  psycopg2 converts data to native python
+            # formatting, the interface is equiavlent.  psycopg2 seems to
+            # start slower than pgdb.  psycopg2 converts data to native python
             # formats substantially faster, though.  If we were to use a custom
             # results-to-json format, then I don't know which would be faster.
             # Import either library as pgdb, and that library will be used.
             # import pgdb
             import psycopg2 as pgdb
-        if getattr(self, 'db', None):
+        if getattr(self, 'db', None) and alwaysNew:
             try:
                 self.db.close()
             except Exception:
                 pass
-        self.db = pgdb.connect(**self.dbparams)
+            self.db = None
+        with self.dbLock:
+            db = self.db
+            if db is None:
+                self.db = db = pgdb.connect(**self.dbparams)
+            self.dbLastUsed = time.time()
+        return db
+
+    def closeWhenIdle(self):
+        """
+        Periodically check if the database has been used.  If not, close the
+        connection to free resources and allow easier management of the
+        database while the application is running.
+        """
+        while True:
+            with self.dbLock:
+                if self.db and time.time() - self.dbLastUsed > self.dbIdleTime:
+                    # The old db connection will close when no process is
+                    # using it
+                    self.db = None
+            time.sleep(30)
 
     def checkMaxId(self):
         """
@@ -294,7 +320,7 @@ class ViaPostgres():
         to aid in determining what percentage of the total data was retreived.
         """
         if self.maxId is None:
-            c = self.db.cursor()
+            c = self.connect().cursor()
             try:
                 c.execute('SELECT max(_id) FROM %s' % self.tableName)
                 row = c.fetchone()
@@ -355,7 +381,7 @@ class ViaPostgres():
         columns = {fields[col]: col for col in xrange(len(fields))}
         # TODO: If this fails, try to reconnect to the database
         try:
-            c = self.db.cursor()
+            c = self.connect().cursor()
             if hasattr(c, 'mogrify'):
                 logger.info('Query: %s', c.mogrify(sql, sqlval))
             else:
@@ -363,8 +389,7 @@ class ViaPostgres():
             c.execute(sql, sqlval)
         except pgdb.Error as exc:
             logger.info('Database error %s', str(exc))
-            self.connect()
-            c = self.db.cursor()
+            c = self.connect(True).cursor()
             c.execute(sql, sqlval)
         logger.info('Query execution took %5.3fs', time.time() - starttime)
         result = {

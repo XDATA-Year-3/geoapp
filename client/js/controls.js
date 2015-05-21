@@ -133,6 +133,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }, 10);
             }
         },
+        'change #ga-cycle': function () {
+            this.adjustControls();
+        },
         'click .panel-heading a': function (evt) {
             var elem = $('.panel-collapse', $(evt.currentTarget).closest(
                     '[id]')),
@@ -585,14 +588,26 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (!values.display) {
             values.display = this.updateSection('display', false);
         }
-        $('#ga-display-max-points-group').toggleClass('hidden', (
+        if (!values.anim) {
+            values.anim = this.updateAnimValues(false);
+        }
+        $('#ga-display-max-points-group').toggleClass('hidden',
             values.display['display-process'] === 'binned' ||
-            values.display['display-type'] === 'vector'));
-        $('#ga-display-max-lines-group').toggleClass('hidden', (
+            values.display['display-type'] === 'vector');
+        $('#ga-display-max-lines-group').toggleClass('hidden',
             values.display['display-process'] === 'binned' ||
-            values.display['display-type'] !== 'vector'));
-        $('#ga-display-num-bins-group').toggleClass('hidden', (
-            values.display['display-process'] !== 'binned'));
+            values.display['display-type'] !== 'vector');
+        $('#ga-display-num-bins-group').toggleClass('hidden',
+            values.display['display-process'] !== 'binned');
+        $('#ga-cycle-group option[value="day"]').toggleClass('hidden',
+            values.anim.cycle === 'day');
+        $('#ga-cycle-group option[value="week"]').toggleClass('hidden',
+            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+        if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
+                '"]').hasClass('hidden')) {
+            $('#ga-cycle-group').val(
+                $('#ga-cycle-group option').not('.hidden').val());
+        }
     },
 
     /* Get an value or range of values from a control.  The type is stored in
