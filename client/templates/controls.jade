@@ -19,7 +19,8 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
 
 #ga-main-page.ga-main-ui
   +standardPanel('ga-filter-settings-panel', 'ga-filter-settings', 'Filters',
-      "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.")
+      "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.",
+      true)
     include taxifilters.jade
     include instagramfilters.jade
   +standardPanel('ga-display-settings-panel', 'ga-display-settings', 'Display',
@@ -174,4 +175,10 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
     .form-group
       label Current Display
       span#ga-cycle-anim.input-sm Full Data
+
+a#ga-help(href="built/docs/index.html", target="_blank",
+    title="Show help page", data-placement="right")
+  button
+    i.icon-help-circled
+
 include results.jade
