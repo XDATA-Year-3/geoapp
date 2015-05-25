@@ -1,19 +1,25 @@
 cd ~/geoapp
 
+# This apt-get probably isn't necessary unless you want to examine the database
+# manually:
 apt-get install postgresql-client postgresql-common libpq-dev
 
 git submodule update --init --recursive
 git submodule update --recursive
 cd geojs
-npm install
+npm install --production
 grunt library
 cd ..
+
+# If desired, get the static data files for graphs:
+curl https://data.kitware.com/api/v1/file/5550e5e18d777f082b592f3e/download -o client/optional/static/weather.json
+curl https://data.kitware.com/api/v1/file/5559f3658d777f082b592fbe/download -o client/optional/static/taximodel.json
 
 # If desired, get the logging module from Draper:
 curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js
 curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
-npm install
+npm install --production
 
 virtualenv env
 cd env

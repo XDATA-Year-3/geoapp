@@ -16,6 +16,8 @@ RUN pip install girder==1.3.1 && \
     girder-install web && \
     girder-install plugin
 
+# RUN ln -s /usr/local/lib/python2.7/dist-packages/girder/clients /usr/local/lib/python2.7/dist-packages/clients
+
 # Create a user
 RUN adduser --disabled-password --gecos '' kwuser && \
     adduser kwuser sudo && \

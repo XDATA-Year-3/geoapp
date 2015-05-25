@@ -30,6 +30,10 @@ geoapp.TileSets = {
         url: 'http://tile.stamen.com/toner-lite/',
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
+    stamenterrain: {
+        url: 'http://tile.stamen.com/terrain/',
+        credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+    },
     blank: {url: 'api/v1/geoapp/tiles/blank/'}
 };
 geoapp.TileSets.default = geoapp.TileSets.mqsat;
@@ -165,7 +169,10 @@ geoapp.Map = function (arg) {
                 y1: bounds.lowerRight.y.toFixed(7),
                 zoom: zoom.toFixed(2)
             }, false, true);
-            $('#ga-main-map').trigger('ga.map.moved');
+            $('#ga-main-map').trigger('ga.map.moved', {
+                bounds: bounds,
+                zoom: zoom
+            });
             m_panQueued = false;
             m_panTimer = window.setTimeout(function () {
                 view.mapMovedEvent();
@@ -384,20 +391,30 @@ geoapp.Map = function (arg) {
 
     /* Replace the current animation options with a new set.  If animating or
      * in a paused animation, update the animation.  The options consist of
-     *  cycle: a duration, typically in a human-readable string, such as
-     *      hour, day, week, month, year, or none.  This determines binning of
-     *      the data.  That is, a cycle of a day means that multiple days of
-     *      data are combined so that sub-day variations can be displayed.
+     *  cycle: a duration, typically in a human-readable string, such as hour,
+     *    day, week, month, year, or none.  This determines binning of the
+     *    data.  That is, a cycle of a day means that multiple days of data are
+     *    combined so that sub-day variations can be displayed.
      *  cycle-steps: the number of primary steps within the cycle.  This much
-     *      data will be shown at once.  For instance, if the cycle is 'day',
-     *      and the cycle-steps is 24, then 1 hour of data is shown at a time.
-     *  cycle-substeps: the number of animation frames to use to progress
-     *      through a step.  If this is 1, then only the steps are discrete.
-     *      If greater than one, the steps overlap.  For instance with a cycle
-     *      of 'day' and 24 steps, if the substeps are 12, then each animation
-     *      step will add five minutes of data at one end of the range and
-     *      remove five minutes of the data from the other end.
-     *  cycle-steptime: milliseconds per step (not substep).
+     *    data will be shown at once.  For instance, if the cycle is 'day', and
+     *    the cycle-steps is 24, then 1 hour of data is shown at a time.
+     *  cycle-group: a duration such as week, day, hour, or 3-hour (meaning 3
+     *    hours).  Used to determine the cycle-steps based on the cycle.
+     *  cycle-duration: time for the entire cycle.  Either in milliseconds or a
+     *    string of the form (number)-(unit), such as 2-m.  The unit must be
+     *    recognized by momentjs.
+     *  cycle-steptime: milliseconds per step (not substep).  An alternate way
+     *    of specifying duration (duration is the cycle steps * steptime).
+     *  cycle-framerate: either 'stepped' or a target framerate in fps.  If
+     *    'stepped' the individual groups (steps) are discrete.  Otherwise,
+     *    they function as a sliding group.
+     *  cycle-substeps: if a framerate is not specified, the number of
+     *    animation frames to use to progress through a step.  If this is 1, it
+     *    is the same as the 'stepped' framerate.  If greater than one, this is
+     *    the sliding group.  For instance with a cycle of 'day' and 24 steps,
+     *    if the substeps are 12, then each animation step will add five
+     *    minutes of data at one end of the range and remove five minutes of
+     *    the data from the other end.
      *
      * @param options: animation options.  See above.
      * @param onlyUpdateOnChange: if true, only update if the options have
@@ -441,7 +458,8 @@ geoapp.Map = function (arg) {
      *                 updateMapAnimation.
      */
     this.prepareAnimation = function (options) {
-        var i;
+        var i, cycle, start, range, end, duration,
+            steps, substeps, numBins, group;
         var units = {
             none: {format: 'ddd MM-DD HH:mm'},
             year: {format: 'ddd MM-DD HH:mm'},
@@ -456,20 +474,17 @@ geoapp.Map = function (arg) {
         if (!this.hasAnyData() || options.playState === 'stop') {
             return;
         }
-        var steps = parseInt(options['cycle-steps'] || 1);
-        var substeps = parseInt(options['cycle-substeps'] || 1);
-        var numBins = steps * substeps;
-        if (steps <= 1 || numBins <= 1) {
+        if (!options['cycle-steps'] && !options['cycle-group']) {
             return;
         }
-        var cycle = moment.normalizeUnits(options.cycle);
+        cycle = moment.normalizeUnits(options.cycle);
         if (!units[cycle]) {
             cycle = 'none';
         }
-        var start = units[cycle].start || moment.utc('2013-01-01');
-        var range = moment.duration(1, cycle);
+        start = units[cycle].start || moment.utc('2013-01-01');
+        range = moment.duration(1, cycle);
         if (cycle === 'none') {
-            var end = null;
+            end = null;
             if (m_cycleDateRange) {
                 /* This will need to change if we use something other than
                  * pickup date */
@@ -493,17 +508,64 @@ geoapp.Map = function (arg) {
                         }
                     }
                 });
+                end = moment.utc(end).add(1, 'ms');
             }
-            start = moment(start);
-            range = moment.duration(moment(end) - moment(start) + 1);
+            start = moment.utc(start);
+            range = moment.duration(moment.utc(end) - moment.utc(start));
         }
+        steps = parseInt(options['cycle-steps'] || 1);
+        if (steps <= 1 && options['cycle-group']) {
+            var roundTo = (options['cycle-group'] === '3-hour' ? 'day' :
+                options['cycle-group']);
+            group = (options['cycle-group'] === '3-hour' ?
+                moment.duration(3, 'hours') :
+                moment.duration(1, options['cycle-group']));
+            /* Start and end on group boundaries */
+            end = moment.utc(start + range);
+            start = start.startOf(roundTo);
+            end = end.subtract(1, 'ms').endOf(roundTo).add(1, 'ms');
+            range = moment.duration(end - start);
+            steps = Math.ceil(range / group);
+        }
+        if (options['cycle-duration']) {
+            var parts = ('' + options['cycle-duration']).split('-');
+            if (parts.length === 1) {
+                duration = ($.isNumeric(parts[0]) ? parseInt(parts[0]) :
+                    0 + moment.duration(1, parts[0]));
+            } else {
+                duration = 0 + moment.duration(parseFloat(parts[0]), parts[1]);
+            }
+        } else {
+            duration = steps * (options['cycle-steptime'] || 1000);
+        }
+        if (options['cycle-framerate']) {
+            if ($.isNumeric(options['cycle-framerate']) &&
+                    parseFloat(options['cycle-framerate']) > 0) {
+                /* Honor the fps, but don't step through the data faster than
+                 * 1 minute intervals, and always show an integer number of
+                 * frames per major step */
+                var fpms = parseFloat(options['cycle-framerate']) / 1000;
+                substeps = Math.max(1, Math.floor(Math.min(
+                    duration * fpms / steps,
+                    range / steps / moment.duration(1, 'minute'))));
+            } else {
+                substeps = 1;
+            }
+        } else {
+            substeps = parseInt(options['cycle-substeps'] || 1);
+        }
+        numBins = steps * substeps;
+        if (steps <= 1 || numBins <= 1 || duration <= 0) {
+            return;
+        }
+
         var params = {
             numBins: numBins,
             steps: steps,
             substeps: substeps,
             bins: [],
             opacity: options.opacity,
-            timestep: (options['cycle-steptime'] || 1000) / substeps,
+            timestep: duration / numBins,
             loops: options.loops,
             statusElem: options.statusElem,
             sliderElem: options.sliderElem,
@@ -514,7 +576,7 @@ geoapp.Map = function (arg) {
             (range.asMilliseconds() + numBins - 1) / numBins));
         var binStart = start;
         for (i = 0; i < numBins; i += 1) {
-            var binEnd = moment(binStart + binWidth);
+            var binEnd = moment.utc(binStart + binWidth);
             var bin = {
                 index: i,
                 start: binStart,

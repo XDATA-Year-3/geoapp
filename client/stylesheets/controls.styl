@@ -1,0 +1,251 @@
+@import 'nib'
+
+#ga-main-map
+  width 100%
+  height 100%
+  position absolute
+
+#ga-map-credit-box
+  position absolute
+  left 5px
+  bottom 5px
+  font-size 10px
+  padding 4px
+  background rgba(255,255,255,0.5)
+  z-index 1
+
+.ga-main-ui
+  width 335px
+
+.ga-main-ui,.ga-results-ui
+  user-select none
+  position absolute
+  .panel-title
+    font-size 14px
+    color black
+  .panel-heading
+    padding 3px 5px
+  .panel-body
+    padding 5px
+  .panel-group
+    margin 5px
+  .panel-title i
+    float right
+  .form-group
+    margin-bottom 0
+  .form-control
+    width auto
+    display inline-block
+  label
+    padding-right 5px
+    font-size 12px
+    margin 0
+  .btn-sm
+    font-weight bold
+    margin-top 2px
+    margin-right 5px
+    padding 3px 6px
+
+.ga-main-ui
+  .ga-date-range
+    width 230px
+  #ga-play
+    width 70px
+    span.canpause
+      display none
+    &[value=play] span.canplay
+      display none
+    &[value=play] span.canpause
+      display inherit
+  .animate-spin
+    animation spin 3s infinite linear
+  .ga-loading-spinner
+    font-size 20px
+    line-height 1em
+    display inline-block
+    position relative
+    top 5px
+    left 4px
+    color black
+  .ga-loading-spinner.second-load
+    color #555555
+  .input-sm
+    height 26px
+    padding 3px 6px
+  .ga-place
+    padding 1px 4px 1px 0px
+  [taxitype="int"]
+    width 60px
+  [taxitype="float"]
+    width 80px
+  label:not(:first-child)
+    padding-left 10px
+  input[type="checkbox"]+label
+    padding-left: 0
+  .slider
+    margin-left 5px
+    height 30px
+    .slider-handle
+      width 6px
+      height 18px
+      margin-left -3px
+      margin-top -4px
+      &:focus
+        outline none
+    .slider-selection
+      background none
+    .tooltip.top
+      margin-top -28px
+      pointer-events none
+      .tooltip-inner
+        padding 2px 5px
+      .tooltip-arrow
+        pointer-events auto
+  #ga-step-slider-ctl
+    width 290px
+  #ga-tile-opacity-ctl,#ga-data-opacity-ctl
+    width 25px
+  .ga-slider-label
+    padding-right 1px
+  #ga-data-trips-ctl,#ga-display-max-points-ctl,#ga-display-max-lines-ctl,#ga-inst-data-grams-ctl
+    width 56px
+  #ga-display-max-points-group,#ga-display-max-lines-group
+    .slider
+      height 26px
+  .ga-loading-spinner.hidden
+    visibility hidden !important
+    display inline-block !important
+  .ga-data-loaded
+    font-size 12px
+    width 60px
+    overflow hidden
+    display inline-block
+    white-space normal
+    word-wrap break-word
+    vertical-align middle
+    padding-left 10px
+    line-height 1.2em
+    margin-top 1px
+  #ga-cycle-anim,.ga-data-loaded
+    user-select text
+  #ga-display-update
+    margin 0 0 0 10px
+
+.ga-results-ui
+  right 0
+  bottom 0
+  width 455px
+  #ga-instagram-results
+    .results-table
+      overflow-y auto
+      overflow-x hidden
+      height 300px
+      resize vertical
+      table
+        font-size 12px
+        td
+          user-select text
+          overflow hidden
+          white-space nowrap
+          max-width 350px
+        td:first-child
+          max-width 100px
+          padding-right 7px
+  .ga-more-results
+    td
+      text-align center
+      font-weight bold
+
+.daterangepicker
+  .ranges
+    width auto
+    .range_inputs>div
+      float none
+      &:nth-child(2)
+        padding-left 0
+    .input-mini
+      width 105px
+  .applyBtn, .cancelBtn
+    width 60px
+  .cancelBtn
+    display block
+    margin-top 5px
+  .calendar td, .calendar th
+    min-width 28px
+    padding 2px
+  [class^="icon-"]:before, [class*=" icon-"]:before
+    font-family inherit
+#ga-cycle-display
+  max-width 205px
+  white-space nowrap
+  overflow hidden
+
+#ga-instagram-overlay
+  display none
+  position fixed
+  z-index 3
+  padding 4px
+  border-radius 3px
+  border 1px solid #ddd
+  background white
+  font-size 12px
+  box-sizing content-box
+  width 225px
+  .ga-instagram-overlay-image
+    height 225px
+    img
+      height 225px
+      width 100%
+  .ga-instagram-overlay-text
+    width 100%
+    max-height 56px
+    line-height 16px
+    overflow-x hidden
+    overflow-y scroll
+    word-wrap break-word
+    white-space normal
+  .ga-instagram-overlay-date
+    padding-right 5px
+    font-weight bold
+    color #333
+  .ga-instagram-overlay-link a
+    color #214565
+    overflow hidden
+    white-space nowrap
+    text-overflow ellipsis
+    width 100%
+    display block
+    padding-top 3px
+  .ga-instagram-overlay-arrow
+    display none
+    float right
+    font-size 24px
+    transform rotate(0deg)
+  .ga-instagram-overlay-title-bar
+    font-size 20px
+    line-height 1em
+    height 27px
+    display none
+    .ga-instagram-overlay-close-button
+      position absolute
+      top 5px
+      right 3px
+      width 1.2em
+      :hover
+        text-shadow 1px 1px 1px white,-1px 1px 1px white,-1px -1px 1px white,1px -1px 1px white
+    .ga-instagram-overlay-goto
+      padding 3px
+      line-height 1em
+      font-weight bold
+
+.panel-heading
+  .toggle-icon
+    display inline-block
+    margin-left 5px
+  .open-icon
+    display none
+  .collapsed
+    .close-icon
+      display none
+    .open-icon
+      display block

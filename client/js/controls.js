@@ -38,27 +38,27 @@ geoapp.getQuerySection = function (settings, section) {
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-taxi-filter': function () {
-            $('#ga-taxi-filter').removeClass('btn-needed');
+            $('#ga-taxi-filter').removeClass('btn-primary');
             this.updateView(true, 'taxi-filter');
         },
         'click #ga-instagram-filter': function () {
-            $('#ga-instagram-filter').removeClass('btn-needed');
+            $('#ga-instagram-filter').removeClass('btn-primary');
             this.updateView(true, 'instagram-filter');
         },
         'click #ga-anim-update': function () {
-            $('#ga-anim-update').removeClass('btn-needed');
+            $('#ga-anim-update').removeClass('btn-primary');
             if ($('#ga-play').val() === 'stop') {
                 $('#ga-play').val('play');
             }
             this.updateView(true, 'anim');
         },
         'change #ga-display-settings select,#ga-display-settings input[type="text"],#ga-display-settings input[type="checkbox"]': function (evt) {
-            $('#ga-display-update').removeClass('btn-needed');
+            $('#ga-display-update').removeClass('btn-primary');
             var combineNav = $(evt.target).is('.ga-slider-ctl');
             this.updateView(combineNav ? 'combine' : true, 'display');
         },
         'click #ga-display-update': function () {
-            $('#ga-display-update').removeClass('btn-needed');
+            $('#ga-display-update').removeClass('btn-primary');
             geoapp.map.updateMapParams(
                 'all', this.updateSection('display', false), 'always');
         },
@@ -90,19 +90,21 @@ geoapp.views.ControlsView = geoapp.View.extend({
             this.animationAction('jump', evt.value);
         },
         'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function () {
-            $('#ga-taxi-filter').addClass('btn-needed');
+            $('#ga-taxi-filter').addClass('btn-primary');
         },
         'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function () {
-            $('#ga-instagram-filter').addClass('btn-needed');
+            $('#ga-instagram-filter').addClass('btn-primary');
         },
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function () {
-            $('#ga-anim-update').addClass('btn-needed');
+            $('#ga-anim-update').addClass('btn-primary');
         },
         'click #ga-instagram-results-sort': function () {
             geoapp.dataLoaders.instagram.sortOrder('toggle');
         },
         'keydown #ga-taxi-filter-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
+                $('#ga-taxi-filter-settings .ga-date-range'
+                    ).daterangepicker('hide');
                 window.setTimeout(function () {
                     $('#ga-taxi-filter').click();
                 }, 10);
@@ -110,6 +112,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'keydown #ga-instagram-filter-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
+                $('#ga-instagram-filter-settings .ga-date-range'
+                    ).daterangepicker('hide');
                 window.setTimeout(function () {
                     $('#ga-instagram-filter').click();
                 }, 10);
@@ -129,6 +133,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }, 10);
             }
         },
+        'change #ga-cycle': function () {
+            this.adjustControls();
+        },
         'click .panel-heading a': function (evt) {
             var elem = $('.panel-collapse', $(evt.currentTarget).closest(
                     '[id]')),
@@ -141,7 +148,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.updateNavigation('mapview', 'panels', panel, true,
                                     true);
         },
-        'click .ga-add-graph': geoapp.graph.addGraph
+        'apply.daterangepicker #ga-taxi-filter-settings .ga-date-range':  function () {
+            $('#ga-taxi-filter').addClass('btn-needed');
+        },
+        'apply.daterangepicker #ga-instagram-filter-settings':  function () {
+            $('#ga-instagram-filter').addClass('btn-needed');
+        }
     },
 
     /* This is a dictionary of control sections used in routing. */
@@ -179,7 +191,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         }
         this.render();
-        geoapp.View.prototype.initialize.apply(this, arguments);
+        geoapp.graph.initialize(this);
         this.finalizeInit(settings, 0);
     },
 
@@ -193,6 +205,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), speed);
         geoapp.dataLoaders.instagram.routeSettings(
             geoapp.getQuerySection(settings, 'results'));
+        geoapp.graph.graphsFromNavigation(
+            geoapp.getQuerySection(settings, 'graph'));
         var panels = geoapp.getQuerySection(settings, 'panels');
         _.each(panels, function (show, id) {
             var trigger = $('[data-toggle="collapse"][href="#' + id + '"],' +
@@ -337,6 +351,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-main-map').off('ga.map.moved').on('ga.map.moved', function () {
             view.mapMoved();
         });
+        geoapp.View.prototype.render.apply(this, arguments);
         return this;
     },
 
@@ -573,14 +588,26 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (!values.display) {
             values.display = this.updateSection('display', false);
         }
-        $('#ga-display-max-points-group').toggleClass('hidden', (
+        if (!values.anim) {
+            values.anim = this.updateAnimValues(false);
+        }
+        $('#ga-display-max-points-group').toggleClass('hidden',
             values.display['display-process'] === 'binned' ||
-            values.display['display-type'] === 'vector'));
-        $('#ga-display-max-lines-group').toggleClass('hidden', (
+            values.display['display-type'] === 'vector');
+        $('#ga-display-max-lines-group').toggleClass('hidden',
             values.display['display-process'] === 'binned' ||
-            values.display['display-type'] !== 'vector'));
-        $('#ga-display-num-bins-group').toggleClass('hidden', (
-            values.display['display-process'] !== 'binned'));
+            values.display['display-type'] !== 'vector');
+        $('#ga-display-num-bins-group').toggleClass('hidden',
+            values.display['display-process'] !== 'binned');
+        $('#ga-cycle-group option[value="day"]').toggleClass('hidden',
+            values.anim.cycle === 'day');
+        $('#ga-cycle-group option[value="week"]').toggleClass('hidden',
+            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+        if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
+                '"]').hasClass('hidden')) {
+            $('#ga-cycle-group').val(
+                $('#ga-cycle-group option').not('.hidden').val());
+        }
     },
 
     /* Get an value or range of values from a control.  The type is stored in
@@ -699,7 +726,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     mapMoved: function () {
         var display  = this.updateSection('display', false);
         if (display['display-process'] === 'binned') {
-            $('#ga-display-update').addClass('btn-needed');
+            $('#ga-display-update').addClass('btn-primary');
         }
     }
 });

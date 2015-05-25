@@ -149,6 +149,11 @@ geoapp.MapLayer = function (map, datakey, arg) {
             if (dateRange && dateRange.start && dateRange.end) {
                 start = dateRange.start;
                 end = dateRange.end;
+                if (moment(end) - moment(start) >
+                        moment.duration(2, moment.normalizeUnits('months'))) {
+                    start = moment.utc(start).startOf('month');
+                    end = moment.utc(end - 1).startOf('month').add(1, 'month');
+                }
             }
         }
         return {start: 0 + start, end: 0 + end};
