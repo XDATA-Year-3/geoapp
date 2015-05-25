@@ -196,9 +196,9 @@ def processFiles(files, items, fileData):
     processed = 0
     itemsStored = 0
     files_processed = 0
-    for (filetype, filename, subname) in files:
+    for (filetype, filename, subname, zptr) in files:
         if filetype == 'zip':
-            fptr = zipfile.ZipFile(filename).open(subname)
+            fptr = zptr.open(subname)
             filename += ' - ' + subname
         elif filename.lower().endswith('.bz2'):
             fptr = bz2.BZ2File(filename)
@@ -211,7 +211,7 @@ def processFiles(files, items, fileData):
             itemlist = jsonToItems(fptr)
         for item in itemlist:
             if not processed % 1000:
-                sys.stderr.write('%3d/%3d %9d/%9d\r' % (
+                sys.stderr.write('%4d/%4d %9d/%9d\r' % (
                     files_processed + 1, len(files), itemsStored, processed))
                 sys.stderr.flush()
             processed += 1
@@ -249,8 +249,8 @@ def processFiles(files, items, fileData):
             dataToFiles(fileData, item)
             itemsStored += 1
         files_processed += 1
-        sys.stderr.write('%3d/%3d %9d %s\n' % (
-            files_processed, len(files), itemsStored, filename[-61:]))
+        sys.stderr.write('%4d/%4d %9d %s\n' % (
+            files_processed, len(files), itemsStored, filename[-59:]))
     return processed
 
 
@@ -276,12 +276,13 @@ respectively, and only files within the compressed file ending with .json or
             continue
         for filename in glob.iglob(filespec):
             if filename.lower().endswith('.zip'):
+                zptr = zipfile.ZipFile(filename)
                 files.extend(
-                    [('zip', filename, subname)
-                     for subname in zipfile.ZipFile(filename).namelist()
+                    [('zip', filename, subname, zptr)
+                     for subname in zptr.namelist()
                      if subname.split('.')[-1].lower() in ('json', 'csv')])
             else:
-                files.append(('file', filename, ''))
+                files.append(('file', filename, '', None))
     items = {}
     processFiles(files, items, None)
     lenItems = len(items)

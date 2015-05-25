@@ -55,11 +55,11 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 84b7220b28c3afbaeeb4e11283d893d190f0dce1 && \
+    git checkout 6a2df2821a34cd0cb3f4f095faeed5e228d02c1a && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
+ENV PATH $PATH:/home/kwuser/.local/bin
 RUN pip install --user -r requirements.txt && \
-    export PATH=$PATH:/home/kwuser/.local/bin && \
     girder-install web && \
     PIP_USER=yes girder-install plugin
 RUN git submodule update --init --recursive && \
@@ -67,7 +67,8 @@ RUN git submodule update --init --recursive && \
     cd geojs && \
     npm install --production && \
     grunt library
-RUN curl https://data.kitware.com/api/v1/file/5550e5e18d777f082b592f3e/download -o client/optional/static/weather.json    
+RUN curl https://data.kitware.com/api/v1/file/5550e5e18d777f082b592f3e/download -o client/optional/static/weather.json
+RUN curl https://data.kitware.com/api/v1/file/5559f3658d777f082b592fbe/download -o client/optional/static/taximodel.json
 RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
     curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
