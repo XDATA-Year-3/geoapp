@@ -59,3 +59,40 @@ geoapp.infiniteScroll = function (selector, loadFunc, context) {
     elem.on('scroll.ga-infinite', _.bind(
         geoapp.infiniteScrollHandler, context || this, selector, loadFunc));
 };
+
+/* This is a copy of the original DateRangePicker updateFromControl that
+ * doesn't require a fixed format date string */
+geoapp.DateRangePicker_updateFromControl = function () {
+    if (!this.element.is('input')) {
+        return;
+    }
+    if (!this.element.val().length) {
+        return;
+    }
+    var dateString = this.element.val().split(this.separator),
+        start = null,
+        end = null;
+
+    if (dateString.length === 2) {
+        start = moment(dateString[0]);
+        end = moment(dateString[1]);
+    }
+
+    if (this.singleDatePicker || start === null || end === null) {
+        start = moment(this.element.val());
+        end = start;
+    }
+    if (end.isBefore(start)) {
+        return;
+    }
+    this.oldStartDate = this.startDate.clone();
+    this.oldEndDate = this.endDate.clone();
+
+    this.startDate = start;
+    this.endDate = end;
+
+    if (!this.startDate.isSame(this.oldStartDate) || !this.endDate.isSame(this.oldEndDate)) {
+        this.notify();
+    }
+    this.updateCalendars();
+};
