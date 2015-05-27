@@ -19,7 +19,9 @@
 module.exports = function (grunt) {
     var path = require('path');
 
-    var defaultTasks = ['stylus', 'build-js', 'copy:static'];
+    var defaultTasks = [
+        'stylus', 'build-js', 'copy:static', 'docs', 'copy:docs'
+    ];
 
     // Pass a "--env=<value>" argument to grunt. Default value is "dev".
     var environment = grunt.option('env') || 'dev';
@@ -82,6 +84,12 @@ module.exports = function (grunt) {
                 cwd: 'client/static',
                 src: ['**/*'],
                 dest: 'built'
+            },
+            docs: {
+                expand: true,
+                cwd: 'docs/_build/html',
+                src: ['**/*'],
+                dest: 'built/docs'
             },
             libs: {
                 expand: true,

@@ -33,12 +33,12 @@ install:
     - curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js
     - curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
     
-    - npm install
-
     - pip install --user -r requirements.txt -r requirements-dev.txt
     - export PATH=$PATH:~/.local/bin
     - girder-install web
     - PIP_USER=yes girder-install plugin
+    
+    - npm install
 
 script:
     # Run ctest

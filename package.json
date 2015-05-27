@@ -30,11 +30,8 @@
     "grunt-gitinfo": "~0.1",
     "grunt-shell": ">=1.1.1",
     "jade": "~1.9",
-    "jquery": "~2.1",
-    "markdown": "~0.5",
     "moment": "~2.10",
-    "sortablejs": "~1.1",
-    "underscore": "~1.8"
+    "sortablejs": "~1.1"
   },
   "devDependencies": {
     "blanket": "~1.1",

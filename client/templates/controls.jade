@@ -19,7 +19,8 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
 
 #ga-main-page.ga-main-ui
   +standardPanel('ga-filter-settings-panel', 'ga-filter-settings', 'Filters',
-      "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.")
+      "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.",
+      true)
     include taxifilters.jade
     include instagramfilters.jade
   +standardPanel('ga-display-settings-panel', 'ga-display-settings', 'Display',
@@ -124,8 +125,8 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
         option(value="week") Week
         option(value="day") Day
         //- option(value="hour") Hour
-      label(for="ga-cycle-group") Group By
-      select#ga-cycle-group.form-control.input-sm(title="Show data for this time period during each frame of the animation",
+      label(for="ga-cycle-group") Window
+      select#ga-cycle-group.form-control.input-sm(title="Show data for this time interval during each frame of the animation",
           taxifield="cycle-group")
         option(value="week") Week
         option(value="day") Day
@@ -151,7 +152,7 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
       button#ga-anim-update.btn.btn-default.btn-sm
         i.icon-cw
         |  Update
-      button#ga-play.btn.btn-default.btn-sm(taxifield="playState")
+      button#ga-play.btn.btn-default.btn-sm(taxifield="playState", value="stop")
         span.canplay
           i.icon-play
           |  Play
@@ -172,6 +173,12 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
           data-slider-handle="square", data-slider-tooltip="hide",
           data-slider-id="ga-step-slider-ctl")
     .form-group
-      label(for="ga-cycle-steps") Current Display
-      span#ga-cycle-anim.form-control.input-sm Full Data
+      label Current Display
+      span#ga-cycle-anim.input-sm Full Data
+
+a#ga-help(href="built/docs/index.html", target="_blank",
+    title="Show help page", data-placement="right")
+  button
+    i.icon-help-circled
+
 include results.jade

@@ -191,6 +191,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
             mapData = m_this.data(),
             vpf, opac, v;
 
+        if (!mapData) {
+            return;
+        }
         vpf = m_geoPoints.verticesPerFeature();
         opac = m_geoPoints.actors()[0].mapper().getSourceBuffer('fillOpacity');
         for (v = 0; v < mapData.numPoints * vpf; v += 1) {
@@ -439,7 +442,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             imageUrl,
             caption = item[mapData.columns.caption] || '',
             date = moment(item[mapData.columns.posted_date]).utcOffset(0
-                ).format('MM-DD HH:mm');
+                ).format('YYYY MMM D HH:mm');
         if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
             $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
         } else {

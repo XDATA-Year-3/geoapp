@@ -37,13 +37,11 @@ geoapp.getQuerySection = function (settings, section) {
 
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
-        'click #ga-taxi-filter': function () {
-            $('#ga-taxi-filter').removeClass('btn-primary');
-            this.updateView(true, 'taxi-filter');
-        },
-        'click #ga-instagram-filter': function () {
-            $('#ga-instagram-filter').removeClass('btn-primary');
-            this.updateView(true, 'instagram-filter');
+        'click #ga-taxi-filter,#ga-instagram-filter': function (evt) {
+            var filter = $(evt.target).closest('[ga-filter-name]').attr(
+                'ga-filter-name');
+            $('#ga-' + filter + '-filter').removeClass('btn-primary');
+            this.updateView(true, filter + '-filter');
         },
         'click #ga-anim-update': function () {
             $('#ga-anim-update').removeClass('btn-primary');
@@ -69,7 +67,15 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         },
         'click #ga-play': function () {
-            this.animationAction('playpause');
+            if (_.isEqual(geoapp.map.getAnimationOptions(), {})) {
+                $('#ga-anim-update').removeClass('btn-primary');
+                if ($('#ga-play').val() === 'stop') {
+                    $('#ga-play').val('play');
+                }
+                this.updateView(true, 'anim');
+            } else {
+                this.animationAction('playpause');
+            }
         },
         'click #ga-anim-step-back': function () {
             this.animationAction('stepback');
@@ -101,21 +107,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'click #ga-instagram-results-sort': function () {
             geoapp.dataLoaders.instagram.sortOrder('toggle');
         },
-        'keydown #ga-taxi-filter-settings input[type="text"]': function (evt) {
+        'keydown #ga-taxi-filter-settings input[type="text"],#ga-instagram-filter-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
-                $('#ga-taxi-filter-settings .ga-date-range'
-                    ).daterangepicker('hide');
+                var filter = $(evt.target).closest('[ga-filter-name]').attr(
+                    'ga-filter-name');
+                $('#ga-' + filter + '-filter-settings .ga-date-range'
+                    ).data('daterangepicker').hide();
                 window.setTimeout(function () {
-                    $('#ga-taxi-filter').click();
-                }, 10);
-            }
-        },
-        'keydown #ga-instagram-filter-settings input[type="text"]': function (evt) {
-            if (evt.which === 13) {
-                $('#ga-instagram-filter-settings .ga-date-range'
-                    ).daterangepicker('hide');
-                window.setTimeout(function () {
-                    $('#ga-instagram-filter').click();
+                    $('#ga-' + filter + '-filter').click();
                 }, 10);
             }
         },
@@ -148,11 +147,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.updateNavigation('mapview', 'panels', panel, true,
                                     true);
         },
-        'apply.daterangepicker #ga-taxi-filter-settings .ga-date-range':  function () {
-            $('#ga-taxi-filter').addClass('btn-needed');
+        'apply.daterangepicker #ga-taxi-filter-settings .ga-date-range,#ga-instagram-filter-settings .ga-date-range':  function (evt) {
+            var filter = $(evt.target).closest('[ga-filter-name]').attr(
+                'ga-filter-name');
+            $('#ga-' + filter + '-filter').addClass('btn-primary');
+            var val = this.getDateRange(evt.target, {}, 'date', true);
+            $(evt.target).val(val);
         },
-        'apply.daterangepicker #ga-instagram-filter-settings':  function () {
-            $('#ga-instagram-filter').addClass('btn-needed');
+        'keydown input.ga-date-range': function (evt) {
+            $(evt.target).data('daterangepicker').hide();
+        },
+        'show.daterangepicker': function (evt) {
+            var val = this.getDateRange(evt.target, {}, 'date', true);
+            $(evt.target).val(val);
         }
     },
 
@@ -314,6 +321,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     timePicker12Hour: false,
                     timePickerIncrement: 5
                 });
+                elem.data('daterangepicker').element
+                .off('keyup.daterangepicker')
+                .on({'keyup.daterangepicker': $.proxy(
+                    geoapp.DateRangePicker_updateFromControl,
+                    elem.data('daterangepicker'))});
             });
             $('[title]').tooltip({delay: {show: 500}});
             $('#ga-step-slider').slider({
@@ -364,23 +376,61 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * @param baseKey: baseKey for which to store the value.  If there is no
      *                 range separator, this is assumed to be a singular
      *                 entry.
+     * @param formatForDisplay: if falsy, return the date formatted for
+     *                          datebase queries.  If true, return the date
+     *                          formatted for display.
+     * @return: the cannonically formated date range.
      */
-    getDateRange: function (selector, params, baseKey) {
-        var val = $(selector).val().trim();
+    getDateRange: function (selector, params, baseKey, formatForDisplay) {
+        var val = $(selector).val().trim(),
+            minval, maxval, onlyval, form, result,
+            dbForm = 'YYYY-MM-DD HH:mm:ss',
+            defaultYear = parseInt($('body').attr('defaultyear') || 2013);
+
         if (val === '') {
             return;
         }
-        var parts = val.split(' - ');
+        var parts = val.split('- ');
         if (parts.length === 1) {
-            params[baseKey] = val;
-            return;
+            parts = val.split(' -');
         }
-        if (parts[0].trim() !== '') {
-            params[baseKey + '_min'] = parts[0].trim();
+        if (parts.length === 1) {
+            onlyval = moment.utc(val.trim());
+            if (onlyval.year() < 2010) {
+                onlyval.year(defaultYear);
+            }
+            params[baseKey] = onlyval.format(dbForm);
+        } else {
+            if (parts[0].trim() !== '') {
+                minval = moment.utc(parts[0].trim());
+                if (minval.year() < 2010) {
+                    minval.year(defaultYear);
+                }
+                params[baseKey + '_min'] = minval.format(dbForm);
+            }
+            if (parts[1].trim() !== '') {
+                maxval = moment.utc(parts[1].trim());
+                if (maxval.year() < 2010) {
+                    maxval.year(defaultYear + (
+                        maxval.isSame(moment(maxval).startOf('year')) ? 1 : 0));
+                }
+                params[baseKey + '_max'] = maxval.format(dbForm);
+            }
         }
-        if (parts[1].trim() !== '') {
-            params[baseKey + '_max'] = parts[1].trim();
+        form = formatForDisplay ? 'YYYY MMM D HH:mm' : dbForm;
+        if (formatForDisplay &&
+                (!onlyval || onlyval.isSame(moment(onlyval).startOf('day'))) &&
+                (!minval || minval.isSame(moment(minval).startOf('day'))) &&
+                (!maxval || maxval.isSame(moment(maxval).startOf('day')))) {
+            form = 'YYYY MMM D';
         }
+        if (onlyval) {
+            result = onlyval.format(form);
+        } else {
+            result = (minval ? minval.format(form) + ' ' : '') + '-' + (
+                maxval ? ' ' + maxval.format(form) : '');
+        }
+        return result;
     },
 
     /* Get a floating-point range from a control.  The ranges are of the form
