@@ -84,7 +84,7 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
         )).on('ready.geoapp.view', function () {
             if (view.firstRender) {
                 view.firstRender = false;
-                geoapp.map.showMap('all', [], view.displayParams);
+                geoapp.map.showMap('all', view.displayParams);
             }
             $('[title]').tooltip();
         });
@@ -269,8 +269,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             geoapp.map.maximumVectors = params.numPts;
         }
         starttime = new Date().getTime();
+        geoapp.map.getLayer('taxi').data(params.data);
         geoapp.map.showMap(
-            'taxi', params.data, $.extend({}, this.displayParams, {
+            'taxi', $.extend({}, this.displayParams, {
                 'display-type': test.type,
                 'display-process': test.process || 'raw',
                 'display-num-bins': 50
@@ -310,8 +311,9 @@ geoapp.views.SpeedTestView = geoapp.View.extend({
             test = this.tests[params.testNum],
             stoptime, fps, frametime;
         if (!params.times.length) {
+            geoapp.map.getLayer('taxi').data(params.data);
             geoapp.map.showMap(
-                'taxi', params.data, $.extend({}, this.displayParams, {
+                'taxi', $.extend({}, this.displayParams, {
                     'display-type': test.type,
                     'display-process': test.process || 'raw',
                     'display-num-bins': 25

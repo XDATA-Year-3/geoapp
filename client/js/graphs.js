@@ -303,6 +303,15 @@ geoapp.Graph = function (arg) {
                 this[funcName](spec, opts, dateRange || {}, scatterDate,
                 m_this.graphOpts[position].xminmax);
             }
+            if (spec.data.columns.length === 2) {
+                spec.axis.y = spec.axis.y || {};
+                spec.axis.y.label = {
+                    position: 'outer-middle',
+                    text: spec.data.names[spec.data.columns[1][0]]
+                };
+                spec.legend = spec.legend || {};
+                spec.legend.show = false;
+            }
             this.graphOpts[position].c3 = c3.generate(spec);
             if (opts.left && opts.right) {
                 this.graphOpts[position].c3.zoom(
@@ -375,20 +384,10 @@ geoapp.Graph = function (arg) {
             spec.axis.y.padding.bottom = 5;
         }
         spec.axis.x.label = {
-            position: 'outer-center',
+            position: spec.data.columns.length === 2 ? 'outer-center' :
+                'outer-right',
             text: spec.data.names[spec.data.columns[0][0]]
         };
-        if (spec.data.columns.length === 2) {
-            spec.axis.y = spec.axis.y || {};
-            spec.axis.y.label = {
-                position: 'outer-middle',
-                text: spec.data.names[spec.data.columns[1][0]]
-            };
-            spec.legend = spec.legend || {};
-            spec.legend.show = false;
-        } else {
-            spec.axis.x.label.position = 'outer-right';
-        }
         /* Use the tooltip contents function to call the c3 internal function.
          * This places all data series in the table and uses the data as the
          * title.  It is complex because c3 doesn't expose this in a nice
@@ -825,6 +824,92 @@ geoapp.GraphData = function (arg) {
     };
 };
 
+
+geoapp.GraphDataFromColumns = function (arg, datakey) {
+    'use strict';
+    var m_datakey = datakey;
+
+    if (!(this instanceof geoapp.GraphDataFromColumns)) {
+        return new geoapp.GraphDataFromColumns(arg, datakey);
+    }
+    arg = arg || {};
+    geoapp.GraphData.call(this, arg);
+
+    geoapp.events.on('ga:dataLoaded.' + m_datakey, function () {
+        this.dataTime(true);
+        geoapp.graph.updateGraph();
+    }, this);
+
+    /* Given a datakey, return the associated data from an appropriate column.
+     *
+     * @param datakey: the datakey to retreive.
+     * @param opts: options that may affect the date range returned.
+     * @return data: an array of data.  Each item contains 'x', the millisecond
+     *               epoch, and 'y', the data value.
+     */
+    this.data = function (datakey, opts) {
+        //DWM::
+        var binName = opts.bin === 'day' ? 'dataHourly' : 'data',
+            data = geoapp.map.getLayer(m_datakey).data();
+        if (this.dataItems[datakey][binName] && this.dataItems[datakey][
+                binName + 'Time'] >= data.requestTime) {
+            return this.dataItems[datakey][binName];
+        }
+        var dateRange = this.dateRange(datakey, opts),
+            start = dateRange.start,
+            end = dateRange.end,
+            interval = 0 + moment.duration(1, moment.normalizeUnits(opts.bin)),
+            datecol = data.columns[this.dataItems[datakey].column],
+            bins = [],
+            i, numBins;
+        start = 0 + moment.utc(start).startOf('day');
+        end = 0 + moment.utc(end - 1).startOf('day').add(1, 'day');
+        for (i = start; i < end; i += interval) {
+            bins.push({x: i, y: 0});
+        }
+        numBins = bins.length;
+        _.each(data.data, function (item) {
+            var bin = parseInt((item[datecol] - start) / interval);
+            if (bin >= 0 && bin < numBins) {
+                bins[bin].y += 1;
+            }
+        });
+        if (this.dataItems[datakey].scaled) {
+            /* Scale based on partial data and convert to log2 */
+            if (data.loadFactor && data.loadFactor !== 1) {
+                _.each(bins, function (d) {
+                    d.y = parseInt(d.y / data.loadFactor);
+                });
+            }
+            var log2 = Math.log(2);
+            _.each(bins, function (d) {
+                d.y = d.y ? Math.log(d.y) / log2 : 0;
+            });
+        }
+        this.dataItems[datakey][binName] = bins;
+        this.dataItems[datakey][binName + 'Time'] = new Date().getTime();
+        return this.dataItems[datakey][binName];
+    };
+
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @param opts: options that may affect the date range returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function () {
+        var layer = geoapp.map.getLayer(m_datakey),
+            dateRange = layer.cycleDateRange();
+        return {
+            start: 0 + (dateRange.start || moment.utc('2013-1-1')),
+            end: 0 + (dateRange.end || moment.utc('2014-1-1'))
+        };
+    };
+};
+
+inherit(geoapp.GraphDataFromColumns, geoapp.GraphData);
+
 /* -------- weather graph data -------- */
 
 geoapp.graphData.weather = function (arg) {
@@ -846,12 +931,28 @@ geoapp.graphData.weather = function (arg) {
         },
         cloudcover: {
             name: 'Cloud Cover',
-            description: 'Cloud cover value'
+            description: 'Cloud cover value',
+            exclude: true
+        },
+        fog: {
+            name: 'Fog',
+            description: 'Fog occurred',
+            events: 'fog'
         },
         precipitation: {
             name: 'Precipitation',
             description: 'Precipitation in inches',
             units: 'in'
+        },
+        rain: {
+            name: 'Rain',
+            description: 'Rain occurred',
+            events: 'rain'
+        },
+        snow: {
+            name: 'Snow',
+            description: 'Snow occurred',
+            events: 'snow'
         },
         wind_gust: {
             name: 'Wind Gust',
@@ -888,7 +989,8 @@ geoapp.graphData.weather = function (arg) {
         }
         var avail = [];
         _.each(this.dataItems, function (item, key) {
-            if (data.columns[key] !== undefined && !item.exclude) {
+            if (!item.exclude && (item.events ||
+                   data.columns[key] !== undefined)) {
                 avail.push(key);
             }
         });
@@ -903,32 +1005,44 @@ geoapp.graphData.weather = function (arg) {
      *               epoch, and 'y', the data value.
      */
     this.data = function (datakey, opts) {
-        var xcol, ycol, results = [];
-        if (!this.dataItems[datakey].data) {
+        var xcol, ycol, results = [],
+            dataItem = this.dataItems[datakey];
+        if (!dataItem.data) {
             var data = geoapp.staticData[m_datakey];
             xcol = data.columns.date_start;
-            ycol = data.columns[datakey];
-            _.each(data.data, function (d) {
-                results.push({x: d[xcol], y: d[ycol]});
-            });
-            this.dataItems[datakey].data = results;
-            this.dataItems[datakey].dataTime = new Date().getTime();
-            this.dataItems[datakey].dataHourly = null;
+            if (dataItem.events) {
+                ycol = data.columns.events;
+                _.each(data.data, function (d) {
+                    results.push({
+                        x: d[xcol],
+                        y: d[ycol].toLowerCase().indexOf(
+                            dataItem.events) >= 0 ? 1 : 0
+                    });
+                });
+            } else {
+                ycol = data.columns[datakey];
+                _.each(data.data, function (d) {
+                    results.push({x: d[xcol], y: d[ycol]});
+                });
+            }
+            dataItem.data = results;
+            dataItem.dataTime = new Date().getTime();
+            dataItem.dataHourly = null;
         }
         if (opts.bin === 'day') {
-            return this.dataItems[datakey].data;
+            return dataItem.data;
         }
-        if (!this.dataItems[datakey].dataHourly) {
+        if (!dataItem.dataHourly) {
             results = [];
-            _.each(this.dataItems[datakey].data, function (d) {
+            _.each(dataItem.data, function (d) {
                 for (var i = 0; i < 24; i += 1) {
                     results.push({x: d.x + i * 3600 * 1000, y: d.y});
                 }
             });
-            this.dataItems[datakey].dataHourly = results;
-            this.dataItems[datakey].dataHourlyTime = new Date().getTime();
+            dataItem.dataHourly = results;
+            dataItem.dataHourlyTime = new Date().getTime();
         }
-        return this.dataItems[datakey].dataHourly;
+        return dataItem.dataHourly;
     };
 };
 
@@ -1099,7 +1213,7 @@ geoapp.graphData.taxi = function (arg) {
         return new geoapp.graphData[m_datakey](arg);
     }
     arg = arg || {};
-    geoapp.GraphData.call(this, arg);
+    geoapp.GraphDataFromColumns.call(this, arg, m_datakey);
 
     this.dataItems = {
         pickups: {
@@ -1134,11 +1248,6 @@ geoapp.graphData.taxi = function (arg) {
         }
     };
 
-    geoapp.events.on('ga:dataLoaded.' + m_datakey, function () {
-        this.dataTime(true);
-        geoapp.graph.updateGraph();
-    }, this);
-
     /* List what data, if any, is available to be graphed.
      *
      * @param datakey: if present, check if this datakey is available.
@@ -1153,75 +1262,9 @@ geoapp.graphData.taxi = function (arg) {
         return (datakey ? (this.dataItems[datakey] !== undefined) :
             _.keys(this.dataItems));
     };
-
-    /* Given a datakey, return the associated data.
-     *
-     * @param datakey: the datakey to retreive.
-     * @param opts: options that may affect the date range returned.
-     * @return data: an array of data.  Each item contains 'x', the millisecond
-     *               epoch, and 'y', the data value.
-     */
-    this.data = function (datakey, opts) {
-        var binName = opts.bin === 'day' ? 'dataHourly' : 'data',
-            data = geoapp.map.getLayer(m_datakey).data();
-        if (this.dataItems[datakey][binName] && this.dataItems[datakey][
-                binName + 'Time'] >= data.requestTime) {
-            return this.dataItems[datakey][binName];
-        }
-        var dateRange = this.dateRange(datakey, opts),
-            start = dateRange.start,
-            end = dateRange.end,
-            interval = 0 + moment.duration(1, moment.normalizeUnits(opts.bin)),
-            datecol = data.columns[this.dataItems[datakey].column],
-            bins = [],
-            i, numBins;
-        start = 0 + moment.utc(start).startOf('day');
-        end = 0 + moment.utc(end - 1).startOf('day').add(1, 'day');
-        for (i = start; i < end; i += interval) {
-            bins.push({x: i, y: 0});
-        }
-        numBins = bins.length;
-        _.each(data.data, function (item) {
-            var bin = parseInt((item[datecol] - start) / interval);
-            if (bin >= 0 && bin < numBins) {
-                bins[bin].y += 1;
-            }
-        });
-        if (this.dataItems[datakey].scaled) {
-            /* Scale based on partial data and convert to log2 */
-            if (data.loadFactor && data.loadFactor !== 1) {
-                _.each(bins, function (d) {
-                    d.y = parseInt(d.y / data.loadFactor);
-                });
-            }
-            var log2 = Math.log(2);
-            _.each(bins, function (d) {
-                d.y = d.y ? Math.log(d.y) / log2 : 0;
-            });
-        }
-        this.dataItems[datakey][binName] = bins;
-        this.dataItems[datakey][binName + 'Time'] = new Date().getTime();
-        return this.dataItems[datakey][binName];
-    };
-
-    /* Get the date range for the specific datakey.
-     *
-     * @param datakey: the data for which the date range is returned.
-     * @param opts: options that may affect the date range returned.
-     * @returns: the start (inclusive) and end (exclusive) date range for the
-     *           data.
-     */
-    this.dateRange = function () {
-        var layer = geoapp.map.getLayer(m_datakey),
-            dateRange = layer.cycleDateRange();
-        return {
-            start: 0 + (dateRange.start || moment.utc('2013-1-1')),
-            end: 0 + (dateRange.end || moment.utc('2014-1-1'))
-        };
-    };
 };
 
-inherit(geoapp.graphData.taxi, geoapp.GraphData);
+inherit(geoapp.graphData.taxi, geoapp.GraphDataFromColumns);
 geoapp.graphData.taxi = geoapp.graphData.taxi();
 
 /* -------- instagram graph data -------- */
@@ -1234,22 +1277,18 @@ geoapp.graphData.instagram = function (arg) {
         return new geoapp.graphData[m_datakey](arg);
     }
     arg = arg || {};
-    geoapp.GraphData.call(this, arg);
+    geoapp.GraphDataFromColumns.call(this, arg, m_datakey);
 
     this.dataItems = {
         messages: {
             name: 'Instagram Messages',
             description: 'Number of Instagram messages',
+            column: 'posted_date',
             sort: 0,
             unit: 'msg',
             units: 'msgs'
         }
     };
-
-    geoapp.events.on('ga:dataLoaded.' + m_datakey, function () {
-        this.dataTime(true);
-        geoapp.graph.updateGraph();
-    }, this);
 
     /* List what data, if any, is available to be graphed.
      *
@@ -1265,68 +1304,7 @@ geoapp.graphData.instagram = function (arg) {
         return (datakey ? (this.dataItems[datakey] !== undefined) :
             _.keys(this.dataItems));
     };
-
-    /* Given a datakey, return the associated data.
-     *
-     * @param datakey: the datakey to retreive.
-     * @param opts: options that may affect the date range returned.
-     * @return data: an array of data.  Each item contains 'x', the millisecond
-     *               epoch, and 'y', the data value.
-     */
-    this.data = function (datakey, opts) {
-        var binName = opts.bin === 'day' ? 'dataHourly' : 'data',
-            data = geoapp.map.getLayer(m_datakey).data();
-        if (this.dataItems[datakey][binName] && this.dataItems[datakey][
-                binName + 'Time'] >= data.requestTime) {
-            return this.dataItems[datakey][binName];
-        }
-        var dateRange = this.dateRange(datakey, opts),
-            start = dateRange.start,
-            end = dateRange.end,
-            interval = 0 + moment.duration(1, moment.normalizeUnits(opts.bin)),
-            datecol = data.columns.posted_date,
-            bins = [],
-            i, numBins;
-        start = 0 + moment.utc(start).startOf('day');
-        end = 0 + moment.utc(end - 1).startOf('day').add(1, 'day');
-        for (i = start; i < end; i += interval) {
-            bins.push({x: i, y: 0});
-        }
-        numBins = bins.length;
-        _.each(data.data, function (item) {
-            var bin = parseInt((item[datecol] - start) / interval);
-            if (bin >= 0 && bin < numBins) {
-                bins[bin].y += 1;
-            }
-        });
-        /* Scale based on partial data.
-        if (data.loadFactor && data.loadFactor !== 1) {
-            _.each(bins, function (d) {
-                d.y = parseInt(d.y / data.loadFactor);
-            });
-        }
-         */
-        this.dataItems[datakey][binName] = bins;
-        this.dataItems[datakey][binName + 'Time'] = new Date().getTime();
-        return this.dataItems[datakey][binName];
-    };
-
-    /* Get the date range for the specific datakey.
-     *
-     * @param datakey: the data for which the date range is returned.
-     * @param opts: options that may affect the date range returned.
-     * @returns: the start (inclusive) and end (exclusive) date range for the
-     *           data.
-     */
-    this.dateRange = function () {
-        var layer = geoapp.map.getLayer(m_datakey),
-            dateRange = layer.cycleDateRange();
-        return {
-            start: 0 + (dateRange.start || moment.utc('2013-1-1')),
-            end: 0 + (dateRange.end || moment.utc('2014-1-1'))
-        };
-    };
 };
 
-inherit(geoapp.graphData.instagram, geoapp.GraphData);
+inherit(geoapp.graphData.instagram, geoapp.GraphDataFromColumns);
 geoapp.graphData.instagram = geoapp.graphData.instagram();

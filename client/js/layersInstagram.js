@@ -52,7 +52,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
     });
 
     this.paramChangedKeys = [
-        'data-opacity', 'show-instagram-data'
+        'data-opacity', 'display-date_min', 'display-date_max',
+        'show-instagram-data'
     ];
 
     /* Update the taxi map based on the map parameters.  Values that are
@@ -62,7 +63,14 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param params: the new map parameters.
      */
     this.updateMapParams = function (params) {
-        var data = m_this.data(),
+        var visParam = {
+                dateMin: params['display-date_min'] ?
+                    0 + moment.utc(params['display-date_min']) : null,
+                dateMax: params['display-date_max'] ?
+                    0 + moment.utc(params['display-date_max']) : null,
+                dateColumn: 'posted_date'
+            },
+            data = m_this.data(true, visParam),
             visible = (params['show-instagram-data'] !== false && data);
         m_geoPoints.visible(visible);
         if (!visible) {
@@ -135,7 +143,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param binWidth: width of each bin in milliseconds.
      */
     this.binForAnimation = function (params, start, range, binWidth) {
-        var mapData = m_this.data(),
+        var mapData = m_this.data(true),
             dateColumn = this.getDateColumn(),
             data, i;
 
@@ -162,7 +170,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             return;
         }
         var mapParams = m_this.map.getMapParams(),
-            mapData = m_this.data(),
+            mapData = m_this.data(true),
             visOpac = (options.opacity || 0.1),
             dataBin = options.layers[this.datakey].dataBin,
             i, j, v, opac, vis, vpf;
@@ -188,7 +196,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
      */
     this.animateStop = function () {
         var mapParams = m_this.map.getMapParams(),
-            mapData = m_this.data(),
+            mapData = m_this.data(true),
             vpf, opac, v;
 
         if (!mapData) {
@@ -418,7 +426,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
      */
     this.showOverlay = function (onlyMove) {
         m_overlayTimer = null;
-        var mapData = m_this.data(),
+        var mapData = m_this.data(true),
             overlay = $('#ga-instagram-overlay');
         if (m_currentPoint === null || !mapData.data ||
                 m_currentPoint >= mapData.data.length) {
@@ -479,6 +487,13 @@ geoapp.mapLayers.instagram = function (map, arg) {
             'title', date);
         $('.ga-instagram-overlay-caption', overlay).text(caption).attr(
             'title', caption);
+        $('.ga-instagram-overlay-position', overlay).text(geoapp.formatLatLon({
+                x: item[mapData.columns.longitude],
+                y: item[mapData.columns.latitude]
+            })).attr('title', geoapp.formatLatLon({
+                x: item[mapData.columns.longitude],
+                y: item[mapData.columns.latitude]
+            }, true));
         $('.ga-instagram-overlay-link a', overlay).text(url).attr(
             'href', url);
         $('.ga-instagram-overlay-title-bar', overlay).css('display',
@@ -534,7 +549,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
     /* Center the currently highlighted point on the map.
      */
     this.centerOnMap = function () {
-        var mapData = m_this.data(),
+        var mapData = m_this.data(true),
             overlay = $('#ga-instagram-overlay'),
             point = (m_currentPoint === null ? overlay.attr('point') :
                      m_currentPoint);

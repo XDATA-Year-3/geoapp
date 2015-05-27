@@ -301,9 +301,11 @@ geoapp.dataHandlers.taxi = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
-        geoapp.map.getLayer(this.datakey).setCycleDateRange(
+        var layer = geoapp.map.getLayer(this.datakey);
+        layer.data(options.data);
+        layer.setCycleDateRange(
             options.params, 'pickup_datetime_min', 'pickup_datetime_max');
-        geoapp.map.showMap(options.description, options.data, options.display);
+        geoapp.map.showMap(options.description, options.display);
     };
 
     /* Load more taxi data or indicated that we are finished loading.
@@ -381,11 +383,13 @@ geoapp.dataHandlers.instagram = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
+        var layer = geoapp.map.getLayer(this.datakey);
+        layer.data(options.data);
         /* Note that this competes with the taxi setCycleDateRange, and I need
          * to do something other than let the last one win. */
-        geoapp.map.getLayer(this.datakey).setCycleDateRange(
+        layer.setCycleDateRange(
             options.params, 'posted_date_min', 'posted_date_max');
-        geoapp.map.showMap(options.description, options.data, options.display);
+        geoapp.map.showMap(options.description, options.display);
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
         if (!options.data || !options.data.data || !options.data.data.length) {
@@ -461,7 +465,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         var table = $('#ga-instagram-results-table'),
             page = 100,
             layer = geoapp.map.getLayer(this.datakey),
-            data = layer.data(),
+            data = layer.data(true),
             moreData = false;
         if (!data || !data.data || !data.data.length) {
             return moreData;

@@ -63,7 +63,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
     this.paramChangedKeys = [
         'display-type', 'display-process', 'display-num-bins',
         'display-max-points', 'display-max-lines', 'data-opacity',
-        'show-taxi-data'
+        'display-date_min', 'display-date_max', 'show-taxi-data'
     ];
 
     /* Set the map to display pickup or dropoff points.
@@ -71,7 +71,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
      * @param displayType: either 'pickup' or 'dropoff'
      */
     this.setMapDisplayToPoints = function (displayType) {
-        var data = m_this.data(), params = m_this.map.getMapParams();
+        var data = m_this.data(true), params = m_this.map.getMapParams();
 
         data.numPoints = Math.min(data.data.length, this.maximumMapPoints);
         data.numLines = 0;
@@ -108,7 +108,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
     /* Set the map to display pickup to dropoff vectors.
      */
     this.setMapDisplayToVectors = function () {
-        var data = m_this.data(), params = m_this.map.getMapParams(), item;
+        var data = m_this.data(true), params = m_this.map.getMapParams(), item;
 
         data.numPoints = 0;
         m_geoPoints.data([]);
@@ -164,7 +164,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
     /* Set the map to display pickup AND dropoff points.
      */
     this.setMapDisplayToBothPoints = function () {
-        var data = m_this.data(), params = m_this.map.getMapParams(),
+        var data = m_this.data(true), params = m_this.map.getMapParams(),
             pointData = data.data, i;
 
         data.numPoints = Math.min(data.data.length, this.maximumMapPoints) * 2;
@@ -254,7 +254,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
             maxy = height <= width ? numBins : Math.ceil((y1 - y0) / binH);
         var binX0 = x0 + (x1 - x0 - binW * maxx) / 2;
         var binY0 = y0 + (y1 - y0 - binH * maxy) / 2;
-        var data = m_this.data();
+        var data = m_this.data(true);
         data.x1_column = data.columns.pickup_longitude;
         data.y1_column = data.columns.pickup_latitude;
         data.x2_column = data.columns.dropoff_longitude;
@@ -391,7 +391,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
      * @param anim: animation options.  null for full display.
      */
     this.setMapDisplayToBinnedData = function (params) {
-        var data = m_this.data();
+        var data = m_this.data(true);
         var bp = data.binParams;
 
         data.numLines = 0;
@@ -500,7 +500,14 @@ geoapp.mapLayers.taxi = function (map, arg) {
      * @param params: the new map parameters.
      */
     this.updateMapParams = function (params) {
-        var data = m_this.data(),
+        var visParam = {
+                dateMin: params['display-date_min'] ?
+                    0 + moment.utc(params['display-date_min']) : null,
+                dateMax: params['display-date_max'] ?
+                    0 + moment.utc(params['display-date_max']) : null,
+                dateColumn: 'pickup_datetime'
+            },
+            data = m_this.data(true, visParam),
             visible = (params['show-taxi-data'] !== false && data);
         m_geoPoints.visible(visible);
         m_geoLines.visible(visible);
@@ -569,7 +576,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
      */
     this.binForAnimation = function (params, start, range, binWidth) {
         var mapParams = m_this.map.getMapParams(),
-            mapData = m_this.data(),
+            mapData = m_this.data(true),
             dateColumn = this.getDateColumn(),
             data, dateColumn2, i;
 
@@ -641,7 +648,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
             return;
         }
         var mapParams = m_this.map.getMapParams(),
-            mapData = m_this.data(),
+            mapData = m_this.data(true),
             visOpac = (options.opacity || 0.1),
             dataBin = options.layers[this.datakey].dataBin,
             i, j, v, opac, vis, vpf;
@@ -688,7 +695,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
      */
     this.animateStop = function () {
         var mapParams = m_this.map.getMapParams(),
-            mapData = m_this.data(),
+            mapData = m_this.data(true),
             vpf, opac, v;
 
         if (!mapData) {
