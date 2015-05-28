@@ -90,7 +90,10 @@ geoapp.Graph = function (arg) {
                     x: {
                         localtime: false,
                         tick: {
+                            /* When I was explciitly marking month starts,
+                             * this was appropriate.
                             count: 13,
+                             */
                             fit: false,
                             format: '%b %-d',
                             outer: false
@@ -180,7 +183,7 @@ geoapp.Graph = function (arg) {
     /* Create or replace a graph.  The options can include:
      *  dateRange: {start: (starting epoch ms), end: (ending epoch ms)}
      *  type: 'line' or 'scatter'
-     *  bin: 'day' or 'hour'
+     *  bin: 'hour', 'day', 'week', or 'month'
      *
      * @param position: 0 based graph position to update.  This ensures that
      *                  graph exists.  null to always create another graph.
@@ -203,7 +206,8 @@ geoapp.Graph = function (arg) {
             xminmax: null
         };
         opts.type = m_defaultGraphSpec[opts.type] ? opts.type : 'line';
-        opts.bin = $.inArray(opts.bin, ['day', 'hour']) >= 0 ? opts.bin : 'day';
+        opts.bin = $.inArray(opts.bin, ['month', 'week', 'day', 'hour']) >= 0 ?
+            opts.bin : 'day';
         var dataPos = 1,
             dateRange,
             xScatter, xScatterCount, scatterDate = [],
@@ -221,8 +225,13 @@ geoapp.Graph = function (arg) {
                     }
                 });
         spec.tooltip.format.title = function (value) {
-            return d3.time.format.utc(
-                opts.bin === 'day' ? '%b %-d' : '%b %-d %-H:%M')(value);
+            var binFormat = {
+                'month': '%b',
+                'week': '%b %-d',
+                'day': '%b %-d',
+                'hour': '%b %-d %-H:%M'
+            };
+            return d3.time.format.utc(binFormat[opts.bin])(value);
         };
         _.each(series, function (seriesName) {
             var seriesInfo = seriesName.split('.'),
@@ -334,16 +343,18 @@ geoapp.Graph = function (arg) {
      * @param scatterDate: an array of dates if this is a scatter plot.
      */
     this.adjustGraph_line = function (spec, opts, dateRange) {
-        var tickTime;
-
         dateRange.start = ((opts.dateRange && opts.dateRange.start) ?
             opts.dateRange.start : dateRange.start);
         dateRange.end = ((opts.dateRange && opts.dateRange.end) ?
             opts.dateRange.end : dateRange.end);
         spec.axis.x.min = dateRange.start;
         spec.axis.x.max = dateRange.end;
+        /* I was explicitly marking the month starts, because it prevent some
+         * format problems, but it caused others.
         if (moment(dateRange.end) - moment(dateRange.start) >
                 moment.duration(2, moment.normalizeUnits('months'))) {
+            var tickTime;
+
             spec.axis.x.tick.values = [];
             for (tickTime = moment.utc(dateRange.start).startOf('month');
                     tickTime < moment.utc(dateRange.end).startOf('month');
@@ -351,6 +362,7 @@ geoapp.Graph = function (arg) {
                 spec.axis.x.tick.values.push(0 + tickTime);
             }
         }
+         */
     };
 
     /* Adjust the c3 specification for a scatter plot.
@@ -740,7 +752,7 @@ geoapp.views.GraphSettingsWidget = geoapp.View.extend({
             datasetInfo: datasetInfo,
             series: series
         })).girderModal(this).on('ready.geoapp.modal', function () {
-            $('[title]', view.$el).tooltip({delay: {show: 500}});
+            $('[title]', view.$el).tooltip(geoapp.defaults.tooltip);
             $('#ga-dataset-list', view.$el).sortable({});
         });
         modal.trigger($.Event('ready.geoapp.modal', {relatedTarget: modal}));
@@ -798,11 +810,11 @@ geoapp.GraphData = function (arg) {
      *           data.
      */
     this.dateRange = function (datakey, opts) {
-        var data = this.data(datakey, opts),
-            day = 0 + moment.duration(1, moment.normalizeUnits('day'));
+        var data = this.data(datakey, opts);
         return {
-            start: Math.floor(data[0].x / day) * day,
-            end: Math.ceil((data[data.length - 1].x + 1.0) / day) * day
+            start: 0 + moment.utc(data[0].x).startOf('day'),
+            end: 0 + moment.utc(data[data.length - 1].x).subtract(
+                1, 'ms').endOf('day').add(1, 'ms')
         };
     };
 
@@ -821,6 +833,34 @@ geoapp.GraphData = function (arg) {
             m_updateTime = update;
         }
         return m_updateTime;
+    };
+
+    /* Given a start and end epoch and a text duration, generate bins where
+     * each bin has a x value corresponding to its start epoch and a y value
+     * of 0.
+     *
+     * @param start: the start epoch.
+     * @param end: the end epoch.
+     * @param duration: the text name of the duration of each bin (e.g.,
+     *                  'hour', 'day', 'week', 'month'.
+     * @returns: an object with the start and end forced to the exact start and
+     *           end of a day or the duration, whichever is longer (possibly
+     *           increasing the specified range), the created bins, and the
+     *           duration interval in milliseconds (which won't make sense for
+     *           the 'month' duration).
+     */
+    this.makeDateBins = function (start, end, duration) {
+        var interval = 0 + moment.duration(1, moment.normalizeUnits(duration)),
+            bins = [],
+            i;
+        start = 0 + moment.utc(start).startOf('day').startOf(duration);
+        end = 0 + moment.utc(end).subtract(1, 'ms').endOf('day').endOf(
+            'duration').add(1, 'ms');
+        for (i = start; i < end; i = 0 + moment.utc(i).add(
+                1, duration).startOf(duration)) {
+            bins.push({x: i, y: 0});
+        }
+        return {start: start, end: end, bins: bins, interval: interval};
     };
 };
 
@@ -848,28 +888,38 @@ geoapp.GraphDataFromColumns = function (arg, datakey) {
      *               epoch, and 'y', the data value.
      */
     this.data = function (datakey, opts) {
-        //DWM::
-        var binName = opts.bin === 'day' ? 'dataHourly' : 'data',
+        var binName = 'data' + (opts.bin !== 'day' ? '-' + opts.bin : ''),
             data = geoapp.map.getLayer(m_datakey).data();
         if (this.dataItems[datakey][binName] && this.dataItems[datakey][
                 binName + 'Time'] >= data.requestTime) {
             return this.dataItems[datakey][binName];
         }
         var dateRange = this.dateRange(datakey, opts),
-            start = dateRange.start,
-            end = dateRange.end,
-            interval = 0 + moment.duration(1, moment.normalizeUnits(opts.bin)),
             datecol = data.columns[this.dataItems[datakey].column],
-            bins = [],
-            i, numBins;
-        start = 0 + moment.utc(start).startOf('day');
-        end = 0 + moment.utc(end - 1).startOf('day').add(1, 'day');
-        for (i = start; i < end; i += interval) {
-            bins.push({x: i, y: 0});
-        }
-        numBins = bins.length;
+            res = this.makeDateBins(dateRange.start, dateRange.end, opts.bin),
+
+            start = res.start,
+            end = res.end,
+            bins = res.bins,
+            interval = res.interval,
+            numBins = bins.length;
         _.each(data.data, function (item) {
-            var bin = parseInt((item[datecol] - start) / interval);
+            var bin;
+            if (opts.bin !== 'month') {
+                bin = parseInt((item[datecol] - start) / interval);
+            } else {
+                if (item[datecol] < start) {
+                    bin = -1;
+                } else if (item[datecol] >= end) {
+                    bin = numBins;
+                } else {
+                    for (bin = 0; bin < bins.length - 1; bin += 1) {
+                        if (item[datecol] < bins[bin + 1].x) {
+                            break;
+                        }
+                    }
+                }
+            }
             if (bin >= 0 && bin < numBins) {
                 bins[bin].y += 1;
             }
@@ -937,32 +987,38 @@ geoapp.graphData.weather = function (arg) {
         fog: {
             name: 'Fog',
             description: 'Fog occurred',
-            events: 'fog'
+            events: 'fog',
+            collate: 'add'
         },
         precipitation: {
             name: 'Precipitation',
             description: 'Precipitation in inches',
-            units: 'in'
+            units: 'in',
+            collate: 'add'
         },
         rain: {
             name: 'Rain',
             description: 'Rain occurred',
-            events: 'rain'
+            events: 'rain',
+            collate: 'add'
         },
         snow: {
             name: 'Snow',
             description: 'Snow occurred',
-            events: 'snow'
+            events: 'snow',
+            collate: 'add'
         },
         wind_gust: {
             name: 'Wind Gust',
             description: 'Gust speed in mph',
-            units: 'mph'
+            units: 'mph',
+            collate: 'max'
         },
         wind_max: {
             name: 'Wind Max',
             description: 'Max wind speed in mph',
-            units: 'mph'
+            units: 'mph',
+            collate: 'max'
         },
         wind_mean: {
             name: 'Wind',
@@ -1005,7 +1061,8 @@ geoapp.graphData.weather = function (arg) {
      *               epoch, and 'y', the data value.
      */
     this.data = function (datakey, opts) {
-        var xcol, ycol, results = [],
+        var binName = 'data' + (opts.bin !== 'day' ? '-' + opts.bin : ''),
+            xcol, ycol, results = [],
             dataItem = this.dataItems[datakey];
         if (!dataItem.data) {
             var data = geoapp.staticData[m_datakey];
@@ -1032,17 +1089,70 @@ geoapp.graphData.weather = function (arg) {
         if (opts.bin === 'day') {
             return dataItem.data;
         }
-        if (!dataItem.dataHourly) {
+        if (!dataItem[binName]) {
             results = [];
-            _.each(dataItem.data, function (d) {
-                for (var i = 0; i < 24; i += 1) {
-                    results.push({x: d.x + i * 3600 * 1000, y: d.y});
+            if (opts.bin === 'hour') {
+                _.each(dataItem.data, function (d) {
+                    for (var i = 0; i < 24; i += 1) {
+                        results.push({x: d.x + i * 3600 * 1000, y: d.y});
+                    }
+                });
+            } else {  /* week and month */
+                var res = this.makeDateBins(dataItem.data[0].x, dataItem.data[dataItem.data.length - 1].x, opts.bin),
+                    start = res.start,
+                    end = res.end,
+                    bins = res.bins,
+                    interval = res.interval;
+                _.each(dataItem.data, function (item) {
+                    var bin;
+                    if (item.x < start || item.x >= end) {
+                        return;
+                    }
+                    if (opts.bin !== 'month') {
+                        bin = parseInt((item.x - start) / interval);
+                    } else {
+                        for (bin = 0; bin < bins.length - 1; bin += 1) {
+                            if (item.x < bins[bin + 1].x) {
+                                break;
+                            }
+                        }
+                    }
+                    if (dataItem.collate === 'max') {
+                        bins[bin].y = Math.max(bins[bin].y, item.y);
+                    } else {
+                        bins[bin].y += item.y;
+                        bins[bin].count = (bins[bin].count || 0) + 1;
+                    }
+                });
+                if (!dataItem.collate) {
+                    _.each(bins, function (d) {
+                        if (d.count) {
+                            d.y /= d.count;
+                        }
+                    });
                 }
-            });
-            dataItem.dataHourly = results;
-            dataItem.dataHourlyTime = new Date().getTime();
+                results = bins;
+            }
+            dataItem[binName] = results;
+            dataItem[binName + 'Time'] = new Date().getTime();
         }
-        return dataItem.dataHourly;
+        return dataItem[binName];
+    };
+
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @param opts: options that may affect the date range returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function (datakey, opts) {
+        var data = this.data(datakey, $.extend({}, opts, {bin: 'day'}));
+        return {
+            start: 0 + moment.utc(data[0].x).startOf('day'),
+            end: 0 + moment.utc(data[data.length - 1].x).subtract(
+                1, 'ms').endOf('day').add(1, 'ms')
+        };
     };
 };
 
@@ -1109,8 +1219,8 @@ geoapp.graphData.taximodel = function (arg) {
      *               epoch, and 'y', the data value.
      */
     this.data = function (datakey, opts) {
-        if (opts.bin === 'day') {
-            return this.dataDaily(datakey);
+        if (opts.bin !== 'hour') {
+            return this.dataGrouped(datakey, opts);
         }
         if (!this.dataItems[datakey].data) {
             var data = geoapp.staticData[m_datakey],
@@ -1144,24 +1254,30 @@ geoapp.graphData.taximodel = function (arg) {
         return this.dataItems[datakey].data;
     };
 
-    /* Given a datakey, return the associated data collected to daily values.
+    /* Given a datakey, return the associated data collected to time interval
+     * values.
      *
      * @param datakey: the datakey to retreive.
+     * @param opts: options that may affect the date range returned.
      * @return data: an array of data.  Each item contains 'x', the millisecond
      *               epoch, and 'y', the data value.
      */
-    this.dataDaily = function (datakey) {
-        if (!this.dataItems[datakey].dataDaily) {
+    this.dataGrouped = function (datakey, opts) {
+        var binName = 'data-' + opts.bin,
+            dataItem = this.dataItems[datakey];
+        if (!dataItem[binName]) {
             var data = geoapp.staticData[m_datakey],
                 xcol = data.columns.date,
                 ycol,
                 lastitem,
                 results = [];
-            if (this.dataItems[datakey].column) {
-                ycol = data.columns[this.dataItems[datakey].column];
+            if (dataItem.column) {
+                ycol = data.columns[dataItem.column];
             }
             _.each(data.data, function (d) {
-                var item = { x: 0 + moment.utc(d[xcol] * 1000).startOf('day') },
+                var item = {
+                        x: 0 + moment.utc(d[xcol] * 1000).startOf(opts.bin)
+                    },
                     value;
                 if (!d[data.columns.raw]) {
                     return;
@@ -1193,10 +1309,26 @@ geoapp.graphData.taximodel = function (arg) {
                         Math.pow(2, item.y));
                 }
             });
-            this.dataItems[datakey].dataDaily = results;
-            this.dataItems[datakey].dataDailyTime = new Date().getTime();
+            dataItem[binName] = results;
+            dataItem[binName + 'Time'] = new Date().getTime();
         }
-        return this.dataItems[datakey].dataDaily;
+        return dataItem[binName];
+    };
+
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @param opts: options that may affect the date range returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function (datakey, opts) {
+        var data = this.data(datakey, $.extend({}, opts, {bin: 'hour'}));
+        return {
+            start: 0 + moment.utc(data[0].x).startOf('day'),
+            end: 0 + moment.utc(data[data.length - 1].x).subtract(
+                1, 'ms').endOf('day').add(1, 'ms')
+        };
     };
 };
 

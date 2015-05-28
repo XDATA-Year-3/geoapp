@@ -24,8 +24,10 @@ geoapp.MapLayer = function (map, datakey, arg) {
     arg = arg || {};
 
     var m_data,
+        m_dataUpdated,
         m_dataVisibilityParams,
         m_dataVisible,
+        m_dataVisibleUpdated,
         m_cycleDateRange;
     this.datakey = datakey;
     this.map = map;
@@ -63,6 +65,7 @@ geoapp.MapLayer = function (map, datakey, arg) {
         }
         if (data !== undefined) {
             m_data = data;
+            m_dataUpdated = new Date().getTime();
             m_dataVisible = null;
         }
         if (visibility !== undefined &&
@@ -84,6 +87,13 @@ geoapp.MapLayer = function (map, datakey, arg) {
                 });
             }
             m_dataVisible = data;
+            m_dataVisibleUpdated = new Date().getTime();
+            geoapp.events.trigger('ga:dataVisibility.' + this.datakey, {
+                visibility: vis,
+                dataDate: m_dataUpdated,
+                visDate: m_dataVisibleUpdated,
+                length: data.data.length
+            });
         }
         return visibleData ? m_dataVisible : m_data;
     };

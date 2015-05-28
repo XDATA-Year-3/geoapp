@@ -31,8 +31,12 @@
   +standardPanel('ga-graph-panel', 'ga-graph', 'Graphs',
       "These graphs are based on data selected in the Filters panel.")
     .no-graph
-      button.btn.btn-sm.circle-btn.ga-add-graph(title="Add a graph")
-        i.icon-plus
+      .graph-region
+        .graph-clip
+          .graph-plot
+      .button-region
+        button.btn.btn-sm.circle-btn.ga-add-graph(title="Add a graph")
+          i.icon-plus
     .graph#ga-graph-template.hidden
       .graph-region
         .graph-waiting.hidden

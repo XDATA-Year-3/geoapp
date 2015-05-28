@@ -254,15 +254,15 @@ geoapp.DataHandler = function (arg) {
 
 geoapp.dataHandlers.taxi = function (arg) {
     'use strict';
-    var datakey = 'taxi';
+    var m_datakey = 'taxi';
 
-    if (!(this instanceof geoapp.dataHandlers[datakey])) {
-        return new geoapp.dataHandlers[datakey](arg);
+    if (!(this instanceof geoapp.dataHandlers[m_datakey])) {
+        return new geoapp.dataHandlers[m_datakey](arg);
     }
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
 
-    this.datakey = datakey;
+    this.datakey = m_datakey;
 
     /* Replace or add to the taxi data used for the current map.
      *
@@ -271,7 +271,7 @@ geoapp.dataHandlers.taxi = function (arg) {
      *                  setupRequestOptions for more details.
      */
     this.dataLoad = function (options) {
-        this.setupRequestOptions(options, datakey, (
+        this.setupRequestOptions(options, m_datakey, (
             options.params.max_trips || this.maximumDataPoints ||
             Math.max(geoapp.map.maximumMapPoints,
                      geoapp.map.maximumVectors)));
@@ -280,7 +280,7 @@ geoapp.dataHandlers.taxi = function (arg) {
                 'pickup_datetime,pickup_longitude,pickup_latitude,' +
                 'dropoff_datetime,dropoff_longitude,dropoff_latitude';
         }
-        geoapp.cancelRestRequests(datakey + 'taxidata');
+        geoapp.cancelRestRequests('taxidata');
         this.loadingAnimation('#ga-taxi-loading', false,
                               !options.params.offset);
         var xhr = geoapp.restRequest({
@@ -328,14 +328,14 @@ geoapp.dataHandlers.taxi = function (arg) {
 
 inherit(geoapp.dataHandlers.taxi, geoapp.DataHandler);
 
-/* -------- instagra, data handler -------- */
+/* -------- instagram data handler -------- */
 
 geoapp.dataHandlers.instagram = function (arg) {
     'use strict';
-    var datakey = 'instagram';
+    var m_datakey = 'instagram';
 
-    if (!(this instanceof geoapp.dataHandlers[datakey])) {
-        return new geoapp.dataHandlers[datakey](arg);
+    if (!(this instanceof geoapp.dataHandlers[m_datakey])) {
+        return new geoapp.dataHandlers[m_datakey](arg);
     }
     arg = arg || {};
     geoapp.DataHandler.call(this, arg);
@@ -344,9 +344,25 @@ geoapp.dataHandlers.instagram = function (arg) {
         m_sortOrder = 'raw',
         m_sortedIndices,
         m_sortOrderList = ['raw', 'date', 'date-desc'],
-        m_sortOrderIcons = ['sort', 'sort-down', 'sort-up'];
+        m_sortOrderIcons = ['sort', 'sort-down', 'sort-up'],
+        m_lastInstagramTableInit = 0;
 
-    this.datakey = datakey;
+    this.datakey = m_datakey;
+
+    geoapp.events.on('ga:dataVisibility.' + m_datakey, function (params) {
+        if (params.dataDate < m_lastInstagramTableInit &&
+                params.visDate >= m_lastInstagramTableInit) {
+            if (params.length) {
+                m_this.instagramTableInit(true);
+            } else {
+                if (!$('#ga-instagram-results-panel').hasClass('hidden')) {
+                    geoapp.activityLog.logSystem(
+                        'inst_table_hide', 'datahandler', {});
+                    $('#ga-instagram-results-panel').addClass('hidden');
+                }
+            }
+        }
+    });
 
     /* Replace or add to the instagram data used for the current map.
      *
@@ -396,8 +412,8 @@ geoapp.dataHandlers.instagram = function (arg) {
             if (!$('#ga-instagram-results-panel').hasClass('hidden')) {
                 geoapp.activityLog.logSystem(
                     'inst_table_hide', 'datahandler', {});
+                $('#ga-instagram-results-panel').addClass('hidden');
             }
-            $('#ga-instagram-results-panel').addClass('hidden');
             return;
         }
         var table = $('#ga-instagram-results-table');
@@ -419,6 +435,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         if (!always && $('#ga-instagram-results-panel').hasClass('hidden')) {
             return;
         }
+        m_lastInstagramTableInit = new Date().getTime();
         m_sortedIndices = null;
         var settings = this.routeSettings();
         if (settings && settings['instagram-table-sort']) {

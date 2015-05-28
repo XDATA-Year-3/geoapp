@@ -145,7 +145,7 @@ geoapp.Map = function (arg) {
                 y1: bounds.lowerRight.y.toFixed(7),
                 zoom: zoom.toFixed(2)
             }, false, true);
-            $('#ga-main-map').trigger('ga.map.moved', {
+            $('#ga-main-map').trigger('ga:map.moved', {
                 bounds: bounds,
                 zoom: zoom
             });

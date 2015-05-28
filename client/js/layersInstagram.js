@@ -544,6 +544,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
         } else {
             overlay.css('display', 'block');
         }
+        $('[title]', overlay).tooltip(geoapp.defaults.tooltip);
     };
 
     /* Center the currently highlighted point on the map.

@@ -13,6 +13,8 @@
  *  limitations under the License.
  */
 
+geoapp.defaults = geoapp.defaults || {};
+geoapp.defaults.tooltip = {delay: {show: 500}};
 
 /* Get a section from a settings dictionary, parsing it as a query string.  If
  * there are any default values for that section, and those defaults have not
@@ -328,7 +330,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     view.DateRangePicker_updateFromControl,
                     elem.data('daterangepicker'))});
             });
-            $('[title]').tooltip({delay: {show: 500}});
+            $('[title]').tooltip(geoapp.defaults.tooltip);
             $('#ga-step-slider').slider({
                 focus: true,
                 formatter: geoapp.map.getStepDescription
@@ -361,7 +363,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         });
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
-        $('#ga-main-map').off('ga.map.moved').on('ga.map.moved', function () {
+        $('#ga-main-map').off('ga:map.moved').on('ga:map.moved', function () {
             view.mapMoved();
         });
         geoapp.View.prototype.render.apply(this, arguments);

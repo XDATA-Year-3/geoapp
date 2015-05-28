@@ -16,7 +16,6 @@
     "bootstrap-slider": "~4.8",
     "c3": "~0.4",
     "daterangepicker": "~0.0.3",
-    "d3": "~3.5",
     "grunt": "~0.4",
     "grunt-cli": "~0.1",
     "grunt-contrib-compress": "~0.13",
