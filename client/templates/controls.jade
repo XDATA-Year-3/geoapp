@@ -110,11 +110,11 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
           type="checkbox", checked="checked",
           taxifield="show-taxi-data", taxitype="boolean")
         label(for="ga-show-taxi-data") Taxi
-      span(title="Show instagram message data")
+      span(title="Show instagram and twitter message data")
         input#ga-show-instagram-data.form-control.input-sm(
           type="checkbox", checked="checked",
           taxifield="show-instagram-data", taxitype="boolean")
-        label(for="ga-show-instagram-data") Instagram
+        label(for="ga-show-instagram-data") Instagram / Twitter
     .form-group#ga-place-group
       //- The place buttons are taken from the ini settings or defaults
         based on this template

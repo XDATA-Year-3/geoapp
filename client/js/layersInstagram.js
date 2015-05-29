@@ -521,30 +521,45 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         $('.ga-instagram-overlay-arrow', overlay).on(
             'click.instagram-overlay', m_this.centerOnMap);
-        imageUrl = url.replace(/\/$/, '') + '/media?size=m';
+        if (url.indexOf('twitter') >= 0) {
+            imageUrl = null;
+        } else {
+            imageUrl = url.replace(/\/$/, '') + '/media?size=m';
+        }
         if ($('img', overlay).attr('orig_url') !== url) {
             overlay.css('display', 'none');
             $('.ga-instagram-overlay-image', overlay).css('display', 'none');
-            $('img', overlay).off('.instagram-overlay'
-            ).on('load.instagram-overlay', function () {
-                $('.ga-instagram-overlay-image', overlay).css('display', '');
+            $('img', overlay).off('.instagram-overlay').attr({orig_url: url});
+            if (imageUrl) {
+                $('img', overlay).on('load.instagram-overlay', function () {
+                    $('.ga-instagram-overlay-image', overlay).css(
+                        'display', '');
+                    overlay.css('display', 'block');
+                    geoapp.activityLog.logActivity('show_overlay', 'map', {
+                        source: m_currentPointSource || '',
+                        imageUrl: imageUrl,
+                        url: url
+                    }, 'instagram_overlay');
+                }).on('error.instagram-overlay', function () {
+                    overlay.css('display', 'block');
+                    geoapp.activityLog.logActivity('show_overlay', 'map', {
+                        source: m_currentPointSource || '',
+                        url: url
+                    }, 'instagram_overlay');
+                }).attr({src: imageUrl});
+            } else {
                 overlay.css('display', 'block');
-                geoapp.activityLog.logActivity('show_overlay', 'map', {
-                    source: m_currentPointSource || '',
-                    imageUrl: imageUrl,
-                    url: url
-                }, 'instagram_overlay');
-            }).on('error.instagram-overlay', function () {
-                overlay.css('display', 'block');
-                geoapp.activityLog.logActivity('show_overlay', 'map', {
-                    source: m_currentPointSource || '',
-                    url: url
-                }, 'instagram_overlay');
-            }).attr({src: imageUrl, orig_url: url});
+            }
         } else {
             overlay.css('display', 'block');
         }
-        $('[title]', overlay).tooltip(geoapp.defaults.tooltip);
+        $('[title]', overlay).each(function () {
+            var elem = $(this),
+                title = elem.attr('title');
+            elem.tooltip(geoapp.defaults.tooltip)
+            .attr('data-original-title', title)
+            .tooltip('fixTitle');
+        });
     };
 
     /* Center the currently highlighted point on the map.

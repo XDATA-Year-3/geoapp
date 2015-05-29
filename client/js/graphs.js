@@ -1413,8 +1413,8 @@ geoapp.graphData.instagram = function (arg) {
 
     this.dataItems = {
         messages: {
-            name: 'Instagram Messages',
-            description: 'Number of Instagram messages',
+            name: 'Messages',
+            description: 'Number of Instagram / Twitter messages',
             column: 'posted_date',
             sort: 0,
             unit: 'msg',
