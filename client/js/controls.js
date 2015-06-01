@@ -13,6 +13,8 @@
  *  limitations under the License.
  */
 
+geoapp.defaults = geoapp.defaults || {};
+geoapp.defaults.tooltip = {delay: {show: 500}};
 
 /* Get a section from a settings dictionary, parsing it as a query string.  If
  * there are any default values for that section, and those defaults have not
@@ -321,13 +323,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     timePicker12Hour: false,
                     timePickerIncrement: 5
                 });
+                elem.data('daterangepicker').view = view;
                 elem.data('daterangepicker').element
                 .off('keyup.daterangepicker')
                 .on({'keyup.daterangepicker': $.proxy(
-                    geoapp.DateRangePicker_updateFromControl,
+                    view.DateRangePicker_updateFromControl,
                     elem.data('daterangepicker'))});
             });
-            $('[title]').tooltip({delay: {show: 500}});
+            $('[title]').tooltip(geoapp.defaults.tooltip);
             $('#ga-step-slider').slider({
                 focus: true,
                 formatter: geoapp.map.getStepDescription
@@ -341,10 +344,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
             if (view.firstRender) {
                 view.firstRender = false;
                 geoapp.map.showMap(
-                    'all', [], view.updateSection('display', false));
+                    'all', view.updateSection('display', false));
                 /* Make sure our layers are created in the desired order */
-                geoapp.map.ensureLayer('taxi');
-                geoapp.map.ensureLayer('instagram');
+                geoapp.map.getLayer('taxi');
+                geoapp.map.getLayer('instagram');
                 _.each(geoapp.placeOrder, function (placeKey) {
                     var button = $('#ga-place-template').clone();
                     button.removeClass('hidden').attr({
@@ -360,7 +363,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         });
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
-        $('#ga-main-map').off('ga.map.moved').on('ga.map.moved', function () {
+        $('#ga-main-map').off('ga:map.moved').on('ga:map.moved', function () {
             view.mapMoved();
         });
         geoapp.View.prototype.render.apply(this, arguments);
@@ -383,16 +386,22 @@ geoapp.views.ControlsView = geoapp.View.extend({
      */
     getDateRange: function (selector, params, baseKey, formatForDisplay) {
         var val = $(selector).val().trim(),
-            minval, maxval, onlyval, form, result,
+            minval, maxval, onlyval, form, result, parts,
             dbForm = 'YYYY-MM-DD HH:mm:ss',
             defaultYear = parseInt($('body').attr('defaultyear') || 2013);
 
         if (val === '') {
             return;
         }
-        var parts = val.split('- ');
-        if (parts.length === 1) {
-            parts = val.split(' -');
+        if ((val.match(/-/g) || []).length === 1) {
+            parts = val.split('-');
+        } else if ((val.match(/,/g) || []).length === 1) {
+            parts = val.split(',');
+        } else {
+            parts = val.split('- ');
+            if (parts.length === 1) {
+                parts = val.split(' -');
+            }
         }
         if (parts.length === 1) {
             onlyval = moment.utc(val.trim());
@@ -417,12 +426,17 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 params[baseKey + '_max'] = maxval.format(dbForm);
             }
         }
-        form = formatForDisplay ? 'YYYY MMM D HH:mm' : dbForm;
+        form = formatForDisplay ? 'MMM D HH:mm' : dbForm;
         if (formatForDisplay &&
                 (!onlyval || onlyval.isSame(moment(onlyval).startOf('day'))) &&
                 (!minval || minval.isSame(moment(minval).startOf('day'))) &&
                 (!maxval || maxval.isSame(moment(maxval).startOf('day')))) {
-            form = 'YYYY MMM D';
+            form = 'MMM D';
+        }
+        if (formatForDisplay && (minval.year() !== defaultYear ||
+                (maxval.year() !== defaultYear && !maxval.isSame(
+                moment(maxval).year(defaultYear + 1).startOf('year'))))) {
+            form = 'YYYY ' + form;
         }
         if (onlyval) {
             result = onlyval.format(form);
@@ -778,6 +792,44 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (display['display-process'] === 'binned') {
             $('#ga-display-update').addClass('btn-primary');
         }
+    },
+
+    /* This is a copy of the original DateRangePicker updateFromControl that
+     * doesn't require a fixed format date string */
+    DateRangePicker_updateFromControl: function () {
+        if (!this.element.is('input')) {
+            return;
+        }
+        var val = this.view.getDateRange(this.element, {}, 'date');
+        if (!val.length) {
+            return;
+        }
+        var dateString = val.split(this.separator),
+            start = null,
+            end = null;
+
+        if (dateString.length === 2) {
+            start = moment(dateString[0]);
+            end = moment(dateString[1]);
+        }
+
+        if (this.singleDatePicker || start === null || end === null) {
+            start = moment(this.element.val());
+            end = start;
+        }
+        if (end.isBefore(start)) {
+            return;
+        }
+        this.oldStartDate = this.startDate.clone();
+        this.oldEndDate = this.endDate.clone();
+
+        this.startDate = start;
+        this.endDate = end;
+
+        if (!this.startDate.isSame(this.oldStartDate) || !this.endDate.isSame(this.oldEndDate)) {
+            this.notify();
+        }
+        this.updateCalendars();
     }
 });
 

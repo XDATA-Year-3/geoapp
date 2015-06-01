@@ -70,25 +70,15 @@ geoapp.Map = function (arg) {
         m_verbose = 0;
 
     /* Show a map with data.  If we have already shown the map, just update
-     * the data and redraw the map.  The data is an object that contains:
-     *   columns: a dictionary which has keys that reference the columns in
-     *      the data array.
-     *   data: an array of arrays with the relevant data.
-     *   x_column: if present, use the 0-based column for the x coordinate.
-     *      Otherwise, use columns.pickup_longitude.
-     *   y_column: if present, use the 0-based column for the y coordinate.
-     *      Otherwise, use columns.pickup_latitude.
-     *
+     * the parameters and redraw the map.
      * @param datakey: 'all' to update all known data layers, otherwise the
      *                 name of a data layer to update, or null to not update
      *                 any data layers.
-     * @param data: the data to draw on the map (see above).
      * @param params: a set of parameters that affect the map but not what data
      *                was loaded.
      */
-    this.showMap = function (datakey, data, params) {
+    this.showMap = function (datakey, params) {
         var view = this;
-        data = data || [];
         var displayInfo = this.updateMapParams(datakey, params, false);
 
         if (!m_geoMap) {
@@ -113,21 +103,7 @@ geoapp.Map = function (arg) {
                 '<div id="ga-map-credit"/></div>');
             $('#ga-map-credit').html(displayInfo.baseUrlCredit || '');
         }
-        if (datakey !== 'all') {
-            this.ensureLayer(datakey);
-            m_layers[datakey].data(data);
-        }
         this.updateMapParams(datakey, params, 'always');
-    };
-
-    /* Check if a layer exists and create it if it doesn't.
-     *
-     * @param datakey: the layer to create or verify.
-     */
-    this.ensureLayer = function (datakey) {
-        if (m_layers[datakey] === undefined && geoapp.mapLayers[datakey]) {
-            m_layers[datakey] = geoapp.mapLayers[datakey](m_this);
-        }
     };
 
     /* Perform any action necessary after a zoom or pan event.  This updates
@@ -169,7 +145,7 @@ geoapp.Map = function (arg) {
                 y1: bounds.lowerRight.y.toFixed(7),
                 zoom: zoom.toFixed(2)
             }, false, true);
-            $('#ga-main-map').trigger('ga.map.moved', {
+            $('#ga-main-map').trigger('ga:map.moved', {
                 bounds: bounds,
                 zoom: zoom
             });
@@ -449,12 +425,9 @@ geoapp.Map = function (arg) {
      * @returns: true if any data exists.
      */
     this.hasAnyData = function () {
-        var anyData = false;
-        _.each(m_layers, function (layer) {
+        var anyData = _.some(m_layers, function (layer) {
             var data = layer.data();
-            if (data && data.data && data.data.length) {
-                anyData = true;
-            }
+            return data && data.data && data.data.length;
         });
         return anyData;
     };
@@ -893,9 +866,14 @@ geoapp.Map = function (arg) {
     /* Get a layer by key.
      *
      * @param datakey: the layer's datakey.
+     * @param noEnsure: if not false, ensure that the requested layer exists.
      * @return: the layer if it exists, or null if it does not.
      */
-    this.getLayer = function (datakey) {
+    this.getLayer = function (datakey, noEnsure) {
+        if (m_layers[datakey] === undefined && !noEnsure &&
+                geoapp.mapLayers[datakey]) {
+            m_layers[datakey] = geoapp.mapLayers[datakey](m_this);
+        }
         return m_layers[datakey];
     };
 };

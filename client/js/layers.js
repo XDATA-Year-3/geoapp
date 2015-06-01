@@ -23,8 +23,11 @@ geoapp.MapLayer = function (map, datakey, arg) {
     }
     arg = arg || {};
 
-    var m_this = this,
-        m_data,
+    var m_data,
+        m_dataUpdated,
+        m_dataVisibilityParams,
+        m_dataVisible,
+        m_dataVisibleUpdated,
         m_cycleDateRange;
     this.datakey = datakey;
     this.map = map;
@@ -32,19 +35,67 @@ geoapp.MapLayer = function (map, datakey, arg) {
     this.maximumVectors = 50000;
     this.paramChangedKeys = [];
 
-    /* Set or get the layer's data.
+    /* Set or get the layer's data.   The data is an object that contains:
+     *   columns: a dictionary which has keys that reference the columns in
+     *      the data array.
+     *   data: an array of arrays with the relevant data.
+     *   x_column: if present, use the 0-based column for the x coordinate.
+     *      Otherwise, use columns.pickup_longitude.
+     *   y_column: if present, use the 0-based column for the y coordinate.
+     *      Otherwise, use columns.pickup_latitude.
+     * The visibility object can contain:
+     *   dateColumn: the name of a column to use for date restrictions.  If not
+     *      set or present, the date restriction is not used.
+     *   dateMin: the minimum (inclusive) date for the data.
+     *   dateMax: the maximum (exclusive) date for the data.
      *
      * @param data: if present, set the layer's data to this, otherwise return
-     *              the current data.
-     * @return: if the data parameter is undefined, return the current data,
-     *          otherwise return the MapLayer object.
+     *              the current data.  If === true or === false, use this as
+     *              the visibleData flag.
+     * @param visibility: if present, retrict the visible data based on a set
+     *                    of parameters (see above).
+     * @param visibleData: if truthy, return the data with the visiblity
+     *                     restrictions.
+     * @return: return the current data or the currently visible data.
      */
-    this.data = function (data) {
-        if (data === undefined) {
-            return m_data;
+    this.data = function (data, visibility, visibleData) {
+        if (data === true || data === false) {
+            visibleData = data;
+            data = undefined;
         }
-        m_data = data;
-        return m_this;
+        if (data !== undefined) {
+            m_data = data;
+            m_dataUpdated = new Date().getTime();
+            m_dataVisible = null;
+        }
+        if (visibility !== undefined &&
+                !_.isEqual(visibility, m_dataVisibilityParams)) {
+            m_dataVisibilityParams = visibility;
+            m_dataVisible = null;
+        }
+        if (!m_dataVisible && visibleData) {
+            var vis = m_dataVisibilityParams, col;
+            data = m_data;
+            if (vis && vis.dateColumn && data.data && data.columns &&
+                    data.columns[vis.dateColumn] !== undefined && (
+                    vis.dateMin || vis.dateMax)) {
+                data = _.clone(data);
+                col = data.columns[vis.dateColumn];
+                data.data = _.filter(data.data, function (d) {
+                    return ((!vis.dateMin || d[col] >= vis.dateMin) &&
+                        (!vis.dateMax || d[col] < vis.dateMax));
+                });
+            }
+            m_dataVisible = data;
+            m_dataVisibleUpdated = new Date().getTime();
+            geoapp.events.trigger('ga:dataVisibility.' + this.datakey, {
+                visibility: vis,
+                dataDate: m_dataUpdated,
+                visDate: m_dataVisibleUpdated,
+                length: data.data.length
+            });
+        }
+        return visibleData ? m_dataVisible : m_data;
     };
 
     /* Check if a changing parameter means that this map layer needs to be

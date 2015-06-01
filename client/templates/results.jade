@@ -1,6 +1,6 @@
 #ga-results-page.ga-results-ui
   +standardPanel('ga-instagram-results-panel', 'ga-instagram-results',
-      'Instagram Results',
+      'Instagram and Twitter Results',
       "These are the instagram results based on the Caption Search in the Filters panel.",
       'hidden')(class="hidden")
     .results-table.al-scroller
@@ -24,14 +24,19 @@
       i.icon-right-circled
     span.ga-instagram-overlay-date
     span.ga-instagram-overlay-caption
+  .ga-instagram-overlay-position
   .ga-instagram-overlay-link
     a(target="_blank")
 #ga-graph-page.ga-results-ui
   +standardPanel('ga-graph-panel', 'ga-graph', 'Graphs',
       "These graphs are based on data selected in the Filters panel.")
     .no-graph
-      button.btn.btn-sm.circle-btn.ga-add-graph(title="Add a graph")
-        i.icon-plus
+      .graph-region
+        .graph-clip
+          .graph-plot
+      .button-region
+        button.btn.btn-sm.circle-btn.ga-add-graph(title="Add a graph")
+          i.icon-plus
     .graph#ga-graph-template.hidden
       .graph-region
         .graph-waiting.hidden

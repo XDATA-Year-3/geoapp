@@ -17,7 +17,11 @@ York City.  The two data sets are:
     This is a subset of Instagram messages that were in the greater New York
     area.  Around 7.5 million messages are in the database.
 
-There is some addition data that can be plotted on graphs, but not on the map:
+* **Twitter Messages**
+    This is a subset of Twitter messages that were in the greater New York
+    area.  Around 12 million messages are in the database.
+
+There is some additional data that can be plotted on graphs, but not on the map:
 
 * **Central Park Weather**
       There is daily information on temperature, wind, precipitation and other values.
@@ -44,16 +48,16 @@ The **Pickup Date** can be specified to limit which trips are loaded.  Remember 
 
 Taxi data is plotted on the map using black points for each trip, or shown using blue and yellow points, lines, or squares, depending on the display settings.
 
-Instagram Data
-++++++++++++++
+Instagram and Twitter Data
+++++++++++++++++++++++++++
 
-The lower **Filter** button loads Instagram messages from the database.  If **Use Pickup Date Range** is selected, the Pickup Date from the Taxi area will be used.  If it is not selected, the dates can be limited by specifying a range in the **Posted Date** field.
+The lower **Filter** button loads Instagram and Twitter messages from the database.  If **Use Pickup Date Range** is selected, the Pickup Date from the Taxi area will be used.  If it is not selected, the dates can be limited by specifying a range in the **Posted Date** field.
 
 The **Max Inst.** slider can be usd to load more data, which will take longer and use more local resources.
 
 A **Caption Search** can be used to get only messages related to a particular topic.  This uses a general text search, so a value of 'Hospital' will match both 'Hospital' and 'Hospitality'.  If multiple words are specified, all words are required.  Words can be prefixed with a minus sign to exclude them, and can be quoted to match an exact form.  For instance, 'Hospital -"Hospitality"' will find hospitals but exclude posts about hotel conferences.
 
-Instagram data is plotted on the map using red points.
+Instagram and Twitter data is plotted on the map using red points.
 
 Displaying Data
 ---------------
@@ -81,10 +85,10 @@ If **Display Type** is 'Pickup - Dropoff Vectors' a straight line connects each 
 
 If **Processing** is set to 'Binned Heatmap', all of the filtered taxi trips are used to produce a a grid of squares whose opacity is proportional to whichever square had the most taxi trips.  If the **Display Type** is 'Pickup - Dropoff Locations', the squares are blue when there are more pickups than dropoffs, and yellow when there are more dropoffs than pickups.  The number of bins across the map can be changed and the map can be rebinned as desired.
 
-Instagram Data
-++++++++++++++
+Instagram and Twitter Data
+++++++++++++++++++++++++++
 
-Instagram data is always shown as red points.  The **Max Points** and **Opacity** controls affect how it is displayed.
+Instagram and Twitter data is always shown as red points.  The **Max Points** and **Opacity** controls affect how it is displayed.
 
 
 Animation

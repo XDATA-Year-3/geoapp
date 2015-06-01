@@ -49,7 +49,7 @@ class GeoAppRoot(object):
         'iniSettings': ''
     }
 
-    def GET(self):
+    def GET(self, *args, **kwargs):
         config = girder.utility.config.getConfig()
         vars = self.vars
         iniList = {}
@@ -132,6 +132,7 @@ class GeoApp():
             }
         }
         appconf.update(localappconf)
+        appconf['/']['tools.trailing_slash.on'] = False
         curConfig.update(localappconf)
 
         self.server = cherrypy.tree.mount(self.root, '/', appconf)

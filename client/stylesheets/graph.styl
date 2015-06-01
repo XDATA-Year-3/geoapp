@@ -13,10 +13,7 @@
     width 19px
     height 19px
     padding 0
-  .no-graph
-    .ga-add-graph
-      float right
-  .graph
+  .graph,.no-graph
     line-height 0
     margin-bottom 5px
     .button-region
@@ -28,6 +25,21 @@
         margin-bottom 20px
       .circle-btn:last-of-type
         display none
+  .no-graph
+    height 17px // DWM:: 50px for range control
+    .graph-region
+      height inherit
+    .graph-clip
+      height 200px
+      width 100%
+      position absolute
+      bottom 0
+    .button-region
+      .circle-btn:last-of-type
+        position absolute
+        bottom 0
+        margin-bottom 13px
+        display block
   .graph:last-of-type
     margin-bottom 0
     .button-region
@@ -102,3 +114,6 @@
     font-size 13px
 .c3-axis-x-label,.c3-axis-y-label
   font-size 12px
+
+tspan
+  padding 0 2px 0 2px

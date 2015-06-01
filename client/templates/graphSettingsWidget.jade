@@ -33,6 +33,16 @@
             input(type="radio", name="graph-bin", "graph-bin"="day",
                 checked=(opts.bin === "day" ? "checked" : undefined))
             | Daily
+        label
+          .radio-inline
+            input(type="radio", name="graph-bin", "graph-bin"="week",
+                checked=(opts.bin === "week" ? "checked" : undefined))
+            | Weekly
+        label
+          .radio-inline
+            input(type="radio", name="graph-bin", "graph-bin"="month",
+                checked=(opts.bin === "month" ? "checked" : undefined))
+            | Monthly
       | Available Data Sets:
       ul#ga-dataset-list.g-sort-parent
         each datakey in datasets

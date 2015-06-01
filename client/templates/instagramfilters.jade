@@ -8,7 +8,7 @@
   .form-group
     label(for="ga-posted-date") Posted Date
     input#ga-posted-date.ga-date-range.form-control.input-sm(
-      type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
+      type="text", placeholder="MMM DD hh:mm - MMM DD hh:mm",
       title="Posted date range",
       taxifield="posted_date", taxitype="dateRange")
   .form-group
@@ -25,7 +25,7 @@
       i.icon-spin1.animate-spin
     span#ga-inst-points-loaded.ga-data-loaded
     label.ga-slider-label(for="ga-inst-data-grams",
-      title="Maximum number of instagram messages to load.") Max Inst.
+      title="Maximum number of Instagram / Twitter messages to load.") Max Msgs.
     input#ga-inst-data-grams.form-control.input-sm.ga-slider-ctl(
         type="text", data-slider-min="10000", data-slider-max="1000000",
         data-slider-step="5000", data-slider-value="25000",

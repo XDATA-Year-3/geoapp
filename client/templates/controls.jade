@@ -43,6 +43,13 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
           data-slider-handle="square",
           data-slider-id="ga-tile-opacity-ctl",
           taxifield="display-tile-opacity", taxitype="float")
+    //-DWM:: add to .form-group below:   .hidden
+    .form-group.hidden
+      label(for="ga-display-date") Date
+      input#ga-display-date.form-control.input-sm(
+        type="text", placeholder="YYYY-MM-DD hh:mm - YYYY-MM-DD hh:mm",
+        title="Display date range",
+        taxifield="display-date", taxitype="dateRange")
     .form-group
       label(for="ga-display-type") Display Type
       select#ga-display-type.form-control.input-sm(title="Display Type",
@@ -103,11 +110,11 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
           type="checkbox", checked="checked",
           taxifield="show-taxi-data", taxitype="boolean")
         label(for="ga-show-taxi-data") Taxi
-      span(title="Show instagram message data")
+      span(title="Show instagram and twitter message data")
         input#ga-show-instagram-data.form-control.input-sm(
           type="checkbox", checked="checked",
           taxifield="show-instagram-data", taxitype="boolean")
-        label(for="ga-show-instagram-data") Instagram
+        label(for="ga-show-instagram-data") Messages
     .form-group#ga-place-group
       //- The place buttons are taken from the ini settings or defaults
         based on this template

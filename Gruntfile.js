@@ -207,8 +207,7 @@ module.exports = function (grunt) {
             libs: {
                 files: {
                     'built/libs.min.js': [
-                        /* d3 and c3 */
-                        'node_modules/d3/d3.js',
+                        /* d3 is included from Girder.  We need c3 */
                         'node_modules/c3/c3.js',
                         /* These items are from geojs, but we exclude jquery */
                         'geojs/bower_components/gl-matrix/dist/gl-matrix.js',

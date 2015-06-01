@@ -60,39 +60,29 @@ geoapp.infiniteScroll = function (selector, loadFunc, context) {
         geoapp.infiniteScrollHandler, context || this, selector, loadFunc));
 };
 
-/* This is a copy of the original DateRangePicker updateFromControl that
- * doesn't require a fixed format date string */
-geoapp.DateRangePicker_updateFromControl = function () {
-    if (!this.element.is('input')) {
-        return;
-    }
-    if (!this.element.val().length) {
-        return;
-    }
-    var dateString = this.element.val().split(this.separator),
-        start = null,
-        end = null;
+/* Format latitude and longitude either as x.xxxxxx(deg)W, y.yyyyyy(deg)N or as
+ * x(deg) x' x.xx"W, y(deg) y' y.yy"N.
+ *
+ * @param pos: the position.  This is an object with x and y in degrees.
+ * @param useMinites: if true, use a minute and second format.
+ * @returns: the formatted location.
+ */
+geoapp.formatLatLon = function (pos, useMinutes) {
+    var result = '', lon = Math.abs(pos.x), lat = Math.abs(pos.y);
 
-    if (dateString.length === 2) {
-        start = moment(dateString[0]);
-        end = moment(dateString[1]);
+    if (useMinutes) {
+        result += sprintf('%d\xB0 %d\' %4.2f"', Math.floor(lon),
+            Math.floor(lon * 60) % 60, (lon * 60 - Math.floor(lon * 60)) * 60);
+    } else {
+        result += sprintf('%8.6f\xB0', lon);
     }
-
-    if (this.singleDatePicker || start === null || end === null) {
-        start = moment(this.element.val());
-        end = start;
+    result += (pos.x > 0 ? 'E' : (pos.x < 0 ? 'W' : '')) + ', ';
+    if (useMinutes) {
+        result += sprintf('%d\xB0 %d\' %4.2f"', Math.floor(lat),
+            Math.floor(lat * 60) % 60, (lat * 60 - Math.floor(lat * 60)) * 60);
+    } else {
+        result += sprintf('%8.6f\xB0', lat);
     }
-    if (end.isBefore(start)) {
-        return;
-    }
-    this.oldStartDate = this.startDate.clone();
-    this.oldEndDate = this.endDate.clone();
-
-    this.startDate = start;
-    this.endDate = end;
-
-    if (!this.startDate.isSame(this.oldStartDate) || !this.endDate.isSame(this.oldEndDate)) {
-        this.notify();
-    }
-    this.updateCalendars();
+    result += (pos.y > 0 ? 'N' : (pos.y < 0 ? 'S' : ''));
+    return result;
 };
