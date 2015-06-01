@@ -56,9 +56,9 @@ mongo:
 tangelo:
 
 [instagramdata]
-%FULL%postgres: {"order": 0, "name": "Postgres", "class": "InstagramViaPostgres", "params": {"db": "instagram", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%FULL%postgres: {"order": 0, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
 %LIMITED%postgres:
-%LOCAL%postgres: {"order": 0, "name": "Postgres", "class": "InstagramViaPostgres", "params": {"db": "instagram", "host": "parakon", "user": "taxi", "password": "taxi#1"}}
+%LOCAL%postgres: {"order": 0, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "parakon", "user": "taxi", "password": "taxi#1"}}
 """
 
 hostip = os.popen("netstat -nr | grep '^0\.0\.0\.0' | awk '{print $2}'").read()
