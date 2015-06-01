@@ -86,3 +86,15 @@ geoapp.formatLatLon = function (pos, useMinutes) {
     result += (pos.y > 0 ? 'N' : (pos.y < 0 ? 'S' : ''));
     return result;
 };
+
+/* Make sure that a repaint has occured before calling a function.  I'm not
+ * sure this is the best way, but it appears to always work.  See
+ * http://stackoverflow.com/questions/22041757
+ *
+ * @param callback: the function to call after a repaint.
+ */
+geoapp.waitForRepaint = function (callback) {
+    requestAnimationFrame(function () {
+        requestAnimationFrame(callback);
+    });
+};

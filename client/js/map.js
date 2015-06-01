@@ -63,6 +63,7 @@ geoapp.Map = function (arg) {
         m_defaultZoom = 10,
 
         m_cycleDateRange,
+        m_cycleDateRangeData = {},
         m_animationOptions = {},
         m_animationData,
         m_animTimer,
@@ -445,7 +446,10 @@ geoapp.Map = function (arg) {
             none: {format: 'ddd MMM D HH:mm'},
             year: {format: 'ddd MMM D HH:mm'},
             month: {format: 'DD HH:mm'},
-            week: {format: 'ddd HH:mm', start: moment.utc('2013-1-1').day(0)},
+            week: {
+                format: 'ddd HH:mm',
+                start: moment.utc(geoapp.defaults.startDate).day(0)
+            },
             day: {format: 'HH:mm'},
             hour: {format: 'mm:ss'}
         };
@@ -462,34 +466,12 @@ geoapp.Map = function (arg) {
         if (!units[cycle]) {
             cycle = 'none';
         }
-        start = units[cycle].start || moment.utc('2013-01-01');
+        start = units[cycle].start || moment.utc(geoapp.defaults.startDate);
         range = moment.duration(1, cycle);
         if (cycle === 'none') {
-            end = null;
-            if (m_cycleDateRange) {
-                start = moment.utc('2013-01-01');
-                end = moment.utc('2014-01-01');
-                if (m_cycleDateRange.date_min) {
-                    start = moment.utc(m_cycleDateRange.date_min);
-                }
-                if (m_cycleDateRange.date_max) {
-                    end = moment.utc(m_cycleDateRange.date_max);
-                }
-            }
-            if (!end) {
-                var dateRange;
-                _.each(m_layers, function (layer) {
-                    if (layer.getDateRange && !end) {
-                        dateRange = layer.getDateRange();
-                        if (dateRange && dateRange.start && dateRange.end) {
-                            start = dateRange.start;
-                            end = dateRange.end;
-                        }
-                    }
-                });
-                end = moment.utc(end).add(1, 'ms');
-            }
-            start = moment.utc(start);
+            var curRange = this.getCycleDateRange(start);
+            start = curRange.start;
+            end = curRange.end;
             range = moment.duration(moment.utc(end) - moment.utc(start));
         }
         steps = parseInt(options['cycle-steps'] || 1);
@@ -851,16 +833,96 @@ geoapp.Map = function (arg) {
      *                in epoch milliseconds.  The key doesn't have to exist.
      * @param maxkey: the key to use within the object to get the maximum date
      *                in epoch milliseconds.  The key doesn't have to exist.
+     * @param datakey: the datakey of item that is setting the date range.  If
+     *                 unspecified, all existing values are cleared and a
+     *                 datakey of 'all' is used.
      */
-    this.setCycleDateRange = function (params, minkey, maxkey) {
+    this.setCycleDateRange = function (params, minkey, maxkey, datakey) {
+        var range;
+        if (!datakey) {
+            m_cycleDateRangeData = {};
+            datakey = 'all';
+        }
         if (params && params[minkey] !== params[maxkey]) {
-            m_cycleDateRange = {
+            range = {
                 date_min: params[minkey],
                 date_max: params[maxkey]
             };
         } else {
-            m_cycleDateRange = null;
+            range = null;
         }
+        m_cycleDateRangeData[datakey] = range;
+        range = undefined;
+        _.each(m_cycleDateRangeData, function (d) {
+            if (d !== null && range !== null) {
+                if (range === undefined) {
+                    range = $.extend({}, d);
+                } else {
+                    if (range.date_min && d.date_min &&
+                            d.date_min < range.date_min) {
+                        range.date_min = d.date_min;
+                    }
+                    if (range.date_max && d.date_max &&
+                            d.date_max > range.date_max) {
+                        range.date_max = d.date_max;
+                    }
+                }
+            } else {
+                range = null;
+            }
+        });
+        //DWM:: if this has changed or data is loaded, redraw graphs if needed
+        m_cycleDateRange = range;
+    };
+
+    /* Get the actual cycle date range based on available data.
+     *
+     * @param defaultStart: the fall-back moment to use for the start if no
+     *        date range is specified.
+     * @return: an object with start and end moments.
+     */
+    this.getCycleDateRange = function (defaultStart) {
+        defaultStart = defaultStart || moment.utc(geoapp.defaults.startDate);
+        var start = moment(defaultStart),
+            end = null;
+        if (m_cycleDateRange) {
+            start = moment.utc(geoapp.defaults.startDate);
+            end = moment.utc(geoapp.defaults.endDate);
+            if (m_cycleDateRange.date_min) {
+                start = moment.utc(m_cycleDateRange.date_min);
+            }
+            if (m_cycleDateRange.date_max) {
+                end = moment.utc(m_cycleDateRange.date_max);
+            }
+        }
+        if (!end) {
+            start = null;
+            var dateRange;
+            _.each(m_layers, function (layer) {
+                if (layer.getDateRange) {
+                    dateRange = layer.getDateRange();
+                    if (dateRange && dateRange.start && dateRange.end) {
+                        if (!start || dateRange.start < start) {
+                            start = dateRange.start;
+                        }
+                        if (!end || dateRange.end > end) {
+                            end = dateRange.end;
+                        }
+                    }
+                }
+            });
+            if (!start) {
+                start = defaultStart;
+            }
+            start = moment.utc(start).startOf('day');
+            if (end) {
+                end = moment.utc(end).endOf('day').add(1, 'ms');
+            } else {
+                end = moment.utc(geoapp.defaults.endDate);
+            }
+        }
+        start = moment.utc(start);
+        return {start: start, end: end};
     };
 
     /* Get a layer by key.

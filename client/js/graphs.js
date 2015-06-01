@@ -24,6 +24,7 @@ geoapp.Graph = function (arg) {
     arg = arg || {};
 
     var m_this = this,
+        m_maxScale = 300,
         m_view,
         m_numGraphs = 0,
         m_colorList = [
@@ -72,6 +73,7 @@ geoapp.Graph = function (arg) {
             },
             zoom: {
                 enabled: true,
+                extent: [1, m_maxScale],
                 onzoom: function (evt) {
                     $(this.element).trigger('c3_zoom', evt);
                 },
@@ -129,7 +131,7 @@ geoapp.Graph = function (arg) {
             }
         };
 
-    this.graphOpts = [];
+    this.graphOpts = {};
 
     /* Bind graph events.
      *
@@ -140,7 +142,8 @@ geoapp.Graph = function (arg) {
         $.extend(view.events, {
             'click .ga-add-graph': _.bind(this.addGraph, this),
             'click .ga-graph-settings': _.bind(this.graphSettings, this),
-            'click .ga-remove-graph': _.bind(this.removeGraph, this)
+            'click .ga-remove-graph': _.bind(this.removeGraph, this),
+            'wheel .c3-brush': _.bind(this.zoomGraph, this)
         });
     };
 
@@ -149,6 +152,9 @@ geoapp.Graph = function (arg) {
      * @param evt: the event that triggered this call.
      */
     this.addGraph = function () {
+        if (!m_numGraphs && 0) { //DWM::
+            this.createGraph(null, ['internal.fullrange']);
+        }
         var available = this.allAvailable();
         if (available.datasets.length) {
             this.createGraph(null, [available.datasets[0]]);
@@ -313,11 +319,13 @@ geoapp.Graph = function (arg) {
                 m_this.graphOpts[position].xminmax);
             }
             if (spec.data.columns.length === 2) {
-                spec.axis.y = spec.axis.y || {};
-                spec.axis.y.label = {
-                    position: 'outer-middle',
-                    text: spec.data.names[spec.data.columns[1][0]]
-                };
+                if (spec.data.names[spec.data.columns[1][0]]) {
+                    spec.axis.y = spec.axis.y || {};
+                    spec.axis.y.label = {
+                        position: 'outer-middle',
+                        text: spec.data.names[spec.data.columns[1][0]]
+                    };
+                }
                 spec.legend = spec.legend || {};
                 spec.legend.show = false;
             }
@@ -510,7 +518,7 @@ geoapp.Graph = function (arg) {
         var datasets = [],
             datasetInfo = {};
         _.each(geoapp.graphData, function (dataSrc, srcName) {
-            _.each(dataSrc.available(), function (datakey) {
+            _.each(dataSrc.available(undefined, true), function (datakey) {
                 var key = srcName + '.' + datakey;
                 datasets.push(key);
                 datasetInfo[key] = dataSrc.describe(datakey);
@@ -572,9 +580,12 @@ geoapp.Graph = function (arg) {
 
         _.each(settings, function (series, key) {
             if (key.substr(0, 6) === 'series') {
-                series = series.split(',');
-                opts = {};
                 pos = parseInt(key.substr(6));
+                series = series.split(',');
+                if (series.length === 1 && !series[0]) {
+                    return;
+                }
+                opts = {};
                 old = m_this.graphOpts[pos];
                 update = (!old || !_.isEqual(series, old.series));
                 _.each(m_navigableGraphOptions, function (opt) {
@@ -591,7 +602,7 @@ geoapp.Graph = function (arg) {
         });
         for (pos = m_numGraphs - 1; pos >= 0; pos -= 1) {
             if (!used[pos]) {
-                this.removeGraphs(undefined, pos);
+                this.removeGraph(undefined, pos);
             }
         }
     };
@@ -679,6 +690,49 @@ geoapp.Graph = function (arg) {
             }
         });
         return minmax;
+    };
+
+    /* Zoom a graph based on a mouse wheel event within the subchart.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.zoomGraph = function (evt) {
+        var position = parseInt($(evt.currentTarget).closest('.graph').attr(
+                'graph-position')),
+            c3 = this.graphOpts[position].c3,
+            minmax = [c3.axis.min().x, c3.axis.max().x],
+            pos = evt.originalEvent.pageX - $(evt.currentTarget).offset().left,
+            width = $(evt.currentTarget)[0].getBBox().width,
+            center = pos / width * (minmax[1] - minmax[0]) + minmax[0],
+            curzoom = c3.zoom();
+        curzoom[0] = 0 + moment.utc(curzoom[0]);
+        curzoom[1] = 0 + moment.utc(curzoom[1]);
+        if (curzoom[0] === curzoom[1]) {
+            curzoom = minmax;
+        }
+        if (center < curzoom[0] || center > curzoom[1]) {
+            center = (curzoom[1] + curzoom[0]) / 2;
+        }
+        var scale = Math.pow(2, evt.originalEvent.deltaY * 0.002);
+        scale = Math.max(scale,
+            (minmax[1] - minmax[0]) / (curzoom[1] - curzoom[0]) / m_maxScale);
+        var newzoom = [
+                parseInt((curzoom[0] - center) * scale + center),
+                parseInt((curzoom[1] - center) * scale + center)
+            ];
+        if (newzoom[0] < minmax[0]) {
+            newzoom[0] = minmax[0];
+        }
+        if (newzoom[1] > minmax[1]) {
+            newzoom[1] = minmax[1];
+        }
+        if (_.isEqual(newzoom, minmax)) {
+            c3.unzoom();
+        } else if (!_.isEqual(newzoom, curzoom)) {
+            c3.zoom(newzoom);
+        }
+        $(evt.currentTarget).trigger('c3_brush', newzoom);
+        m_this.handleGraphZoom({element: evt.currentTarget}, newzoom);
     };
 };
 
@@ -959,6 +1013,54 @@ geoapp.GraphDataFromColumns = function (arg, datakey) {
 };
 
 inherit(geoapp.GraphDataFromColumns, geoapp.GraphData);
+
+/* -------- internal graph data -------- */
+
+geoapp.graphData.internal = function (arg) {
+    'use strict';
+    var m_datakey = 'internal';
+
+    if (!(this instanceof geoapp.graphData[m_datakey])) {
+        return new geoapp.graphData[m_datakey](arg);
+    }
+    arg = arg || {};
+    geoapp.GraphData.call(this, arg);
+
+    this.dataItems = {
+        fullrange: {
+            name: '',
+            description: 'Full date range for all data'
+        }
+    };
+
+    /* List what data, if any, is available to be graphed.
+     *
+     * @param datakey: if present, check if this datakey is available.
+     * @param forUser: true if this is to show the user, falsy for internal
+     *                 use.
+     * @returns: a list of available data keys if datakey is undefined, or a
+     *           boolean indicating if the specified datakey is available.
+     */
+    this.available = function (datakey, forUser) {
+        var avail = forUser ? [] : _.keys(this.dataItems);
+        return datakey ? ($.inArray(datakey, avail) >= 0) : avail;
+    };
+
+    /* Given a datakey, return the associated data.
+     *
+     * @param datakey: the datakey to retreive.
+     * @param opts: options that may affect the date range returned.
+     * @return data: an array of data.  Each item contains 'x', the millisecond
+     *               epoch, and 'y', the data value.
+     */
+    this.data = function () {
+        var range = geoapp.map.getCycleDateRange();
+        return [{x: 0 + range.start, y: 0}, {x: 0 + range.end, y: 0}];
+    };
+};
+
+inherit(geoapp.graphData.internal, geoapp.GraphData);
+geoapp.graphData.internal = geoapp.graphData.internal();
 
 /* -------- weather graph data -------- */
 

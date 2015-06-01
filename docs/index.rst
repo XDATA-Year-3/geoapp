@@ -19,7 +19,7 @@ York City.  The two data sets are:
 
 * **Twitter Messages**
     This is a subset of Twitter messages that were in the greater New York
-    area.  Around 12 million messages are in the database.
+    area.  Around 12.5 million messages are in the database.
 
 There is some additional data that can be plotted on graphs, but not on the map:
 

@@ -212,7 +212,7 @@ def tsquerySearch(field, query):
     processedQuery = ''.join(quotedparts)
     processedQuery = processedQuery.replace('+', ' ').replace(
         '&', ' ').replace(':', ' ').replace('-', '!').strip()
-    parts = [part.strip() for part in re.split('([|()!-])', processedQuery)]
+    parts = [part.strip() for part in re.split('([|()!\- ])', processedQuery)]
     tsq, _, include, exclude = tsqueryParse(parts, quotes)
     for key in quotes:
         tsq = tsq.replace(key, tsqueryWrapVal('&'.join((' '.join(
@@ -225,9 +225,8 @@ def tsquerySearch(field, query):
         subsql = []
         tsqueryExact(subsql, exclude, quotes)
         if len(subsql):
-            sql.append(' AND NOT (true')
-            sql.extend(subsql)
-            sql.append(')')
+            sql.extend([' AND NOT (true' + subsqlval + ')' for subsqlval in
+                        subsql])
     return ''.join(sql), sqlval
 
 
@@ -795,6 +794,7 @@ InstagramFieldTable = collections.OrderedDict([
     ('user_name',     ('text',   'User name')),
     ('user_id_num',   ('int',    'User ID')),
     ('posted_date',   ('date',   'Posted date')),
+    ('url',           ('text',   'Message URL')),
     ('image_url',     ('text',   'Image URL')),
     ('caption',       ('search', 'Caption')),
     ('latitude',      ('float',  'Latitude')),
