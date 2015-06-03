@@ -213,6 +213,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         this.render();
         geoapp.graph.initialize(this);
+        $('[title]').tooltip(geoapp.defaults.tooltip);
         this.finalizeInit(settings, 0);
     },
 
@@ -862,7 +863,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
 });
 
 geoapp.placeOrder = [
-    'manhattan', 'midtown', 'timessq'
+    'greater', 'manhattan', 'midtown'
 ];
 geoapp.placeList = {
     manhattan: {
@@ -880,6 +881,14 @@ geoapp.placeList = {
         y0:  40.7730000,
         x1: -73.9588000,
         y1:  40.7320000
+    },
+    greater: {
+        name: 'Greater NYC',
+        title: 'Show NYC including surrounding airports',
+        x0: -74.1670456,
+        y0:  40.8645278,
+        x1: -73.7660294,
+        y1:  40.6000000
     },
     timessq: {
         name: 'Times Sq.',

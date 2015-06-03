@@ -871,8 +871,10 @@ geoapp.Map = function (arg) {
                 range = null;
             }
         });
-        //DWM:: if this has changed or data is loaded, redraw graphs if needed
-        m_cycleDateRange = range;
+        if (!_.isEqual(m_cycleDateRange, range)) {
+            m_cycleDateRange = range;
+            geoapp.events.trigger('ga:cycleDateRange', range);
+        }
     };
 
     /* Get the actual cycle date range based on available data.
