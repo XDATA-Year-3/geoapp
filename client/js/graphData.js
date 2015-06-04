@@ -341,7 +341,7 @@ geoapp.graphData.weather = function (arg) {
      */
     this.available = function (datakey) {
         var data = geoapp.staticData ? geoapp.staticData[m_datakey] : null;
-        if (!data) {
+        if (!data || !data.columns || !data.data) {
             return datakey ? false : [];
         }
         var avail = [];
