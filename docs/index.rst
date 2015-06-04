@@ -1,11 +1,11 @@
-GeoApp: Data Analysis Tool
-==========================
+Minerva Taxi: Data Analysis Tool
+================================
 
 Data Sources
 ------------
 
-GeoApp provides a way to examine two data sets from 2013 concentrated in New
-York City.  The two data sets are:
+Minerva Taxi provides a way to examine two data sets from 2013 concentrated in
+New York City.  The two data sets are:
 
 * **Taxicab Trips**
     This includes all yellow cab trips in Mahattan and some of the green cab

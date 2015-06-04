@@ -110,7 +110,7 @@ class GeoApp():
         for hdlr in logger.handlers[:]:
             logger.removeHandler(hdlr)
         girder._setupLogger()
-        logger.info('GeoApp starting')
+        logger.info('Minerva Taxi starting')
 
     """Start the server and serve until stopped."""
     def start(self, block=True):
