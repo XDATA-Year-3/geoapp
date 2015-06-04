@@ -446,8 +446,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 y: item[mapData.columns.latitude]
             }),
             offset = 10,
-            url = item[mapData.columns.image_url],
-            imageUrl,
+            url = item[mapData.columns.url] || item[mapData.columns.image_url],
+            imageUrl = item[mapData.columns.image_url],
             caption = item[mapData.columns.caption] || '',
             date = moment(item[mapData.columns.posted_date]).utcOffset(0
                 ).format('YYYY MMM D HH:mm');
@@ -494,8 +494,6 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 x: item[mapData.columns.longitude],
                 y: item[mapData.columns.latitude]
             }, true));
-        $('.ga-instagram-overlay-link a', overlay).text(url).attr(
-            'href', url);
         $('.ga-instagram-overlay-title-bar', overlay).css('display',
             m_persistentCurrentPoint ? 'block' : 'none');
         overlay.off('.instagram-overlay');
@@ -521,11 +519,17 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         $('.ga-instagram-overlay-arrow', overlay).on(
             'click.instagram-overlay', m_this.centerOnMap);
-        if (url.indexOf('twitter') >= 0) {
-            imageUrl = null;
-        } else {
+        if (url.indexOf('t/') === 0) {
+            var parts = url.split('/');
+            url = 'http://twitter.com/' + parts[1] + '/status/' + parts[2];
+        } else if (url.indexOf('i/') === 0) {
+            url = 'http://instagram.com/p/' + url.slice(2);
+        }
+        if (url.indexOf('twitter') < 0) {
             imageUrl = url.replace(/\/$/, '') + '/media?size=m';
         }
+        $('.ga-instagram-overlay-link a', overlay).text(url).attr(
+            'href', url);
         if ($('img', overlay).attr('orig_url') !== url) {
             overlay.css('display', 'none');
             $('.ga-instagram-overlay-image', overlay).css('display', 'none');

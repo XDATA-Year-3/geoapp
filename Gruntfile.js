@@ -177,11 +177,29 @@ module.exports = function (grunt) {
                     'built/geoapp-version.js',
                     /* Make sure the base files get included before the
                      * dependent files. */
-                    'client/js/graphs.js',
+                    'client/js/graph.js',
                     'client/js/layers.js',
                     'client/js/**/*.js'
                 ],
                 dest: 'built/app.js'
+            }
+        },
+
+        'string-replace': {
+            libs: {
+                /* There is an bug in c3 that fails to expose the internal Axis
+                 * class.  This works around it. */
+                files: {
+                    'built/c3.js': [
+                        'node_modules/c3/c3.js'
+                    ]
+                },
+                options: {
+                    replacements: [{
+                        pattern: /(}[^}]*)$/,
+                        replacement: '    c3_chart_internal_axis_fn = c3.chart.internal.axis.fn = Axis.prototype;\n$1'
+                    }]
+                }
             }
         },
 
@@ -204,11 +222,18 @@ module.exports = function (grunt) {
                     ]
                 }
             },
+            libsfirst: {
+                files: {
+                    'built/libs.first.min.js': [
+                        'node_modules/d3/d3.js'
+                    ]
+                }
+            },
             libs: {
                 files: {
                     'built/libs.min.js': [
                         /* d3 is included from Girder.  We need c3 */
-                        'node_modules/c3/c3.js',
+                        'built/c3.js',
                         /* These items are from geojs, but we exclude jquery */
                         'geojs/bower_components/gl-matrix/dist/gl-matrix.js',
                         'geojs/bower_components/proj4/dist/proj4-src.js',
@@ -318,6 +343,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-file-creator');
     grunt.loadNpmTasks('grunt-gitinfo');
     grunt.loadNpmTasks('grunt-shell');
+    grunt.loadNpmTasks('grunt-string-replace');
 
     grunt.registerTask('version-info', [
         'gitinfo',
@@ -338,6 +364,8 @@ module.exports = function (grunt) {
     ]);
     grunt.registerTask('init', [
         'libversion-info',
+        'string-replace:libs',
+        'uglify:libsfirst',
         'uglify:libs',
         'cssmin:libs',
         'copy:libs',

@@ -92,7 +92,7 @@ geoapp.MapLayer = function (map, datakey, arg) {
                 visibility: vis,
                 dataDate: m_dataUpdated,
                 visDate: m_dataVisibleUpdated,
-                length: data.data.length
+                length: (data && data.data) ? data.data.length : 0
             });
         }
         return visibleData ? m_dataVisible : m_data;
@@ -164,8 +164,9 @@ geoapp.MapLayer = function (map, datakey, arg) {
      *                in epoch milliseconds.  The key doesn't have to exist.
      * @param maxkey: the key to use within the object to get the maximum date
      *                in epoch milliseconds.  The key doesn't have to exist.
+     * @param datakey: the datakey of item that is setting the date range.
      */
-    this.setCycleDateRange = function (params, minkey, maxkey) {
+    this.setCycleDateRange = function (params, minkey, maxkey, datakey) {
         if (params && params[minkey] !== params[maxkey]) {
             m_cycleDateRange = {
                 date_min: params[minkey],
@@ -174,7 +175,7 @@ geoapp.MapLayer = function (map, datakey, arg) {
         } else {
             m_cycleDateRange = null;
         }
-        geoapp.map.setCycleDateRange(params, minkey, maxkey);
+        geoapp.map.setCycleDateRange(params, minkey, maxkey, datakey);
     };
 
     /* Get the cycle date range for this data layer.
@@ -186,8 +187,8 @@ geoapp.MapLayer = function (map, datakey, arg) {
     this.cycleDateRange = function () {
         var end = null, start;
         if (m_cycleDateRange) {
-            start = moment.utc('2013-01-01');
-            end = moment.utc('2014-01-01');
+            start = moment.utc(geoapp.defaults.startDate);
+            end = moment.utc(geoapp.defaults.endDate);
             if (m_cycleDateRange.date_min) {
                 start = moment.utc(m_cycleDateRange.date_min);
             }

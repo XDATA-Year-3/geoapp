@@ -38,14 +38,21 @@
         button.btn.btn-sm.circle-btn.ga-add-graph(title="Add a graph")
           i.icon-plus
     .graph#ga-graph-template.hidden
-      .graph-region
-        .graph-waiting.hidden
-          | Waiting for data ...
-        .graph-plot
+      .graph-parent-region
+        .graph-region
+          .graph-waiting.hidden
+            | Waiting for data ...
+          .graph-plot
       .button-region
-        button.btn.btn-sm.circle-btn.ga-remove-graph(title="Remove graph")
+        button.btn.btn-sm.circle-btn.ga-reset-graph(data-placement="bottom",
+            title="Reset selected date range")
+          | Reset
+        button.btn.btn-sm.circle-btn.ga-remove-graph(data-placement="left",
+            title="Remove graph")
           i.icon-cancel
-        button.btn.btn-sm.circle-btn.ga-graph-settings(title="Graph settings")
+        button.btn.btn-sm.circle-btn.ga-graph-settings(data-placement="left",
+            title="Graph settings")
           i.icon-cog
-        button.btn.btn-sm.circle-btn.ga-add-graph(title="Add a graph")
+        button.btn.btn-sm.circle-btn.ga-add-graph(data-placement="left",
+            title="Add a graph")
           i.icon-plus

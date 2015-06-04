@@ -149,6 +149,10 @@ geoapp.parseJSON = function (jsonValue) {
 $(function () {
     girder.apiRoot = 'api/v1';
     geoapp.map = geoapp.Map();
+    geoapp.defaults = {
+        startDate: $('body').attr('defaultstartdate') || '2013-01-01',
+        endDate: $('body').attr('defaultenddate') || '2014-01-01'
+    };
     geoapp.app = new geoapp.App({el: 'body', parentView: null});
     geoapp.dataLoaders = {};
     _.each(geoapp.dataHandlers, function (handlerFunc, handlerKey) {

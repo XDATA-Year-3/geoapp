@@ -100,6 +100,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function () {
             $('#ga-taxi-filter').addClass('btn-primary');
         },
+        'change #ga-taxi-filter-settings #ga-pickup-date': function () {
+            if ($('#ga-use-taxi-dates').is(':checked')) {
+                $('#ga-instagram-filter').addClass('btn-primary');
+            }
+        },
         'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function () {
             $('#ga-instagram-filter').addClass('btn-primary');
         },
@@ -115,23 +120,27 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     'ga-filter-name');
                 $('#ga-' + filter + '-filter-settings .ga-date-range'
                     ).data('daterangepicker').hide();
-                window.setTimeout(function () {
+                geoapp.waitForRepaint(function () {
                     $('#ga-' + filter + '-filter').click();
-                }, 10);
+                    if ($('#ga-use-taxi-dates').is(':checked') &&
+                            $(evt.target).is('#ga-pickup-date')) {
+                        $('#ga-instagram-filter').click();
+                    }
+                });
             }
         },
         'keydown #ga-display-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
-                window.setTimeout(function () {
+                geoapp.waitForRepaint(function () {
                     $('#ga-display-update').click();
-                }, 10);
+                });
             }
         },
         'keydown #ga-anim-settings input[type="text"]': function (evt) {
             if (evt.which === 13) {
-                window.setTimeout(function () {
+                geoapp.waitForRepaint(function () {
                     $('#ga-anim-update').click();
-                }, 10);
+                });
             }
         },
         'change #ga-cycle': function () {
@@ -155,6 +164,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             $('#ga-' + filter + '-filter').addClass('btn-primary');
             var val = this.getDateRange(evt.target, {}, 'date', true);
             $(evt.target).val(val);
+            if (filter === 'taxi' && $('#ga-use-taxi-dates').is(':checked')) {
+                $('#ga-instagram-filter').addClass('btn-primary');
+            }
         },
         'keydown input.ga-date-range': function (evt) {
             $(evt.target).data('daterangepicker').hide();
@@ -201,6 +213,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         this.render();
         geoapp.graph.initialize(this);
+        $('[title]').tooltip(geoapp.defaults.tooltip);
         this.finalizeInit(settings, 0);
     },
 
@@ -316,9 +329,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 elem.daterangepicker({
                     timePicker: true,
                     startDate: (params.date_min || params.date ||
-                                '2013-01-01 00:00'),
+                                geoapp.defaults.startDate),
                     endDate: (params.date_max || params.date ||
-                              '2014-01-01 00:00'),
+                              geoapp.defaults.endDate),
                     format: 'YYYY-MM-DD HH:mm',
                     timePicker12Hour: false,
                     timePickerIncrement: 5
@@ -382,7 +395,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * @param formatForDisplay: if falsy, return the date formatted for
      *                          datebase queries.  If true, return the date
      *                          formatted for display.
-     * @return: the cannonically formated date range.
+     * @return: the cannonically formated date range, or null for no date
+     *          range.
      */
     getDateRange: function (selector, params, baseKey, formatForDisplay) {
         var val = $(selector).val().trim(),
@@ -391,7 +405,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             defaultYear = parseInt($('body').attr('defaultyear') || 2013);
 
         if (val === '') {
-            return;
+            return null;
         }
         if ((val.match(/-/g) || []).length === 1) {
             parts = val.split('-');
@@ -405,25 +419,37 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
         if (parts.length === 1) {
             onlyval = moment.utc(val.trim());
-            if (onlyval.year() < 2010) {
-                onlyval.year(defaultYear);
+            if (!onlyval.isValid()) {
+                onlyval = null;
+            } else {
+                if (onlyval.year() < 2010) {
+                    onlyval.year(defaultYear);
+                }
+                params[baseKey] = onlyval.format(dbForm);
             }
-            params[baseKey] = onlyval.format(dbForm);
         } else {
             if (parts[0].trim() !== '') {
                 minval = moment.utc(parts[0].trim());
-                if (minval.year() < 2010) {
-                    minval.year(defaultYear);
+                if (!minval.isValid()) {
+                    minval = null;
+                } else {
+                    if (minval.year() < 2010) {
+                        minval.year(defaultYear);
+                    }
+                    params[baseKey + '_min'] = minval.format(dbForm);
                 }
-                params[baseKey + '_min'] = minval.format(dbForm);
             }
             if (parts[1].trim() !== '') {
                 maxval = moment.utc(parts[1].trim());
-                if (maxval.year() < 2010) {
-                    maxval.year(defaultYear + (
-                        maxval.isSame(moment(maxval).startOf('year')) ? 1 : 0));
+                if (!maxval.isValid()) {
+                    maxval = null;
+                } else {
+                    if (maxval.year() < 2010) {
+                        maxval.year(defaultYear + (maxval.isSame(
+                            moment(maxval).startOf('year')) ? 1 : 0));
+                    }
+                    params[baseKey + '_max'] = maxval.format(dbForm);
                 }
-                params[baseKey + '_max'] = maxval.format(dbForm);
             }
         }
         form = formatForDisplay ? 'MMM D HH:mm' : dbForm;
@@ -433,16 +459,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 (!maxval || maxval.isSame(moment(maxval).startOf('day')))) {
             form = 'MMM D';
         }
-        if (formatForDisplay && (minval.year() !== defaultYear ||
-                (maxval.year() !== defaultYear && !maxval.isSame(
+        if (formatForDisplay && ((onlyval && onlyval.year() !== defaultYear) ||
+                (minval && minval.year() !== defaultYear) ||
+                (maxval && maxval.year() !== defaultYear && !maxval.isSame(
                 moment(maxval).year(defaultYear + 1).startOf('year'))))) {
             form = 'YYYY ' + form;
         }
         if (onlyval) {
             result = onlyval.format(form);
-        } else {
+        } else if (minval || maxval) {
             result = (minval ? minval.format(form) + ' ' : '') + '-' + (
                 maxval ? ' ' + maxval.format(form) : '');
+        } else {
+            result = null;
         }
         return result;
     },
@@ -801,7 +830,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             return;
         }
         var val = this.view.getDateRange(this.element, {}, 'date');
-        if (!val.length) {
+        if (!val || !val.length) {
             return;
         }
         var dateString = val.split(this.separator),
@@ -834,7 +863,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
 });
 
 geoapp.placeOrder = [
-    'manhattan', 'midtown', 'timessq'
+    'greater', 'manhattan', 'midtown'
 ];
 geoapp.placeList = {
     manhattan: {
@@ -852,6 +881,14 @@ geoapp.placeList = {
         y0:  40.7730000,
         x1: -73.9588000,
         y1:  40.7320000
+    },
+    greater: {
+        name: 'Greater NYC',
+        title: 'Show NYC including surrounding airports',
+        x0: -74.1670456,
+        y0:  40.8645278,
+        x1: -73.7660294,
+        y1:  40.6000000
     },
     timessq: {
         name: 'Times Sq.',
