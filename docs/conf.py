@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# GeoApp documentation build configuration file, created by
+# Minerva Taxi documentation build configuration file, created by
 # sphinx-quickstart on Thu May 21 14:00:06 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -43,7 +43,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'GeoApp'
+project = u'Minerva Taxi'
 copyright = u'2015, Kitware, Inc.'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -116,7 +116,7 @@ html_theme_options = {
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 #html_title = None
-html_title = "GeoApp v0.1"
+html_title = "Minerva Taxi v0.1"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
@@ -182,7 +182,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'GeoAppdoc'
+htmlhelp_basename = 'MinervaTaxidoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -202,7 +202,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'GeoApp.tex', u'GeoApp Documentation',
+  ('index', 'MinervaTaxi.tex', u'Minerva Taxi Documentation',
    u'Kitware, Inc.', 'manual'),
 ]
 
@@ -232,7 +232,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'geoapp', u'GeoApp Documentation',
+    ('index', 'geoapp', u'Minerva Taxi Documentation',
      [u'Kitware, Inc.'], 1)
 ]
 
@@ -246,8 +246,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'GeoApp', u'GeoApp Documentation',
-   u'Kitware, Inc.', 'GeoApp', 'One line description of project.',
+  ('index', 'MinervaTaxi', u'Minerva Taxi Documentation',
+   u'Kitware, Inc.', 'Minerva Taxi', 'One line description of project.',
    'Miscellaneous'),
 ]
 

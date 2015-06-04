@@ -85,17 +85,17 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/GeoApp.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/MinervaTaxi.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/GeoApp.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/MinervaTaxi.qhc"
 
 devhelp:
 	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/GeoApp"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/GeoApp"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/MinervaTaxi"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/MinervaTaxi"
 	@echo "# devhelp"
 
 epub:
