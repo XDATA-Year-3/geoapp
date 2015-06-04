@@ -70,6 +70,7 @@ geoapp.Graph = function (arg) {
                     m_this.handleGraphClick(this, evt);
                 }
             },
+            padding: { left: 65 },
             tooltip: {
                 format: {
                     value: function (value, ratio, id, index) {
@@ -162,6 +163,7 @@ geoapp.Graph = function (arg) {
             'click .ga-add-graph': _.bind(this.addGraph, this),
             'click .ga-graph-settings': _.bind(this.graphSettings, this),
             'click .ga-remove-graph': _.bind(this.removeGraph, this),
+            'click .ga-reset-graph': _.bind(this.resetGraph, this),
             'wheel .c3-brush': _.bind(this.zoomGraph, this)
         });
         geoapp.events.on('ga:cycleDateRange', function () {
@@ -170,14 +172,20 @@ geoapp.Graph = function (arg) {
         });
     };
 
+    /* Create the default graph(s).
+     *
+     * @return: a dictionary whose keys are the positions used for defaults.
+     */
+    this.createDefaultGraphs = function () {
+        this.createGraph(0, ['internal.fullrange'], undefined, false, false);
+        return {0: true};
+    };
+
     /* Add a graph to our display.
      *
      * @param evt: the event that triggered this call.
      */
     this.addGraph = function () {
-        if (!m_numGraphs && 0) { //DWM::
-            this.createGraph(null, ['internal.fullrange']);
-        }
         var available = this.allAvailable();
         if (available.datasets.length) {
             this.createGraph(null, [available.datasets[0]]);
@@ -206,6 +214,7 @@ geoapp.Graph = function (arg) {
                 opts: {}
             };
             m_numGraphs += 1;
+            $('#ga-graph-panel [title]').tooltip(geoapp.defaults.tooltip);
         }
     };
 
@@ -300,6 +309,8 @@ geoapp.Graph = function (arg) {
                     xcol.push(d.x);
                     ycol.push(d.y);
                 });
+                m_this.graphOpts[position].xminmax = m_this.computeMinMax(
+                    m_this.graphOpts[position].xminmax, xcol.slice(1));
                 /* Add an additional point so that the last step in our graph
                  * will look right. */
                 if (seriesData.length >= 2) {
@@ -309,8 +320,6 @@ geoapp.Graph = function (arg) {
                 }
                 spec.data.cols[xcol[0]] = spec.data.columns.length;
                 spec.data.columns.push(xcol);
-                m_this.graphOpts[position].xminmax = m_this.computeMinMax(
-                    m_this.graphOpts[position].xminmax, xcol.slice(1));
                 spec.data.cols[ycol[0]] = spec.data.columns.length;
                 spec.data.columns.push(ycol);
                 spec.data.xs[ycol[0]] = xcol[0];
@@ -369,6 +378,7 @@ geoapp.Graph = function (arg) {
                 spec.legend = spec.legend || {};
                 spec.legend.show = false;
             }
+            spec.transition = {duration: 0};
             this.graphOpts[position].c3 = c3.generate(spec);
             if (useZoomRange !== false && graphType === 'line') {
                 opts.left = m_lastZoomRange ? m_lastZoomRange[0] : undefined;
@@ -378,6 +388,10 @@ geoapp.Graph = function (arg) {
                 this.graphOpts[position].c3.zoom(
                     [parseFloat(opts.left), parseFloat(opts.right)]);
             }
+            /* Reset to the default transition */
+            spec.transition = undefined;
+            this.graphOpts[position].c3.internal.config
+                .transition_duration = 350;
         }
         this.graphOpts[position].renderTime = (missing ? 0 :
             new Date().getTime());
@@ -660,8 +674,9 @@ geoapp.Graph = function (arg) {
      * @param settings: graph settings.
      */
     this.graphsFromNavigation = function (settings) {
-        var pos, opts, used = {}, update, old;
+        var pos, opts, used, update, old;
 
+        used = this.createDefaultGraphs();
         m_lastZoomRange = null;
         _.each(settings, function (series, key) {
             if (key.substr(0, 6) === 'series') {
@@ -783,12 +798,13 @@ geoapp.Graph = function (arg) {
                 if (i !== pos && m_this.graphOpts[i].opts.type === 'line') {
                     this.graphOpts[i].opts.left = range[0];
                     this.graphOpts[i].opts.right = range[1];
-                    if (!range[0] && !range[1]) {
+                    if ((!range[0] && !range[1]) ||
+                            _.isEqual(range, this.graphOpts[i].xminmax)) {
                         this.graphOpts[i].c3.unzoom();
                     } else {
                         this.graphOpts[i].c3.zoom([
-                            range[0] || graphOpts.xminmax[0],
-                            range[1] || graphOpts.xminmax[1]
+                            range[0] || this.graphOpts[i].xminmax[0],
+                            range[1] || this.graphOpts[i].xminmax[1]
                         ]);
                     }
                 }
@@ -903,6 +919,20 @@ geoapp.Graph = function (arg) {
         end = Math.min(0 + moment(date).endOf('day').endOf(
             graphOpts.opts.bin).add(1, 'ms'), minmax[1]);
         this.handleGraphZoom(undefined, [start, end]);
+    };
+
+    /* Reset the horizontal range of the selected graph.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.resetGraph = function (evt) {
+        var position = parseInt($(evt.currentTarget).closest('.graph').attr(
+                'graph-position')),
+            c3 = this.graphOpts[position].c3,
+            newzoom = [0 + c3.axis.min().x, 0 + c3.axis.max().x];
+        c3.unzoom();
+        $(evt.currentTarget).trigger('c3_brush', newzoom);
+        m_this.handleGraphZoom({element: evt.currentTarget}, newzoom);
     };
 };
 

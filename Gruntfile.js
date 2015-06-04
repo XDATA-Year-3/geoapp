@@ -177,7 +177,7 @@ module.exports = function (grunt) {
                     'built/geoapp-version.js',
                     /* Make sure the base files get included before the
                      * dependent files. */
-                    'client/js/graphs.js',
+                    'client/js/graph.js',
                     'client/js/layers.js',
                     'client/js/**/*.js'
                 ],

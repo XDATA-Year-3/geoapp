@@ -13,6 +13,8 @@
     width 19px
     height 19px
     padding 0
+  .ga-reset-graph
+    display none
   .graph,.no-graph
     line-height 0
     margin-bottom 5px
@@ -26,7 +28,7 @@
       .circle-btn:last-of-type
         display none
   .no-graph
-    height 17px // DWM:: 50px for range control
+    height 17px
     .graph-region
       height inherit
     .graph-clip
@@ -72,6 +74,9 @@
           fill none
           stroke black
           shape-rendering crispEdges
+  .graph-parent-region
+    display inline-block
+    position relative
 #ga-graph-settings
   label
     font-weight normal
@@ -119,15 +124,28 @@
 
 #ga-graph [graph-series="internal.fullrange"]
   height 40px
-  overflow hidden
   position relative
+  .graph-parent-region
+    overflow hidden
+    position absolute
+    width 500px
+    height 40px
   .graph-region
     position absolute
     bottom -9px
   .button-region
     position absolute
-    right 0
-    bottom 0
+  .ga-remove-graph,.ga-graph-settings
+    display none
+  .ga-add-graph
+    position absolute
+    top 17px
+    left 500px
+  .ga-reset-graph
+    border-radius 9.5px
+    width initial
+    padding 0 6px
+    display inherit
 
 tspan
   padding 0 2px 0 2px
