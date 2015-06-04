@@ -55,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 6a2df2821a34cd0cb3f4f095faeed5e228d02c1a && \
+    git checkout d6c96da8c50363f3e0ef16fcb42706b5ebc7ce05 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 ENV PATH $PATH:/home/kwuser/.local/bin

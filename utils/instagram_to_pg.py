@@ -18,11 +18,16 @@
 ###############################################################################
 
 import bz2
+import calendar
 import csv
 import datetime
+import dateutil.parser
 import glob
+import gzip
+import HTMLParser
 import json
 import os
+import pprint
 import random
 import sys
 import tempfile
@@ -33,19 +38,20 @@ import fileutil
 
 
 KeyList = [
-    'user_name', 'user_id_num', 'posted_date', 'image_url', 'caption',
+    'user_name', 'user_id_num', 'posted_date', 'url', 'image_url', 'caption',
     'latitude', 'longitude', 'location_id', 'location_name',
-    'comment_count', 'comments', 'like_count', 'likes', 'scraped_date'
+    'comment_count', 'like_count'  # , 'comments', 'likes', 'scraped_date'
 ]
 
 
-def csvToItems(fptr):
+def csvToItems(fptr, partial=False):
     """
     Given a file-like object containing a csv file, read a header line then
     return each subsequent line as a dictionary based on the header data.  The
     line must contain a posted_date value in an expected format.
 
     :param fptr: a file-like object with a csv file.
+    :param partial: if True, partial data is allowed.
     :yields: items parsed from the file.
     """
     fptr = csv.reader(fptr)
@@ -61,6 +67,9 @@ def csvToItems(fptr):
                 ).total_seconds())
             except Exception:
                 continue
+        if 'image_url' in item and 'url' not in item:
+            item['url'] = item['image_url']
+            del item['image_url']
         yield item
 
 
@@ -94,7 +103,7 @@ def dataToFiles(fileData, row=None):
         fileData['numRows'] += 1
 
 
-def jsonToItems(fptr):
+def jsonToItems(fptr, partial=False):
     """
     Given a file-like object containing json, read it in, and parse the
     elements in a structure like {'data': [{'data': [(elements)]}]}.  Return
@@ -102,6 +111,7 @@ def jsonToItems(fptr):
     dictionary of values.
 
     :param fptr: a file-like object with json.
+    :param partial: if True, partial data is allowed.
     :yields: items parsed from the file.
     """
     for record in json.loads(fptr.read())['data']:
@@ -114,7 +124,7 @@ def jsonToItems(fptr):
                 'user_name':      inst['user']['username'],
                 'user_id_number': inst['user']['id'],
                 'posted_date':    inst['created_time'],
-                'image_url':      inst['link'],
+                'url':            inst['link'],
                 'latitude':       inst['location']['latitude'],
                 'longitude':      inst['location']['longitude'],
                 'comment_count':  inst['comments']['count'],
@@ -128,23 +138,24 @@ def jsonToItems(fptr):
                 item['scraped_date'] = max(
                     item['scraped_date'],
                     int(inst['caption'].get('created_time', 0)))
-            if 'id' in inst['location']:
-                item['location_id'] = inst['location']['id']
-            if 'name' in inst['location']:
-                item['location_name'] = inst['location']['name']
-            if 'data' in inst['comments']:
-                item['comments'] = '|'.join(['%s;%s;%s;%s' % (
-                    comm['from']['username'], comm['from']['id'],
-                    comm['created_time'], comm['text']
-                ) for comm in inst['comments']['data']])
-                for comm in inst['comments']['data']:
-                    item['scraped_date'] = max(
-                        item['scraped_date'],
-                        int(comm.get('created_time', 0)))
-            if 'data' in inst['likes']:
-                item['likes'] = '|'.join(['%s;%s' % (
-                    like['username'], like['id']
-                ) for like in inst['likes']['data']])
+            if not partial:
+                if 'id' in inst['location']:
+                    item['location_id'] = inst['location']['id']
+                if 'name' in inst['location']:
+                    item['location_name'] = inst['location']['name']
+                if 'data' in inst['comments']:
+                    item['comments'] = '|'.join(['%s;%s;%s;%s' % (
+                        comm['from']['username'], comm['from']['id'],
+                        comm['created_time'], comm['text']
+                    ) for comm in inst['comments']['data']])
+                    for comm in inst['comments']['data']:
+                        item['scraped_date'] = max(
+                            item['scraped_date'],
+                            int(comm.get('created_time', 0)))
+                if 'data' in inst['likes']:
+                    item['likes'] = '|'.join(['%s;%s' % (
+                        like['username'], like['id']
+                    ) for like in inst['likes']['data']])
             yield item
 
 
@@ -196,19 +207,18 @@ def processFiles(files, items, fileData):
     processed = 0
     itemsStored = 0
     files_processed = 0
-    for (filetype, filename, subname, zptr) in files:
-        if filetype == 'zip':
-            fptr = zptr.open(subname)
-            filename += ' - ' + subname
-        elif filename.lower().endswith('.bz2'):
-            fptr = bz2.BZ2File(filename)
-            filename = filename.rsplit('.', 1)[0]
-        else:
-            fptr = open(filename)
+    for filerecord in files:
+        (fptr, filename) = processFilesOpen(*filerecord)
         if filename.split('.')[-1].lower() == 'csv':
-            itemlist = csvToItems(fptr)
+            itemlist = csvToItems(fptr, fileData is None)
         else:
-            itemlist = jsonToItems(fptr)
+            line = fptr.readline()
+            # Not all formats support seeking back to zero, so just reopen
+            (fptr, filename) = processFilesOpen(*filerecord)
+            if 'tweet' in line:
+                itemlist = twitterToItems(fptr, fileData is None)
+            else:
+                itemlist = jsonToItems(fptr, fileData is None)
         for item in itemlist:
             if not processed % 1000:
                 sys.stderr.write('%4d/%4d %9d/%9d\r' % (
@@ -220,18 +230,23 @@ def processFiles(files, items, fileData):
                 # expected data type
                 lat = float(item['latitude'])
                 lon = float(item['longitude'])
-                if (not int(item['posted_date']) or not item['image_url'] or
+                if (not int(item['posted_date']) or not item['url'] or
                         lat < -90 or lat > 90 or lon < -180 or lon > 180):
                     continue
             except Exception:
                 continue
-            item['image_url'] = item['image_url'].rstrip('/')
+            item['url'] = item['url'].rstrip('/')
             scrapedDate = int(item.get('scraped_date', item.get(
                 'posted_date', 0)))
             # The same message is repeated often with just different likes or
             # comments.  We keep the keep the latest message based on
             # scraped_date or the latest comment or caption date.
-            key = item['image_url'].rsplit('/', 1)[-1]
+            key = item['url'].rsplit('/', 1)[-1]
+            if 'hash' in item:
+                # If we have a hash value, use it instead of the key, but
+                # treat the data as a later addition.
+                key = item['hash']
+                scrapedDate -= 365 * 86400
             if fileData is None:
                 items[key] = max(items.get(key, 0), scrapedDate)
                 itemsStored = len(items)
@@ -239,6 +254,9 @@ def processFiles(files, items, fileData):
             if key not in items or scrapedDate != items[key]:
                 continue
             del items[key]
+            if item['url'].startswith('http://instagram.com/p/'):
+                item['url'] = (
+                    'i/' + item['url'].split('http://instagram.com/p/', 1)[1])
             item = [item.get(lkey, None) for lkey in KeyList]
             # Escape for Postgres bulk import
             item = ['\\N' if col is None else unicode(col).replace(
@@ -254,16 +272,106 @@ def processFiles(files, items, fileData):
     return processed
 
 
+def processFilesOpen(filetype, filename, subname, zptr):
+    """
+    Open a file for processing.  If it is a compressed file, open for
+    decompression.
+
+    :param filetype: 'zip' if this is a zip archive.
+    :param filename: name of the file (if a zip archive, this is the archive).
+    :param subname: name within an archive.
+    :param zptr: a pointer to a zip archive if appropriate.
+    :returns: a file-like object and the display filename.
+    """
+    if filetype == 'zip':
+        fptr = zptr.open(subname)
+        filename += ' - ' + subname
+    elif filename.lower().endswith('.bz2'):
+        fptr = bz2.BZ2File(filename)
+        filename = filename.rsplit('.', 1)[0]
+    elif filename.lower().endswith('.gz'):
+        fptr = gzip.open(filename)
+        filename = filename.rsplit('.', 1)[0]
+    else:
+        fptr = open(filename)
+    return fptr, filename
+
+
+def twitterToItems(fptr, partial=False):
+    """
+    Given a file-like object containing json, read it in, and parse each line.
+    Return each element that has necessary metadata reformated to a standard
+    dictionary of values.
+
+    :param fptr: a file-like object with json.
+    :param partial: if True, partial data is allowed.
+    :yields: items parsed from the file.
+    """
+    # I probably need to adjust to match the time zone records of other data
+    # sources.
+    dststart = calendar.timegm(dateutil.parser.parse(
+        '2013-03-10 02:00 +0500').utctimetuple())
+    dstend = calendar.timegm(dateutil.parser.parse(
+        '2013-11-03 02:00 +0500').utctimetuple())
+
+    decoder = HTMLParser.HTMLParser()
+
+    for line in fptr:
+        if not len(line.strip()):
+            continue
+        try:
+            tw = json.loads(line.strip())
+            date = int(calendar.timegm(dateutil.parser.parse(
+                tw['created_at']).utctimetuple()))
+            if date < dststart or date > dstend:
+                date -= 18000
+            else:
+                date -= 14400
+            item = {
+                'user_name':      tw['user']['name'],
+                'user_id_number': tw['user']['id_str'],
+                'posted_date':    date,
+                'caption':        decoder.unescape(tw['text']),
+                'url':            't/' + tw['user']['id_str'] + '/' +
+                                  tw['id_str'],
+                # 'comment_count':  inst['comments']['count'],
+                # 'comments':       '',
+                'like_count':     tw.get('retweet_count', 0),
+                # 'likes':          '',
+                'latitude':       tw['coordinates']['coordinates'][1],
+                'longitude':      tw['coordinates']['coordinates'][0],
+                'scraped_date':   date
+            }
+            if 'instagr.am\\/p\\/' in line:
+                item['hash'] = line.split('instagr.am\\/p\\/', 1)[1].split(
+                    '\\/', 1)[0]
+            if not partial:
+                if ('entities' in tw and 'media' in tw['entities'] and
+                        len(tw['entities']['media']) > 0 and
+                        'media_url_https' in tw['entities']['media'][0]):
+                    item['image_url'] = tw['entities']['media'][0][
+                        'media_url_https']
+                if tw.get('place', None):
+                    if 'id' in tw['place']:
+                        item['location_id'] = tw['place']['id']
+                    if 'name' in tw['place']:
+                        item['location_name'] = tw['place']['name']
+        except Exception:
+            sys.stderr.write(pprint.pformat(tw).strip() + '\n')
+            raise
+        yield item
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2 or '--help' in sys.argv:
-        print """Load instagram data files to a Postgres table.
+        print """Load instagram and twitter data files to a Postgres table.
 
-Syntax: load_intsagram.py [--noclear] (files) > (instagram.pg)
+Syntax: load_instagram.py [--noclear] (files) > (instagram.pg)
 
 Files must not start with a dash.  Files can be json or csv, eitehr plain or
-stored in zip or bzip2 files.  Zip and bzip2 files must end with .zip and .bz2
-respectively, and only files within the compressed file ending with .json or
-.csv are ingested.
+stored in zip, bzip2, or gzip files.  Zip, bzip2, and gzip files must end with
+.zip, .bz2, and .gz respectively.  In a zip archive, only files within the
+compressed file ending with .json or .csv are ingested.
 --noclear doesn't drop or create the instagram table.
 """
         sys.exit()
@@ -298,6 +406,7 @@ CREATE TABLE instagram (
     user_name text,
     user_id_num int,
     posted_date int,
+    url text,
     image_url text,
     caption text,
     latitude double precision,
@@ -305,8 +414,8 @@ CREATE TABLE instagram (
     location_id text,
     location_name text,
     comment_count int,
-    comments text,
     like_count int,
+    comments text,
     likes text,
     scraped_date int,
     _id serial
