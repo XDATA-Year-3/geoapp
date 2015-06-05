@@ -55,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout d6c96da8c50363f3e0ef16fcb42706b5ebc7ce05 && \
+    git checkout 3c23448641373e355c96ff830c652500f8f71e9f && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 ENV PATH $PATH:/home/kwuser/.local/bin
@@ -81,6 +81,7 @@ ENV KWDEMO_KEY geoapp
 ENV KWDEMO_SRCURL https://github.com/XDATA-Year-3/geoapp
 ENV KWDEMO_DESC XDATA Year 3 taxi data explorer
 ENV KWDEMO_IMG /geoapp.png
+ENV KWDEMO_IMG /geoapp/built/thumb.jpg
 ENV KWDEMO_READY TRUE
 
 CMD ["sh", "-c", "python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg && python server/main.py"]
