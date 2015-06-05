@@ -5,7 +5,7 @@ Instagram and Twitter Results
     :align: right
     :width: 350px
 
-Instagram and Twitter messages are loaded by using the :ref:`Filters <filterMessages>` panel.  You can filter messages by date or by a caption search.
+Instagram and Twitter messages are loaded by using the :ref:`Filters <filterMessages>` panel.  You can filter messages by date or by a text search.
 
 A list of the filtered messages are shown in the **Instagram and Twitter Results** panel.
 

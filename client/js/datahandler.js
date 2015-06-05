@@ -533,7 +533,6 @@ geoapp.dataHandlers.instagram = function (arg) {
                     .utcOffset(0).format('MMM D HH:mm')))
                 .append($('<td/>').text(item[caption_column]))
                 /* Don't add a tooltip, since we pop up the photo elsewhere */
-                //  .attr('title', item[caption_column]))
             );
         }
         geoapp.activityLog.logSystem(
