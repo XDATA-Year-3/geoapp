@@ -549,6 +549,7 @@ geoapp.Graph = function (arg) {
         if (i >= m_numGraphs && m_lastZoomRange) {
             m_lastZoomRange = null;
             this.filterFromZoomRange();
+            geoapp.events.trigger('ga:graphZoomRange', m_lastZoomRange);
         }
     };
 
@@ -696,7 +697,10 @@ geoapp.Graph = function (arg) {
                 });
                 if (opts.type === 'line') {
                     if (!m_lastZoomRange) {
-                        m_lastZoomRange = [opts.left, opts.right];
+                        m_lastZoomRange = [
+                            parseFloat(opts.left),
+                            parseFloat(opts.right)
+                        ];
                     } else {
                         opts.left = m_lastZoomRange[0];
                         opts.right = m_lastZoomRange[1];
@@ -716,6 +720,7 @@ geoapp.Graph = function (arg) {
             }
         }
         this.filterFromZoomRange();
+        geoapp.events.trigger('ga:graphZoomRange', m_lastZoomRange);
     };
 
     /* Update a graph with new data if necessary.  Graphs are only updated if
@@ -811,6 +816,7 @@ geoapp.Graph = function (arg) {
             }
             m_lastZoomRange = range;
             this.filterFromZoomRange();
+            geoapp.events.trigger('ga:graphZoomRange', m_lastZoomRange);
         }
         this.updateGraphNavigation(true);
     };

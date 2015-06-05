@@ -7,7 +7,7 @@ Displaying Data
 Background Map
 ++++++++++++++
 
-The base map can be changed using the **Tile Set** option in the **Display** panel.  It can be made more or less visible with the **Opacity** slider next to the Tile Set Option.
+The base map can be changed using the **Map Source** option in the **Display** panel.  It can be made more or less visible with the **Opacity** slider next to the Map Source Option.
 
 A specific area of the map can be centered by selecting one of the location buttons (**Manhattan**, **Midtown**, or **Times Sq.**).
 

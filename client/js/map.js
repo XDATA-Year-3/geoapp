@@ -64,6 +64,7 @@ geoapp.Map = function (arg) {
 
         m_cycleDateRange,
         m_cycleDateRangeData = {},
+        m_cycleDateRange_subRange,
         m_animationOptions = {},
         m_animationData,
         m_animTimer,
@@ -472,6 +473,16 @@ geoapp.Map = function (arg) {
             var curRange = this.getCycleDateRange(start, true);
             start = curRange.start;
             end = curRange.end;
+            /* Intersect this with the graph cycle range */
+            if (m_cycleDateRange_subRange && m_cycleDateRange_subRange[0] &&
+                    m_cycleDateRange_subRange[0] > start) {
+                start = moment.utc(m_cycleDateRange_subRange[0]);
+            }
+            if (m_cycleDateRange_subRange && m_cycleDateRange_subRange[1] &&
+                    m_cycleDateRange_subRange[1] < end) {
+                end = moment.utc(m_cycleDateRange_subRange[1]);
+            }
+            /* The range is based on the totla duration */
             range = moment.duration(moment.utc(end) - moment.utc(start));
         }
         steps = parseInt(options['cycle-steps'] || 1);
@@ -945,4 +956,16 @@ geoapp.Map = function (arg) {
         }
         return m_layers[datakey];
     };
+
+    geoapp.events.on('ga:graphZoomRange', function (value) {
+        if (!_.isEqual(value, m_cycleDateRange_subRange)) {
+            m_cycleDateRange_subRange = value;
+            if (m_animationOptions && m_animationOptions.cycle === 'none' &&
+                    m_animationData && m_animationData.playState) {
+                var animStartStep = m_animationData.step;
+                m_animationData = null;
+                m_this.animate(undefined, animStartStep);
+            }
+        }
+    });
 };
