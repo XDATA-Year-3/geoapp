@@ -144,6 +144,15 @@ module.exports = function (grunt) {
                     stdout: true
                 }
             },
+            'sphinx-clean': {
+                command: [
+                    'cd docs',
+                    'make clean'
+                ].join('&&'),
+                options: {
+                    stdout: true
+                }
+            },
             getgitversion: {
                 command: 'git describe --always --long --dirty --all',
                 options: {
@@ -371,6 +380,7 @@ module.exports = function (grunt) {
         'copy:libs',
         'copy:optional'
     ]);
+    grunt.registerTask('docs-clean', ['shell:sphinx-clean']);
     grunt.registerTask('docs', ['shell:sphinx']);
     grunt.registerTask('default', defaultTasks);
 };
