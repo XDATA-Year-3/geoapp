@@ -469,7 +469,7 @@ geoapp.Map = function (arg) {
         start = units[cycle].start || moment.utc(geoapp.defaults.startDate);
         range = moment.duration(1, cycle);
         if (cycle === 'none') {
-            var curRange = this.getCycleDateRange(start);
+            var curRange = this.getCycleDateRange(start, true);
             start = curRange.start;
             end = curRange.end;
             range = moment.duration(moment.utc(end) - moment.utc(start));
@@ -780,6 +780,7 @@ geoapp.Map = function (arg) {
             layers: m_layers,
             mapParams: this.getMapParams(),
             cycleDateRange: m_cycleDateRange,
+            cycleDateRangeData: m_cycleDateRangeData,
             animationOptions: m_animationOptions,
             animationData: m_animationData,
             verbose: m_verbose
@@ -880,16 +881,20 @@ geoapp.Map = function (arg) {
     /* Get the actual cycle date range based on available data.
      *
      * @param defaultStart: the fall-back moment to use for the start if no
-     *        date range is specified.
+     *                      date range is specified.
+     * @param noDefaultRange: if true, and no ranges were specified, don't use
+     *                        the default range.
      * @return: an object with start and end moments.
      */
-    this.getCycleDateRange = function (defaultStart) {
+    this.getCycleDateRange = function (defaultStart, noDefaultRange) {
         defaultStart = defaultStart || moment.utc(geoapp.defaults.startDate);
         var start = moment(defaultStart),
             end = null;
-        if (m_cycleDateRange) {
+        if (m_cycleDateRange || !noDefaultRange) {
             start = moment.utc(geoapp.defaults.startDate);
             end = moment.utc(geoapp.defaults.endDate);
+        }
+        if (m_cycleDateRange) {
             if (m_cycleDateRange.date_min) {
                 start = moment.utc(m_cycleDateRange.date_min);
             }
