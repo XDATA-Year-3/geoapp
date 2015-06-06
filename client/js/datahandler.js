@@ -420,6 +420,8 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* If the offset is non-zero, we've already started displaying the
          * results. */
         if (options.params.offset && m_sortOrder === 'raw') {
+            /* Mark it as update anyway. */
+            m_lastInstagramTableInit = new Date().getTime();
             return;
         }
         this.instagramTableInit(true);
