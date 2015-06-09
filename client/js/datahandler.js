@@ -289,9 +289,11 @@ geoapp.dataHandlers.taxi = function (arg) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
-            this.loadingAnimation('#ga-taxi-loading', true);
-            this.loadedMessage('#ga-points-loaded', undefined, false, false,
-                               'trip', 'trips');
+            if (xhr.statusText !== 'abort') {
+                this.loadingAnimation('#ga-taxi-loading', true);
+                this.loadedMessage('#ga-points-loaded', undefined, false, false,
+                                   'trip', 'trips');
+            }
         }, this));
         xhr.girder = {taxidata: true};
     };
@@ -351,8 +353,13 @@ geoapp.dataHandlers.instagram = function (arg) {
     this.datakey = m_datakey;
 
     geoapp.events.on('ga:dataVisibility.' + m_datakey, function (params) {
+        /* This had been:
         if (params.dataDate < m_lastInstagramTableInit &&
                 params.visDate >= m_lastInstagramTableInit) {
+         * but sometimes the table would fail to update.  I've removed the
+         * first restriction, and will see if I ever can spot the bug again.
+         */
+        if (params.visDate >= m_lastInstagramTableInit) {
             if (params.length) {
                 m_this.instagramTableInit(true);
             } else {
@@ -388,9 +395,11 @@ geoapp.dataHandlers.instagram = function (arg) {
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
-            this.loadingAnimation('#ga-instagram-loading', true);
-            this.loadedMessage('#ga-inst-points-loaded', undefined, false,
-                               false, 'message', 'messages');
+            if (xhr.statusText !== 'abort') {
+                this.loadingAnimation('#ga-instagram-loading', true);
+                this.loadedMessage('#ga-inst-points-loaded', undefined, false,
+                                   false, 'message', 'messages');
+            }
         }, this));
         xhr.girder = {instagramdata: true};
     };

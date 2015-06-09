@@ -73,7 +73,7 @@ geoapp.MapLayer = function (map, datakey, arg) {
             m_dataVisibilityParams = visibility;
             m_dataVisible = null;
         }
-        if (!m_dataVisible && visibleData) {
+        if (!m_dataVisible && visibleData && m_data) {
             var vis = m_dataVisibilityParams, col;
             data = m_data;
             if (vis && vis.dateColumn && data.data && data.columns &&
