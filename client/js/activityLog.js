@@ -482,7 +482,7 @@
         /* jshint -W055 */
         logger = new userale({
             loggingUrl: uri,
-            toolName: 'geoapp',
+            toolName: 'minerva',
             toolVersion: geoapp.version,
             elementGroups: [
                 'main',
