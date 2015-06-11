@@ -152,9 +152,12 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         data = mapData.data;
         var dataLength = mapData.numPoints;
+        if (data.length < dataLength) {
+            dataLength = data.length;
+        }
         var dataBin = new Int32Array(dataLength);
         params.layers[this.datakey] = {dataBin: dataBin};
-        for (i = 0; i < mapData.numPoints; i += 1) {
+        for (i = 0; i < dataLength; i += 1) {
             dataBin[i] = Math.floor(((
                 data[i][dateColumn] - start) % range) /
                 binWidth);

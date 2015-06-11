@@ -589,6 +589,9 @@ geoapp.mapLayers.taxi = function (map, arg) {
         if (mapParams['display-type'] === 'vector') {
             dataLength = mapData.numLines;
         }
+        if (data.length < dataLength) {
+            dataLength = data.length;
+        }
         if (mapParams['display-process'] === 'binned') {
             dataLength = data.length;
         }
@@ -613,7 +616,7 @@ geoapp.mapLayers.taxi = function (map, arg) {
             default:
                 switch (mapParams['display-type']) {
                     case 'both':
-                        for (i = 0; i < mapData.numPoints; i += 1) {
+                        for (i = 0; i < dataLength; i += 1) {
                             /*jshint bitwise: false */
                             dataBin[i] = Math.floor(((
                                 data[i >> 1][(!(i & 1)) ? dateColumn :
@@ -621,14 +624,14 @@ geoapp.mapLayers.taxi = function (map, arg) {
                         }
                         break;
                     case 'vector':
-                        for (i = 0; i < mapData.numLines; i += 1) {
+                        for (i = 0; i < dataLength; i += 1) {
                             dataBin[i] = Math.floor(((
                                 data[i][dateColumn] - start) % range) /
                                 binWidth);
                         }
                         break;
                     default:
-                        for (i = 0; i < mapData.numPoints; i += 1) {
+                        for (i = 0; i < dataLength; i += 1) {
                             dataBin[i] = Math.floor(((
                                 data[i][dateColumn] - start) % range) /
                                 binWidth);

@@ -19,7 +19,7 @@ var m_lastUpdateNavigationSection;
 
 moment.suppressDeprecationWarnings = true;
 
-geoapp.version = '0.1.1';
+geoapp.version = '0.1.2';
 
 geoapp.App = geoapp.View.extend({
     initialize: function () {
