@@ -512,9 +512,12 @@ geoapp.mapLayers.taxi = function (map, arg) {
         m_geoPoints.visible(visible);
         m_geoLines.visible(visible);
         m_geoPoly.visible(visible);
+        $('.ga-legend-item.legend-taxi').addClass('hidden');
         if (!visible) {
             return;
         }
+        $('.ga-legend-item.legend-taxi-' + params['display-type'] + '.taxi-' +
+            params['display-process']).removeClass('hidden');
         if (params['display-max-points'] > 0) {
             this.maximumMapPoints = params['display-max-points'];
         }

@@ -43,7 +43,6 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
           data-slider-handle="square",
           data-slider-id="ga-tile-opacity-ctl",
           taxifield="display-tile-opacity", taxitype="float")
-    //-DWM:: add to .form-group below:   .hidden
     .form-group.hidden
       label(for="ga-display-date") Date
       input#ga-display-date.form-control.input-sm(
@@ -115,6 +114,52 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
           type="checkbox", checked="checked",
           taxifield="show-instagram-data", taxitype="boolean")
         label(for="ga-show-instagram-data") Messages
+    .form-group#ga-general-legend
+      .ga-legend-item.legend-taxi.legend-taxi-pickup.taxi-raw.hidden
+        i.icon-circle
+        | Pickup
+      .ga-legend-item.legend-taxi.legend-taxi-dropoff.taxi-raw.hidden
+        i.icon-circle
+        | Dropoff
+      .ga-legend-item.legend-taxi.legend-taxi-both.taxi-raw.pickup.hidden
+        i.icon-circle
+        | Pickup
+      .ga-legend-item.legend-taxi.legend-taxi-both.taxi-raw.dropoff.hidden
+        i.icon-circle
+        | Dropoff
+      .ga-legend-item.legend-taxi.legend-taxi-vector.taxi-raw.pickup.hidden
+        .legend-vector
+        | Pickup 
+      .ga-legend-item.legend-taxi.legend-taxi-vector.taxi-raw.dropoff.hidden
+        .legend-vector
+        | Dropoff
+      .ga-legend-item.legend-taxi.legend-taxi-pickup.taxi-binned.hidden
+        i.icon-stop
+        | Many Pickups
+      .ga-legend-item.legend-taxi.legend-taxi-pickup.taxi-binned.faint.hidden
+        i.icon-stop
+        | Few Pickups
+      .ga-legend-item.legend-taxi.legend-taxi-dropoff.taxi-binned.hidden
+        i.icon-stop
+        | Many Dropoffs
+      .ga-legend-item.legend-taxi.legend-taxi-dropoff.taxi-binned.faint.hidden
+        i.icon-stop
+        | Few Dropoffs
+      .ga-legend-item.legend-taxi.legend-taxi-both.legend-taxi-vector.pickup.taxi-binned.hidden
+        i.icon-stop
+        | Many More Pickups
+      .ga-legend-item.legend-taxi.legend-taxi-both.legend-taxi-vector.pickup.taxi-binned.faint.hidden
+        i.icon-stop
+        | A Few More Pickups
+      .ga-legend-item.legend-taxi.legend-taxi-both.legend-taxi-vector.dropoff.taxi-binned.faint.hidden
+        i.icon-stop
+        | A Few More Dropoffs
+      .ga-legend-item.legend-taxi.legend-taxi-both.legend-taxi-vector.dropoff.taxi-binned.hidden
+        i.icon-stop
+        | Many More Dropoffs
+      .ga-legend-item.legend-messages.hidden
+        i.icon-circle
+        | Messages
     .form-group#ga-place-group
       //- The place buttons are taken from the ini settings or defaults
         based on this template
