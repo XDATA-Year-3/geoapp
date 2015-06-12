@@ -79,6 +79,9 @@ geoapp.Graph = function (arg) {
                         if (!info || !info.desc) {
                             return value;
                         }
+                        if (info.desc.format) {
+                            value = info.desc.format(value);
+                        }
                         var unit = info.desc.units;
                         if (value === 1 && info.desc.unit !== undefined) {
                             unit = info.desc.unit;
@@ -255,6 +258,8 @@ geoapp.Graph = function (arg) {
             xScatter, xScatterCount, scatterDate = [],
             graphType = opts.type,
             missing = 0,
+            yformat,
+            xformat,
             spec = $.extend(true, {}, m_generalGraphSpec,
                 m_defaultGraphSpec[graphType], {
                     bindto: '#ga-graph-' + position + ' .graph-plot',
@@ -271,8 +276,8 @@ geoapp.Graph = function (arg) {
             var binFormat = {
                 'month': '%b',
                 'week': '%b %-d',
-                'day': '%b %-d',
-                'hour': '%b %-d %-H:%M'
+                'day': '%a %b %-d',
+                'hour': '%a %b %-d %-H:%M'
             };
             return d3.time.format.utc(binFormat[opts.bin])(value);
         };
@@ -304,6 +309,11 @@ geoapp.Graph = function (arg) {
             dateRange.start = Math.min(dr.start, dateRange.start);
             dateRange.end = Math.max(dr.end, dateRange.end);
             spec.data.names[ycol[0]] = desc.name;
+            if (desc.axisunits || (desc.axisunits === undefined &&
+                    desc.units)) {
+                spec.data.names[ycol[0]] += ' (' + (
+                    desc.axisunits ? desc.axisunits : desc.units) + ')';
+            }
             if (graphType !== 'scatter') {
                 _.each(seriesData, function (d) {
                     xcol.push(d.x);
@@ -322,6 +332,12 @@ geoapp.Graph = function (arg) {
                 spec.data.columns.push(xcol);
                 spec.data.cols[ycol[0]] = spec.data.columns.length;
                 spec.data.columns.push(ycol);
+                if (yformat === undefined) {
+                    yformat = desc.format || null;
+                } else if (!yformat || !desc.format ||
+                        yformat.toString() !== desc.format.toString()) {
+                    yformat = null;
+                }
                 spec.data.xs[ycol[0]] = xcol[0];
                 spec.data.colors[ycol[0]] = m_colorList[dataPos - 1];
             } else {
@@ -338,6 +354,7 @@ geoapp.Graph = function (arg) {
                         null, ycol.slice(1));
                     xScatterCount = ycol.length;
                     spec.data.colors[ycol[0]] = 'rgba(0,0,0,0)';
+                    xformat = desc.format;
                 } else {
                     for (var i = ycol.length; i < xScatterCount; i += 1) {
                         ycol.push(null);
@@ -348,12 +365,24 @@ geoapp.Graph = function (arg) {
                         }
                     });
                     spec.data.colors[ycol[0]] = m_colorList[dataPos - 2];
+                    if (yformat === undefined) {
+                        yformat = desc.format || null;
+                    } else if (!yformat || !desc.format ||
+                            yformat.toString() !== desc.format.toString()) {
+                        yformat = null;
+                    }
                 }
                 spec.data.cols[ycol[0]] = spec.data.columns.length;
                 spec.data.columns.push(ycol);
             }
             dataPos += 1;
         });
+        if (xformat) {
+            spec.axis.x.tick.format = xformat;
+        }
+        if (yformat) {
+            spec.axis.y.tick.format = yformat;
+        }
         $('#ga-graph-' + position).attr({'graph-series': series.join(' ')});
         $('#ga-graph-' + position + ' .graph-waiting').toggleClass(
             'hidden', missing === 0);

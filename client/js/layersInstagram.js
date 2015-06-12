@@ -535,14 +535,12 @@ geoapp.mapLayers.instagram = function (map, arg) {
         $('.ga-instagram-overlay-link a', overlay).text(url).attr(
             'href', url);
         if ($('img', overlay).attr('orig_url') !== url) {
-            overlay.css('display', 'none');
-            $('.ga-instagram-overlay-image', overlay).css('display', 'none');
+            overlay.css('display', 'none').addClass('no-overlay-image');
             $('img', overlay).off('.instagram-overlay').attr({orig_url: url});
             if (imageUrl) {
                 $('img', overlay).on('load.instagram-overlay', function () {
-                    $('.ga-instagram-overlay-image', overlay).css(
-                        'display', '');
                     overlay.css('display', 'block');
+                    overlay.removeClass('no-overlay-image');
                     geoapp.activityLog.logActivity('show_overlay', 'map', {
                         source: m_currentPointSource || '',
                         imageUrl: imageUrl,
