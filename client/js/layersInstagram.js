@@ -73,6 +73,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             data = m_this.data(true, visParam),
             visible = (params['show-instagram-data'] !== false && data);
         m_geoPoints.visible(visible);
+        $('.ga-legend-item.legend-messages').toggleClass('hidden', !visible);
         if (!visible) {
             return;
         }

@@ -159,6 +159,38 @@
       text-align center
       font-weight bold
 
+.ga-legend-item
+  display inline-block
+  font-size 12px
+  margin-right 8px
+  i
+    opacity 0.85
+    color black
+    vertical-align middle
+    font-size 10px
+  &.legend-taxi-both.pickup i
+    color #00F
+  &.legend-taxi-both.dropoff i
+    color #FF0
+    text-shadow 0 0 1px black
+  &.legend-messages i
+    color #F00
+  &.taxi-binned i
+    font-size 14px
+    opacity 1
+  &.taxi-binned.faint i
+    opacity 0.25
+  .legend-vector
+    display inline-block
+    width 20px
+    height 5px
+    margin 0 2px 2px 0
+    opacity 0.85
+  &.pickup .legend-vector
+    background linear-gradient(90deg, #00F, #55A)
+  &.dropoff .legend-vector
+    background linear-gradient(-90deg, #FF0, #AA5)
+
 .daterangepicker
   .ranges
     width auto
