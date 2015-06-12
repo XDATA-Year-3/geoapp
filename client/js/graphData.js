@@ -46,6 +46,8 @@ geoapp.GraphData = function (arg) {
      *  sort: 0-based preferred sort order, lower sorts first.
      *  unit: unit to display after a value if exactly one.  Defaults to units.
      *  units: units to display after a value, if any.
+     *  axisunits: if present, use this value for the axis or line labels.  If
+     *      null, no units units on the axis label.  Defaults to units.
      *
      * @param datakey: the data that is should be described.
      * @returns: a dictionary with at least 'name' and 'description' key values
@@ -111,9 +113,23 @@ geoapp.GraphData = function (arg) {
             'duration').add(1, 'ms');
         for (i = start; i < end; i = 0 + moment.utc(i).add(
                 1, duration).startOf(duration)) {
-            bins.push({x: i, y: 0});
+            bins.push({
+                x: i,
+                y: 0,
+                duration: moment.utc(i).add(1, duration).startOf(duration) - i
+            });
         }
         return {start: start, end: end, bins: bins, interval: interval};
+    };
+
+    /* Convert a log2 number to a natural number.
+     *
+     * @param d: the number to convert.  0 is treated as a special case, and
+     *           0 is returned (not 1).
+     * @returns: the converted number.
+     */
+    this.unlog2 = function (d) {
+        return d ? Math.pow(2, d).toFixed(0) : 0;
     };
 };
 
@@ -178,15 +194,16 @@ geoapp.GraphDataFromColumns = function (arg, datakey) {
             }
         });
         if (this.dataItems[datakey].scaled) {
-            /* Scale based on partial data and convert to log2 */
+            /* Scale based on partial data, convert to hourly, then to log2 */
             if (data.loadFactor && data.loadFactor !== 1) {
                 _.each(bins, function (d) {
-                    d.y = parseInt(d.y / data.loadFactor);
+                    d.y = d.y / data.loadFactor;
                 });
             }
-            var log2 = Math.log(2);
+            var log2 = Math.log(2), hour = 0 + moment.duration(1, 'hour');
             _.each(bins, function (d) {
-                d.y = d.y ? Math.log(d.y) / log2 : 0;
+                d.y = (d.y ? Math.log(d.y * hour / d.duration) / log2 : 0
+                    ).toFixed(4);
             });
         }
         this.dataItems[datakey][binName] = bins;
@@ -276,9 +293,10 @@ geoapp.graphData.weather = function (arg) {
     this.dataItems = {
         temp_mean: {
             name: 'Avg. Temp',
+            longname: 'Average Temperature',
             description: 'Mean temperature in degrees F',
             sort: 1,
-            units: '&deg;F'
+            units: '\u00B0F'
         },
         cloudcover: {
             name: 'Cloud Cover',
@@ -293,6 +311,7 @@ geoapp.graphData.weather = function (arg) {
         },
         precipitation: {
             name: 'Precipitation',
+            longname: 'Precipitation (inches)',
             description: 'Precipitation in inches',
             units: 'in',
             collate: 'add'
@@ -311,18 +330,21 @@ geoapp.graphData.weather = function (arg) {
         },
         wind_gust: {
             name: 'Wind Gust',
+            longname: 'Wind Gust Speed (mph)',
             description: 'Gust speed in mph',
             units: 'mph',
             collate: 'max'
         },
         wind_max: {
             name: 'Wind Max',
+            longname: 'Wind Maximum Speed (mph)',
             description: 'Max wind speed in mph',
             units: 'mph',
             collate: 'max'
         },
         wind_mean: {
             name: 'Wind',
+            longname: 'Wind Average Speed (mph)',
             description: 'Mean wind speed in mph',
             units: 'mph'
         }
@@ -472,23 +494,34 @@ geoapp.graphData.taximodel = function (arg) {
     arg = arg || {};
     geoapp.GraphData.call(this, arg);
 
+    var m_this = this;
+
     this.dataItems = {
         model: {
             name: 'Taxi - Typical Trips',
+            longname: 'Taxi - Typical Trips (statistical analysis)',
             description: 'Expected number of taxi trips under ordinary conditions (the seasonal and trend components of the modeled data)',
-            units: 'log2(trips)'
+            units: 'trips/hour',
+            format: m_this.unlog2
         },
         remainder: {
-            name: 'Taxi - Unusual Trips',
+            name: 'Taxi - Unusual',
+            longname: 'Taxi - Unusual Trips (total trips minus typical trips)',
             description: 'Taxi trips that aren\'t part of regular behavior (the remainder component of the modeled data)',
-            units: '&Delta;log2(trips)',
-            column: 'remainder'
+            units: '% diff',
+            column: 'remainder',
+            format: function (d) {
+                /* convert to percent */
+                return (Math.pow(2, d) * 100 - 100).toFixed(1);
+            }
         },
         total: {
             name: 'Taxi - Total Trips',
+            longname: 'Taxi - Total Trips (for the entire data set)',
             description: 'All taxi trips for the entire city (the raw component of the model)',
-            units: 'log2(trips)',
-            column: 'raw'
+            units: 'trips/hour',
+            column: 'raw',
+            format: m_this.unlog2
         }
     };
 
@@ -600,7 +633,8 @@ geoapp.graphData.taximodel = function (arg) {
                     if (lastitem.tally) {
                         lastitem.y = (datakey === 'remainder' ?
                             lastitem.tally / lastitem.count :
-                            Math.log(lastitem.tally) / Math.log(2)).toFixed(4);
+                            Math.log(lastitem.tally / lastitem.count) /
+                                Math.log(2)).toFixed(4);
                     }
                 } else {
                     results.push(item);
@@ -648,36 +682,42 @@ geoapp.graphData.taxi = function (arg) {
     arg = arg || {};
     geoapp.GraphDataFromColumns.call(this, arg, m_datakey);
 
+    var m_this = this;
+
     this.dataItems = {
         pickups: {
             name: 'Taxi Pickups',
+            longname: 'Taxi Pickups (based on current filters)',
             description: 'Filtered taxi pickups',
             column: 'pickup_datetime',
             unit: 'trip',
-            units: 'trips'
+            units: 'trips',
+            axisunits: null
         },
         dropoffs: {
             name: 'Taxi Dropoffs',
+            longname: 'Taxi Dropoffs (based on current filters)',
             description: 'Filtered taxi dropoffs',
             column: 'dropoff_datetime',
             unit: 'trip',
-            units: 'trips'
+            units: 'trips',
+            axisunits: null
         },
         scaledpickups: {
             name: 'Taxi Scaled Pickups',
             description: 'Filtered taxi pickups scaled to full data range',
             column: 'pickup_datetime',
             scaled: true,
-            unit: 'trip',
-            units: 'trips'
+            units: 'trips/hour',
+            format: m_this.unlog2
         },
         scaleddropoffs: {
             name: 'Taxi Scaled Dropoffs',
             description: 'Filtered taxi dropoffs scaled to full data range',
             column: 'dropoff_datetime',
             scaled: true,
-            unit: 'trip',
-            units: 'trips'
+            units: 'trips/hour',
+            format: m_this.unlog2
         }
     };
 
@@ -719,7 +759,8 @@ geoapp.graphData.instagram = function (arg) {
             column: 'posted_date',
             sort: 0,
             unit: 'msg',
-            units: 'msgs'
+            units: 'msgs',
+            axisunits: null
         }
     };
 

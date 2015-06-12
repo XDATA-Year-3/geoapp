@@ -233,12 +233,17 @@
       width 100%
   .ga-instagram-overlay-text
     width 100%
-    max-height 56px
+    max-height 72px
     line-height 16px
     overflow-x hidden
-    overflow-y scroll
+    overflow-y auto
     word-wrap break-word
     white-space normal
+  &.no-overlay-image
+    .ga-instagram-overlay-image
+      display none
+    .ga-instagram-overlay-text
+      max-height 120px
   .ga-instagram-overlay-date
     padding-right 5px
     font-weight bold
