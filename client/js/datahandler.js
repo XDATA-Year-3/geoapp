@@ -64,7 +64,8 @@ geoapp.DataHandler = function (arg) {
      *      selected data.
      *
      * @param options: a dictionary of options to augment as needed.  Modified.
-     * @param desc: description.
+     * @param desc: short description.  Also used as a key to get some
+     *              settings.
      * @param maxcount: the maximum number of rows to retreive.
      */
     this.setupRequestOptions = function (options, desc, maxcount) {
@@ -81,6 +82,11 @@ geoapp.DataHandler = function (arg) {
             options.requestTime = options.showTime = 0;
             options.origMapParams = geoapp.map.getMapParams(desc);
             options.description = desc;
+            options.access = desc;
+            if (options.params.source) {
+                options.access = $('#app-data ' + desc + 'data option[key="' +
+                    options.params.source + '"]').attr('access');
+            }
         }
         if (!options.params.limit) {
             options.params.limit = Math.min(
@@ -138,6 +144,11 @@ geoapp.DataHandler = function (arg) {
             options.data.loadFactor = (
                 (options.data.data[options.data.datacount - 1][
                 options.data.columns._id] + 1) / (options.data.maxid + 1));
+        } else if (options.data.columns &&
+                options.data.columns.rand1 !== undefined) {
+            options.data.loadFactor = options.data.data[
+                options.data.datacount - 1][options.data.columns.rand1] *
+                0.000000001;
         }
         showfunc.call(this, options);
         options.callNumber += 1;
@@ -248,6 +259,31 @@ geoapp.DataHandler = function (arg) {
         m_routeSettingsTime = new Date().getTime();
         return m_routeSettings;
     };
+
+    /* Duplicate parameters used in a query where there are nearly equivalent
+     * keys.  This allows a single function to work with different data access
+     * methods.
+     *
+     * @param options: the options block that has paraemters.  If maxocunt is
+     *                 unset, then adjust the parameters.
+     * @param equalKeys: a map between equivalent key names.
+     */
+    this.generalizeParameters = function (options, equalKeys) {
+        if (!options.maxcount && equalKeys) {
+            var params = options.params;
+            _.each(equalKeys, function (key1, key2) {
+                _.each(['', '_min', '_max', '_search'], function (suffix) {
+                    if (params[key1 + suffix] === undefined &&
+                            params[key2 + suffix] !== undefined) {
+                        params[key1 + suffix] = params[key2 + suffix];
+                    } else if (params[key2 + suffix] === undefined &&
+                            params[key1 + suffix] !== undefined) {
+                        params[key2 + suffix] = params[key1 + suffix];
+                    }
+                });
+            });
+        }
+    };
 };
 
 /* -------- taxi data handler -------- */
@@ -351,6 +387,11 @@ geoapp.dataHandlers.instagram = function (arg) {
         m_lastInstagramTableInit = 0;
 
     this.datakey = m_datakey;
+    this.equalKeys = {
+        msg: 'caption',
+        msg_date: 'posted_date',
+        ingest_date: 'scraped_date'
+    };
 
     geoapp.events.on('ga:dataVisibility.' + m_datakey, function (params) {
         /* This had been:
@@ -379,19 +420,33 @@ geoapp.dataHandlers.instagram = function (arg) {
      *                  setupRequestOptions for more details.
      */
     this.dataLoad = function (options) {
+        this.generalizeParameters(options, this.equalKeys);
         this.setupRequestOptions(options, 'instagram', (
             options.params.max_instagrams || this.maximumDataPoints ||
             geoapp.map.maximumMapPoints));
         if (!options.params.fields) {
-            options.params.fields = '_id,' +
-                'posted_date,caption,url,image_url,latitude,longitude';
+            if (options.access === 'message') {
+                options.params.fields = 'rand1,' +
+                    'msg_date,msg,url,image_url,latitude,longitude';
+            } else {
+                options.params.fields = '_id,' +
+                    'posted_date,caption,url,image_url,latitude,longitude';
+            }
         }
         geoapp.cancelRestRequests('instagramdata');
         this.loadingAnimation('#ga-instagram-loading', false,
                               !options.params.offset);
         var xhr = geoapp.restRequest({
-            path: 'geoapp/instagram', type: 'GET', data: options.params
+            path: 'geoapp/' + options.access, type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
+            _.each(m_this.equalKeys, function (key1, key2) {
+                if (resp.columns[key1] === undefined) {
+                    resp.columns[key1] = resp.columns[key2];
+                }
+                if (resp.columns[key2] === undefined) {
+                    resp.columns[key2] = resp.columns[key1];
+                }
+            });
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
