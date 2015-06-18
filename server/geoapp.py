@@ -344,7 +344,7 @@ class ViaPostgres():
             c.close()
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None):
+             queryBase=None, whereClauses=None):
         """
         Get data from a postgres database.
 
@@ -361,6 +361,8 @@ class ViaPostgres():
         :param fields: a list of fields to return, or None for all fields.
         :param queryBase: a string used to ensure we are using keys appropriate
                           to the asking query and to underlying database.
+        :param whereClauses: a list of extra where clauses that are anded to
+                             any other where clauses.
         :returns: a dictionary of results.
         """
         starttime = time.time()
@@ -384,6 +386,8 @@ class ViaPostgres():
         else:
             sql.append(','.join(dbfields))
         sql.append('FROM %s WHERE true' % self.tableName)
+        if whereClauses and len(whereClauses):
+            sql.extend(['AND', ' AND '.join(whereClauses)])
         sqlval = []
         self.params_to_sql(params, sql, sqlval, dbToQueryKeys)
 
@@ -453,8 +457,6 @@ class ViaPostgres():
                     sortstr = '%s' % sortval[0]
                 if sortval[1] == -1:
                     sortstr += ' DESC'
-                else:
-                    sortstr += ' ASC'
                 sorts.append(sortstr)
             if len(sorts):
                 sql.append(','.join(sorts))
@@ -612,7 +614,7 @@ class TaxiViaMongo():
         return query, sort, mfields
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None):
+             queryBase=None, whereClauses=None):
         """
         Get data from the mongo database.  Return each row in turn as a python
         object with the default keys or the entire dataset as a list with
@@ -628,6 +630,8 @@ class TaxiViaMongo():
         :param fields: a list of fields to return, or None for all fields.
         :param queryBase: a string used to ensure we are using keys appropriate
                           to the asking query and to underlying database.
+        :param whereClauses: a list of extra where clauses that are anded to
+                             any other where clauses.
         :returns: a dictionary of results.
         """
         query, sort, fields = self.processParams(params, sort, fields)
@@ -706,7 +710,7 @@ class TaxiViaMongoCompact(TaxiViaMongo):
     epoch = datetime.datetime.utcfromtimestamp(0)
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             allowUnsorted=True, queryBase=None):
+             allowUnsorted=True, queryBase=None, whereClauses=None):
         """
         Get data from the mongo database.  Return each row in turn as a python
         object with the default keys or the entire dataset as a list with
@@ -725,6 +729,8 @@ class TaxiViaMongoCompact(TaxiViaMongo):
                               return the data unsorted.
         :param queryBase: a string used to ensure we are using keys appropriate
                           to the asking query and to underlying database.
+        :param whereClauses: a list of extra where clauses that are anded to
+                             any other where clauses.
         :returns: a dictionary of results.
         """
         query, sort, mfields = self.processParams(params, sort, fields)
@@ -779,12 +785,13 @@ class TaxiViaMongoCompact(TaxiViaMongo):
 
 class TaxiViaMongoRandomized(TaxiViaMongoCompact):
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None):
+             queryBase=None, whereClauses=None):
         if not sort:
             sort = [('_id', 1)]
         sort = [('_id', 1)]
-        return TaxiViaMongoCompact.find(self, params, limit, offset, sort,
-                                        fields, queryBase=queryBase)
+        return TaxiViaMongoCompact.find(
+            self, params, limit, offset, sort, fields, queryBase=queryBase,
+            whereClauses=whereClauses)
 
 
 class TaxiViaTangeloService():
@@ -800,7 +807,7 @@ class TaxiViaTangeloService():
         self.queryBase = 'taxi'
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None):
+             queryBase=None, whereClauses=None):
         """
         Get data from the tangelo service.
 
@@ -815,6 +822,8 @@ class TaxiViaTangeloService():
         :param fields: a list of fields to return, or None for all fields.
         :param queryBase: a string used to ensure we are using keys appropriate
                           to the asking query and to underlying database.
+        :param whereClauses: a list of extra where clauses that are anded to
+                             any other where clauses.
         :returns: a dictionary of results.
         """
         data = {'headers': 'true', 'offset': offset, 'limit': limit}
@@ -1098,7 +1107,7 @@ class GeoAppResource(girder.api.rest.Resource):
             setattr(self, attrKey, accessDict)
 
     def findGeneral(self, params, sortKey, fieldTable, accessList,
-                    defaultDbKey, queryBase=None):
+                    defaultDbKey, queryBase=None, whereClauses=None):
         """
         Perform a database search for a general find endpoint.
 
@@ -1113,9 +1122,13 @@ class GeoAppResource(girder.api.rest.Resource):
         :param queryBase: the name of the base query.  This can be use to
                           allow the same database to be used from multiple
                           query points.
+        :param whereClauses: a list of extra where clauses that are anded to
+                             any other where clauses.
         :returns: the database response.
         """
         limit, offset, sort = self.getPagingParameters(params, sortKey)
+        if sort is None and sortKey:
+            sort = sortKey
         fields = None
         if 'fields' in params:
             fields = params['fields'].replace(',', ' ').strip().split()
@@ -1128,7 +1141,7 @@ class GeoAppResource(girder.api.rest.Resource):
             accessObj = accessObj[0](**accessObj[1])
             accessList[params.get('source', defaultDbKey)] = accessObj
         result = accessObj.find(params, limit, offset, sort, fields,
-                                queryBase=queryBase)
+                                queryBase=queryBase, whereClauses=whereClauses)
         result['limit'] = limit
         result['offset'] = offset
         result['sort'] = sort
@@ -1233,11 +1246,17 @@ class GeoAppResource(girder.api.rest.Resource):
 
     @access.public
     def findMessage(self, params):
+        where = []
+        if not self.boolParam('nullgeo', params, default=False):
+            where.append('latitude is not NULL')
         return self.findGeneral(
-            params, 'rand1', MessageFieldTable, self.instagramAccess,
-            'rtmsg', 'message')
-    findMessage.description = findGeneralDescription(
+            params, [('rand1', 1), ('rand2', 1)], MessageFieldTable,
+            self.instagramAccess, 'rtmsg', 'message', whereClauses=where)
+    findMessage.description = (findGeneralDescription(
         'Get a set of message data.', 'rand1', MessageFieldTable, 'rtmsg')
+    .param('nullgeo', 'Include messages without latitude and longitude '
+           '(default=false).', required=False, dataType='boolean',
+           default=False))
 
     @access.public
     def findTaxi(self, params):
