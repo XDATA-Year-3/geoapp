@@ -444,7 +444,6 @@ class ViaPostgres():
         :param queryToDbKeys: a map to convert query parameters to database
                               parameters.
         """
-        print sort
         if sort:
             sql.append('ORDER BY')
             sorts = []
@@ -493,7 +492,9 @@ class ViaPostgres():
                 if comp == 'search':
                     if dtype != 'search':
                         continue
-                    subsql, subvalues = tsquerySearch(field, str(value))
+                    if isinstance(value, (int, float, long)):
+                        value = str(value)
+                    subsql, subvalues = tsquerySearch(field, value)
                     sql.append('AND ' + subsql)
                     sqlval.extend(subvalues)
                 elif dtype == 'date':
@@ -1252,11 +1253,12 @@ class GeoAppResource(girder.api.rest.Resource):
         return self.findGeneral(
             params, [('rand1', 1), ('rand2', 1)], MessageFieldTable,
             self.instagramAccess, 'rtmsg', 'message', whereClauses=where)
-    findMessage.description = (findGeneralDescription(
-        'Get a set of message data.', 'rand1', MessageFieldTable, 'rtmsg')
-    .param('nullgeo', 'Include messages without latitude and longitude '
-           '(default=false).', required=False, dataType='boolean',
-           default=False))
+    findMessage.description = (
+        findGeneralDescription(
+            'Get a set of message data.', 'rand1', MessageFieldTable, 'rtmsg')
+        .param('nullgeo', 'Include messages without latitude and longitude '
+               '(default=false).', required=False, dataType='boolean',
+               default=False))
 
     @access.public
     def findTaxi(self, params):
