@@ -155,7 +155,7 @@ def tsqueryParse(parts, quotes={}, tsq=None, depth=0):
     return curtsq, consume + reduced, include, exclude
 
 
-def tsqueryExact(sql, phrases, quotes):
+def tsqueryExact(sql, phrases, quotes, field):
     """
     Given a list of phrases, add to an sql query to do a case insensitive
     match if the phrase is either quoted or a hashtag.
@@ -166,6 +166,7 @@ def tsqueryExact(sql, phrases, quotes):
                    included, or plain strings, in which case they are only
                    included if they start with #.
     :param quotes: a dictionary of quotes.
+    :param field: name of the field to query.
     """
     for phrase in set(phrases):
         if phrase in quotes:
@@ -174,14 +175,14 @@ def tsqueryExact(sql, phrases, quotes):
                 escval = pgdb.extensions.adapt(escval).getquoted()[1:-1]
             else:
                 escval = pgdb.escape_string(escval).strip('\'')
-            sql.append(' AND caption ~* E\'' + escval + '\'')
+            sql.append(' AND ' + field + ' ~* E\'' + escval + '\'')
         elif phrase.startswith('#') and len(phrase) > 1:
             escval = re.escape(phrase)
             if hasattr(pgdb, 'extensions'):
                 escval = pgdb.extensions.adapt(escval).getquoted()[1:-1]
             else:
                 escval = pgdb.escape_string(escval).strip('\'')
-            sql.append(' AND caption ~* E\'(^|[^\\w#])' + escval +
+            sql.append(' AND ' + field + ' ~* E\'(^|[^\\w#])' + escval +
                        '($|[^\\w#])\'')
 
 
@@ -222,10 +223,10 @@ def tsquerySearch(field, query):
     sqlval.append(tsq)
     sql.append(')')
     if len(include):
-        tsqueryExact(sql, include, quotes)
+        tsqueryExact(sql, include, quotes, field)
     if len(exclude):
         subsql = []
-        tsqueryExact(subsql, exclude, quotes)
+        tsqueryExact(subsql, exclude, quotes, field)
         if len(subsql):
             sql.extend([' AND NOT (true' + subsqlval + ')' for subsqlval in
                         subsql])
@@ -394,9 +395,20 @@ class ViaPostgres():
         self.findModifiers(sort, limit, offset, sql, queryToDbKeys)
         sql = ' '.join(sql)
         columns = {fields[col]: col for col in xrange(len(fields))}
+        result = {
+            'format': 'list',
+            'fields': fields,
+            'columns': columns
+        }
         # TODO: If this fails, try to reconnect to the database
         try:
             c = self.connect().cursor()
+            if self.queryBase == 'message':
+                c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
+                row = c.fetchone()
+                # Since this is in the same connection as the main query, it is
+                # guaranteed true for that query.
+                result['nextId'] = row[0]
             if hasattr(c, 'mogrify'):
                 logger.info('Query: %s', c.mogrify(sql, sqlval))
             else:
@@ -407,16 +419,9 @@ class ViaPostgres():
             c = self.connect(True).cursor()
             c.execute(sql, sqlval)
         logger.info('Query execution took %5.3fs', time.time() - starttime)
-        result = {
-            'format': 'list',
-            'fields': fields,
-            'columns': columns,
-            'data': c.fetchmany()
-            }
+        result['data'] = c.fetchmany()
         if self.maxId:
             result['maxid'] = self.maxId
-        else:
-            pass  # ##DWM:: use the rand1 value to estimate maxId
         logger.info('Fetching first items (%5.3fs including query execution)',
                     time.time() - starttime)
         while True:
@@ -930,6 +935,7 @@ MessageFieldTable = collections.OrderedDict([
     ('last_latitude',     ('float',  'Last Latitude')),
     ('last_longitude',    ('float',  'Last Longitude')),
     ('ingest_date',       ('date',   'Ingest Date')),
+    ('_id',               ('bigint', 'Ingest Order')),
 ])
 
 MsgToInstKeyTable = {
@@ -1006,6 +1012,13 @@ class RealTimeViaPostgres(ViaPostgres):
             # if we don't have a location id or coordinates, give up
             if 'latitude' not in item:
                 return False
+        if ('source' in data and 'Instagram' in data['source'] and
+                'entities' in data and 'urls' in data['entities'] and
+                len(data['entities']['urls']) >= 1 and
+                'display_url' in data['entities']['urls'][0] and
+                'instagram' in data['entities']['urls'][0]['display_url']):
+            item['source'] = self.decoder.unescape(
+                data['entities']['urls'][0]['display_url'])
         sql = ['INSERT INTO messages (']
         sqlkeys = []
         sqlvals = []
@@ -1058,7 +1071,17 @@ def findGeneralDescription(desc, sortKey, fieldTable, defaultDbKey):
         .param('fields', 'A comma-separated list of fields to return '
                '(default is all fields).', required=False)
         .param('format', 'The format to return the data (default is '
-               'list).', required=False, enum=['list', 'dict']))
+               'list).', required=False, enum=['list', 'dict'])
+        .param('wait', 'Maximum duration in seconds to wait for data '
+               '(default=0).', required=False, dataType='float',
+               default=0)
+        .param('poll', 'Minimum interval in seconds between checking for data '
+               'when waiting (default=10).', required=False, dataType='float',
+               default=10)
+        .param('initwait', 'When waiting, initial delay in seconds before '
+               'starting to poll for more data.  This is not counted as part '
+               'of the wait duration (default=0).', required=False,
+               dataType='float', default=0))
     for field in sorted(fieldTable):
         (fieldType, fieldDesc) = fieldTable[field]
         dataType = fieldType
@@ -1133,45 +1156,62 @@ class GeoAppResource(girder.api.rest.Resource):
         fields = None
         if 'fields' in params:
             fields = params['fields'].replace(',', ' ').strip().split()
-            if not len(fields):
-                fields = None
-        if not fields:
+        if not fields or not len(fields):
             fields = fieldTable.keys()
         accessObj = accessList[params.get('source', defaultDbKey)]
         if isinstance(accessObj, tuple):
             accessObj = accessObj[0](**accessObj[1])
             accessList[params.get('source', defaultDbKey)] = accessObj
-        result = accessObj.find(params, limit, offset, sort, fields,
-                                queryBase=queryBase, whereClauses=whereClauses)
-        result['limit'] = limit
-        result['offset'] = offset
-        result['sort'] = sort
-        result['datacount'] = len(result.get('data', []))
-        if params.get('format', 'list') == 'list':
-            if result.get('format', '') != 'list':
-                result['fields'] = fields
-                result['columns'] = {fields[col]: col
-                                     for col in xrange(len(fields))}
-                if 'data' in result:
-                    result['data'] = [
-                        [row.get(field, None) for field in fields]
-                        for row in result['data']
-                    ]
-                result['format'] = 'list'
-        else:
-            if result.get('format', '') == 'list':
-                if 'data' in result:
-                    result['data'] = [{
-                        result['fields'][col]: row[col]
-                        for col in xrange(len(row))} for row in result['data']]
-                result['format'] = 'dict'
-                del result['columns']
-        # We could let Girder convert the results into JSON, but it is
-        # marginally faster to dump the JSON ourselves, since we can exclude
-        # sorting and reduce whitespace
-        # return result
+        wait = params.get('wait', None)
+        wait = None if not wait or wait <= 0 else float(wait)
+        poll = params.get('poll', None)
+        poll = 10 if not poll or poll <= 0 else float(poll)
+        initwait = params.get('initwait', None)
+        initwait = None if not initwait or initwait <= 0 else float(initwait)
 
         def resultFunc():
+            if wait and initwait:
+                time.sleep(initwait)
+                yield ' '
+            starttime = time.time()
+            while True:
+                result = accessObj.find(
+                    params, limit, offset, sort, fields, queryBase=queryBase,
+                    whereClauses=whereClauses)
+                result['datacount'] = len(result.get('data', []))
+                if (not wait or result['datacount'] or
+                        time.time() + poll > starttime + wait):
+                    break
+                # Keep alive that should have no ill-effect on the json output
+                yield ' '
+                time.sleep(poll)
+                yield ' '
+            result['limit'] = limit
+            result['offset'] = offset
+            result['sort'] = sort
+            if params.get('format', 'list') == 'list':
+                if result.get('format', '') != 'list':
+                    result['fields'] = fields
+                    result['columns'] = {fields[col]: col
+                                         for col in xrange(len(fields))}
+                    if 'data' in result:
+                        result['data'] = [
+                            [row.get(field, None) for field in fields]
+                            for row in result['data']
+                        ]
+                    result['format'] = 'list'
+            else:
+                if result.get('format', '') == 'list':
+                    if 'data' in result:
+                        result['data'] = [{
+                            result['fields'][col]: row[col] for col
+                            in xrange(len(row))} for row in result['data']]
+                    result['format'] = 'dict'
+                    del result['columns']
+            # We could let Girder convert the results into JSON, but it is
+            # marginally faster to dump the JSON ourselves, since we can
+            # exclude sorting and reduce whitespace
+            # return result
             yield json.dumps(
                 result, check_circular=False, separators=(',', ':'),
                 sort_keys=False, default=str)

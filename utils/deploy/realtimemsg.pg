@@ -15,6 +15,7 @@ CREATE TABLE messages (
     location_name text,
     reply_to_msg_id text,
     reply_to_user_id text,
+    source text,
     utc_offset int, -- of user
     last_msg_id text, -- last_* are filled by a background task and will eventually be usable for user trails.
     last_latitude double precision,

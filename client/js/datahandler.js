@@ -84,8 +84,11 @@ geoapp.DataHandler = function (arg) {
             options.description = desc;
             options.access = desc;
             if (options.params.source) {
-                options.access = $('#app-data ' + desc + 'data option[key="' +
-                    options.params.source + '"]').attr('access');
+                var info = $('#app-data ' + desc + 'data option[key="' +
+                    options.params.source + '"]');
+                _.each(['access', 'poll'], function (attr) {
+                    options[attr] = info.attr(attr);
+                });
             }
         }
         if (!options.params.limit) {
@@ -116,6 +119,10 @@ geoapp.DataHandler = function (arg) {
     this.processRequestData = function (options, resp, showfunc, loadfunc) {
         if (!options.data) {
             options.data = resp;
+        } else if (options.updateFromPoll) {
+            if (!this.mergeFromPoll(options, resp)) {
+                return;
+            }
         } else {
             $.merge(options.data.data, resp.data);
             options.data.datacount += resp.datacount;
@@ -426,7 +433,7 @@ geoapp.dataHandlers.instagram = function (arg) {
             geoapp.map.maximumMapPoints));
         if (!options.params.fields) {
             if (options.access === 'message') {
-                options.params.fields = 'rand1,' +
+                options.params.fields = 'rand1,rand2,' +
                     'msg_date,msg,url,image_url,latitude,longitude';
             } else {
                 options.params.fields = '_id,' +
@@ -434,8 +441,10 @@ geoapp.dataHandlers.instagram = function (arg) {
             }
         }
         geoapp.cancelRestRequests('instagramdata');
-        this.loadingAnimation('#ga-instagram-loading', false,
-                              !options.params.offset);
+        if (!options.updateFromPoll) {
+            this.loadingAnimation('#ga-instagram-loading', false,
+                                  !options.params.offset);
+        }
         var xhr = geoapp.restRequest({
             path: 'geoapp/' + options.access, type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
@@ -447,6 +456,10 @@ geoapp.dataHandlers.instagram = function (arg) {
                     resp.columns[key2] = resp.columns[key1];
                 }
             });
+            if (resp.nextId && !options.params._id_max &&
+                    !options.updateFromPoll) {
+                options.params._id_max = resp.nextId;
+            }
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
@@ -537,7 +550,77 @@ geoapp.dataHandlers.instagram = function (arg) {
             this.dataLoad(options);
         } else {
             this.loadingAnimation('#ga-instagram-loading', true);
+            if (options.poll && parseFloat(options.poll) > 0) {
+                this.pollMoreData(options, moreData);
+            }
         }
+    };
+
+    /* Poll for more and changing data.
+     *
+     * @param options: the request options.
+     * @param moreData: true if more data is available.
+     */
+    this.pollMoreData = function (options, moreData) {
+        if (!options.maxcount || !options.data || !options.data.nextId ||
+                !options.data.columns ||
+                options.data.columns.rand1 === undefined) {
+            return;
+        }
+        options.params.limit = options.maxcount;
+        options.params._id_min = options.data.nextId;
+        options.params.offset = 0;
+        delete options.params._id_max;
+        if (moreData) {
+            options.params.rand1_max = options.data.data[
+                options.data.data.length - 1][options.data.columns.rand1] + 1;
+        }
+        options.params.poll = parseFloat(options.poll);
+        /* We might want this to be configurable, since the initwait is the
+         * fastest update rate when data is coming in constantly. */
+        options.params.initwait = options.params.poll * 0.1;
+        options.params.wait = 300;
+        options.updateFromPoll = true;
+        this.dataLoad(options);
+    };
+
+    /* Merge data from a polling cycle into the main data.  This adjusts the
+     * response to look like a general response and the options.data to
+     * include the new results.
+     *
+     * @param options: the request options.
+     * @param resp: the ajax response.
+     * @param newdata: true if there is new data.
+     */
+    this.mergeFromPoll = function (options, resp) {
+        /* Set the new _id_max so we don't requery more than we have to. */
+        options.params._id_min = options.data.nextId = resp.nextId;
+        /* If we didn't get any new data, keep polling */
+        if (!resp.datacount) {
+            this.pollMoreData(
+                options, options.data.data.length >= options.maxcount);
+            return false;
+        }
+        console.log('process poll', resp.datacount); //DW<::
+        /* Otherwise, merge the new data into the old, sort it by the random
+         * index, and delete any excess. */
+        $.merge(options.data.data, resp.data);
+        options.data.datacount += resp.datacount;
+        var col1 = options.data.columns.rand1,
+            col2 = options.data.columns.rand2;
+        options.data.data.sort(function (a, b) {
+            if (a[col1] !== b[col1]) {
+                return parseInt(b[col1]) < parseInt(a[col1]) ? 1 : -1;
+            }
+            return parseInt(b[col2]) < parseInt(a[col2]) ? 1 : -1;
+        });
+        if (options.data.data.length > options.maxcount) {
+            options.data.data = options.data.data.slice(0, options.maxcount);
+            options.data.datacount = options.data.data.length;
+        }
+        resp.datacount = options.data.datacount;
+        //DWM:: need to not hide overlays or reset the message list position
+        return true;
     };
 
     /* Append rows to the instagram table.

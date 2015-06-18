@@ -78,7 +78,8 @@ class GeoAppRoot(object):
             data[dbtype] = [{
                 'key': key,
                 'name': name,
-                'access': dbdict.get('access', '')
+                'access': str(dbdict.get('access', '')),
+                'poll': str(dbdict.get('poll', ''))
             } for (order, name, key, dbdict) in datalist]
         datastr = []
         for category in data:
