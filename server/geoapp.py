@@ -406,9 +406,11 @@ class ViaPostgres():
             if self.queryBase == 'message':
                 c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
                 row = c.fetchone()
-                # Since this is in the same connection as the main query, it is
-                # guaranteed true for that query.
+                # We use this to guarantee that we don't get newer data than
+                # what we first saw.
                 result['nextId'] = row[0]
+                sql = sql.replace(' WHERE true', ' WHERE _id <= %s' % str(
+                    result['nextId']))
             if hasattr(c, 'mogrify'):
                 logger.info('Query: %s', c.mogrify(sql, sqlval))
             else:

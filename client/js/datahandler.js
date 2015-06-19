@@ -126,6 +126,7 @@ geoapp.DataHandler = function (arg) {
         } else {
             $.merge(options.data.data, resp.data);
             options.data.datacount += resp.datacount;
+            options.data.nextId = resp.nextId;
         }
         options.data.requestTime = new Date().getTime();
         options.requestTime += new Date().getTime();
