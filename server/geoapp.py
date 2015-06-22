@@ -408,7 +408,7 @@ class ViaPostgres():
                 row = c.fetchone()
                 # We use this to guarantee that we don't get newer data than
                 # what we first saw.
-                result['nextId'] = row[0]
+                result['nextId'] = row[0] if row[0] else 0
                 sql = sql.replace(' WHERE true', ' WHERE _id <= %s' % str(
                     result['nextId']))
             if hasattr(c, 'mogrify'):
@@ -512,7 +512,7 @@ class ViaPostgres():
                     elif self.useMilliseconds:
                         value = (value - self.useMilliseconds) * 1000
                     sql.append('AND ' + field + comp + '%d' % value)
-                elif dtype == 'int':
+                elif dtype in ('int', 'bigint'):
                     value = int(value)
                     sql.append('AND ' + field + comp + '%d' % value)
                 elif dtype == 'float':
@@ -982,9 +982,11 @@ class RealTimeViaPostgres(ViaPostgres):
         """
         if 'timestamp_ms' in data:
             date = int(data['timestamp_ms'])
-        else:
+        elif 'created_at' in data:
             date = int(calendar.timegm(dateutil.parser.parse(
                 data['created_at']).utctimetuple()) * 1000)
+        else:
+            return False
         item = {
             'msg_id': data['id_str'],
             'user_id': data['user']['id_str'],

@@ -82,13 +82,15 @@ geoapp.DataHandler = function (arg) {
             options.requestTime = options.showTime = 0;
             options.origMapParams = geoapp.map.getMapParams(desc);
             options.description = desc;
-            options.access = desc;
             if (options.params.source) {
                 var info = $('#app-data ' + desc + 'data option[key="' +
                     options.params.source + '"]');
                 _.each(['access', 'poll'], function (attr) {
                     options[attr] = info.attr(attr);
                 });
+            }
+            if (!options.access) {
+                options.access = desc;
             }
         }
         if (!options.params.limit) {
@@ -580,7 +582,9 @@ geoapp.dataHandlers.instagram = function (arg) {
         /* We might want this to be configurable, since the initwait is the
          * fastest update rate when data is coming in constantly. */
         options.params.initwait = options.params.poll * 0.1;
-        options.params.wait = 300;
+        /* We can make this a longer value, but it ties up cherrypy making it
+         * exhaust resources if too many queries are made. */
+        options.params.wait = 30;
         options.updateFromPoll = true;
         this.dataLoad(options);
     };
@@ -602,7 +606,6 @@ geoapp.dataHandlers.instagram = function (arg) {
                 options, options.data.data.length >= options.maxcount);
             return false;
         }
-        console.log('process poll', resp.datacount); //DW<::
         /* Otherwise, merge the new data into the old, sort it by the random
          * index, and delete any excess. */
         $.merge(options.data.data, resp.data);
