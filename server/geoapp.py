@@ -26,6 +26,7 @@ import datetime
 import dateutil.parser
 import HTMLParser
 import json
+import psycopg2
 import pymongo
 import re
 import time
@@ -38,8 +39,6 @@ from girder.api import access
 from girder.constants import AccessType
 from girder.api.describe import Description
 from girder.api.rest import RestException
-
-pgdb = None
 
 GeoappUser = {
     'login': 'geoapp',
@@ -171,17 +170,11 @@ def tsqueryExact(sql, phrases, quotes, field):
     for phrase in set(phrases):
         if phrase in quotes:
             escval = re.escape(quotes[phrase])
-            if hasattr(pgdb, 'extensions'):
-                escval = pgdb.extensions.adapt(escval).getquoted()[1:-1]
-            else:
-                escval = pgdb.escape_string(escval).strip('\'')
+            escval = psycopg2.extensions.adapt(escval).getquoted()[1:-1]
             sql.append(' AND ' + field + ' ~* E\'' + escval + '\'')
         elif phrase.startswith('#') and len(phrase) > 1:
             escval = re.escape(phrase)
-            if hasattr(pgdb, 'extensions'):
-                escval = pgdb.extensions.adapt(escval).getquoted()[1:-1]
-            else:
-                escval = pgdb.escape_string(escval).strip('\'')
+            escval = psycopg2.extensions.adapt(escval).getquoted()[1:-1]
             sql.append(' AND ' + field + ' ~* E\'(^|[^\\w#])' + escval +
                        '($|[^\\w#])\'')
 
@@ -290,18 +283,8 @@ class ViaPostgres():
                           responsible for closing.
         :return: a database object.
         """
-        global pgdb
-        if not pgdb:
-            # We can use either psycopg2 or pgdb.  Provided one only uses %s
-            # formatting, the interface is equiavlent.  psycopg2 seems to
-            # start slower than pgdb.  psycopg2 converts data to native python
-            # formats substantially faster, though.  If we were to use a custom
-            # results-to-json format, then I don't know which would be faster.
-            # Import either library as pgdb, and that library will be used.
-            # import pgdb
-            import psycopg2 as pgdb
         if alwaysNew == 'fresh':
-            return pgdb.connect(**self.dbparams)
+            return psycopg2.connect(**self.dbparams)
         if getattr(self, 'db', None) and alwaysNew:
             try:
                 self.db.close()
@@ -311,7 +294,7 @@ class ViaPostgres():
         with self.dbLock:
             db = self.db
             if db is None:
-                self.db = db = pgdb.connect(**self.dbparams)
+                self.db = db = psycopg2.connect(**self.dbparams)
             self.dbLastUsed = time.time()
         return db
 
@@ -340,12 +323,12 @@ class ViaPostgres():
                 c.execute('SELECT max(_id) FROM %s' % self.tableName)
                 row = c.fetchone()
                 self.maxId = int(row[0])
-            except (pgdb.Error, ValueError):
+            except (psycopg2.Error, ValueError):
                 self.maxId = 0
             c.close()
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None, whereClauses=None):
+             **kwargs):
         """
         Get data from a postgres database.
 
@@ -372,11 +355,8 @@ class ViaPostgres():
             # shuffled order
             sort = self.defaultSort
         sql = ['SELECT']
-        queryToDbKeys = dbToQueryKeys = {}
-        if self.queryBase == 'instagram' and queryBase == 'message':
-            queryToDbKeys, dbToQueryKeys = MsgToInstKeyTable, InstToMsgKeyTable
-        if self.queryBase == 'message' and queryBase == 'instagram':
-            queryToDbKeys, dbToQueryKeys = InstToMsgKeyTable, MsgToInstKeyTable
+        queryToDbKeys, dbToQueryKeys = self.getKeyTables(
+            kwargs.get('queryBase', None))
         if not fields:
             fields = [field[0] for field in self.fieldTable]
         fields = [field for field in fields if
@@ -387,8 +367,8 @@ class ViaPostgres():
         else:
             sql.append(','.join(dbfields))
         sql.append('FROM %s WHERE true' % self.tableName)
-        if whereClauses and len(whereClauses):
-            sql.extend(['AND', ' AND '.join(whereClauses)])
+        if kwargs.get('whereClauses', None) and len(kwargs['whereClauses']):
+            sql.extend(['AND', ' AND '.join(kwargs['whereClauses'])])
         sqlval = []
         self.params_to_sql(params, sql, sqlval, dbToQueryKeys)
 
@@ -400,41 +380,44 @@ class ViaPostgres():
             'fields': fields,
             'columns': columns
         }
-        # TODO: If this fails, try to reconnect to the database
-        try:
-            c = self.connect().cursor()
-            if self.queryBase == 'message':
-                c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
-                row = c.fetchone()
-                # We use this to guarantee that we don't get newer data than
-                # what we first saw.
-                result['nextId'] = row[0] if row[0] else 0
-                sql = sql.replace(' WHERE true', ' WHERE _id <= %s' % str(
-                    result['nextId']))
-            if hasattr(c, 'mogrify'):
-                logger.info('Query: %s', c.mogrify(sql, sqlval))
-            else:
-                logger.info('Query: %s', c._quoteparams(sql, sqlval))
-            c.execute(sql, sqlval)
-        except pgdb.Error as exc:
-            logger.info('Database error %s', str(exc))
-            c = self.connect(True).cursor()
-            c.execute(sql, sqlval)
-        logger.info('Query execution took %5.3fs', time.time() - starttime)
-        result['data'] = c.fetchmany()
         if self.maxId:
             result['maxid'] = self.maxId
-        logger.info('Fetching first items (%5.3fs including query execution)',
-                    time.time() - starttime)
-        while True:
+        maxretry = 3
+        for retry in xrange(maxretry):
+            try:
+                c = self.connect(retry != 0).cursor()
+                if self.queryBase == 'message':
+                    c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
+                    row = c.fetchone()
+                    # We use this to guarantee that we don't get newer data than
+                    # what we first saw.
+                    result['nextId'] = row[0] if row[0] else 0
+                    if str(result['nextId']) == params.get('_id_min'):
+                        result['data'] = []
+                        c.close()
+                        return result
+                    sql = sql.replace(' WHERE true', ' WHERE _id<%s' % str(
+                        result['nextId']))
+                logger.info('Query: %s', c.mogrify(sql, sqlval))
+                c.execute(sql, sqlval)
+                break
+            except psycopg2.Error as exc:
+                logger.info('Database error %s', str(exc))
+                if retry + 1 == maxretry:
+                    cherrypy.response.status = 500
+                    return
+        execTime = time.time()
+        result['data'] = data = c.fetchmany()
+        while data:
             data = c.fetchmany()
             if data:
                 result['data'].extend(data)
-            else:
-                break
-        logger.info('Fetching data (%5.3fs including query execution)',
-                    time.time() - starttime)
         c.close()
+        curtime = time.time()
+        logger.info(
+            'Query time: %5.3fs for query, %5.3fs total, %d row%s',
+            execTime - starttime, curtime - starttime, len(result['data']),
+            's' if len(result['data']) != 1 else '')
         return result
 
     def findModifiers(self, sort, limit, offset, sql, queryToDbKeys={}):
@@ -472,6 +455,22 @@ class ViaPostgres():
             sql.append('LIMIT %d' % limit)
         if offset:
             sql.append('OFFSET %d' % offset)
+
+    def getKeyTables(self, queryBase):
+        """
+        Get conversion key tables if the queryBase of this class is not the
+        same as the queryBase of the rest endpoint.
+
+        :param queryBase: queryBase of the rest endpoint.
+        :returns: dictionaries to convert between the rest end point and the
+                  db and between the db and the rest end point.
+        """
+        queryToDbKeys = dbToQueryKeys = {}
+        if self.queryBase == 'instagram' and queryBase == 'message':
+            queryToDbKeys, dbToQueryKeys = MsgToInstKeyTable, InstToMsgKeyTable
+        if self.queryBase == 'message' and queryBase == 'instagram':
+            queryToDbKeys, dbToQueryKeys = InstToMsgKeyTable, MsgToInstKeyTable
+        return queryToDbKeys, dbToQueryKeys
 
     def params_to_sql(self, params, sql, sqlval, altkeys={}):
         """
@@ -622,7 +621,7 @@ class TaxiViaMongo():
         return query, sort, mfields
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None, whereClauses=None):
+             **kwargs):
         """
         Get data from the mongo database.  Return each row in turn as a python
         object with the default keys or the entire dataset as a list with
@@ -636,10 +635,6 @@ class TaxiViaMongo():
         :param offset: default offset for the data.
         :param sort: a list of tuples of the form (key, direction).
         :param fields: a list of fields to return, or None for all fields.
-        :param queryBase: a string used to ensure we are using keys appropriate
-                          to the asking query and to underlying database.
-        :param whereClauses: a list of extra where clauses that are anded to
-                             any other where clauses.
         :returns: a dictionary of results.
         """
         query, sort, fields = self.processParams(params, sort, fields)
@@ -718,7 +713,7 @@ class TaxiViaMongoCompact(TaxiViaMongo):
     epoch = datetime.datetime.utcfromtimestamp(0)
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             allowUnsorted=True, queryBase=None, whereClauses=None):
+             allowUnsorted=True, **kwargs):
         """
         Get data from the mongo database.  Return each row in turn as a python
         object with the default keys or the entire dataset as a list with
@@ -735,10 +730,6 @@ class TaxiViaMongoCompact(TaxiViaMongo):
         :param allowUnsorted: if true, and the entire data set will be returned
                               (rather than being restricted by limit), then
                               return the data unsorted.
-        :param queryBase: a string used to ensure we are using keys appropriate
-                          to the asking query and to underlying database.
-        :param whereClauses: a list of extra where clauses that are anded to
-                             any other where clauses.
         :returns: a dictionary of results.
         """
         query, sort, mfields = self.processParams(params, sort, fields)
@@ -793,13 +784,12 @@ class TaxiViaMongoCompact(TaxiViaMongo):
 
 class TaxiViaMongoRandomized(TaxiViaMongoCompact):
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None, whereClauses=None):
+             **kwargs):
         if not sort:
             sort = [('_id', 1)]
         sort = [('_id', 1)]
         return TaxiViaMongoCompact.find(
-            self, params, limit, offset, sort, fields, queryBase=queryBase,
-            whereClauses=whereClauses)
+            self, params, limit, offset, sort, fields, **kwargs)
 
 
 class TaxiViaTangeloService():
@@ -815,7 +805,7 @@ class TaxiViaTangeloService():
         self.queryBase = 'taxi'
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             queryBase=None, whereClauses=None):
+             **kwargs):
         """
         Get data from the tangelo service.
 
@@ -828,10 +818,6 @@ class TaxiViaTangeloService():
         :param sort: a tuple of the form (key, direction).  Not currently
                      supported.
         :param fields: a list of fields to return, or None for all fields.
-        :param queryBase: a string used to ensure we are using keys appropriate
-                          to the asking query and to underlying database.
-        :param whereClauses: a list of extra where clauses that are anded to
-                             any other where clauses.
         :returns: a dictionary of results.
         """
         data = {'headers': 'true', 'offset': offset, 'limit': limit}
@@ -937,6 +923,7 @@ MessageFieldTable = collections.OrderedDict([
     ('last_latitude',     ('float',  'Last Latitude')),
     ('last_longitude',    ('float',  'Last Longitude')),
     ('ingest_date',       ('date',   'Ingest Date')),
+    ('ingest_source',     ('text',   'Ingest Source')),
     ('_id',               ('bigint', 'Ingest Order')),
 ])
 
@@ -971,14 +958,16 @@ class RealTimeViaPostgres(ViaPostgres):
         self.decoder = HTMLParser.HTMLParser()
         self.queryBase = 'message'
 
-    def ingest(self, db, c, data):
+    def ingest(self, db, c, data, ingestFrom=None):
         """
         Injest an object from Twitter.
 
         :param db: database object.  Use for committing the chanegs.
         :param c: database cursor: Used for adding the data.
         :param data: a data dictionary as produced by Twitter.
-        :return: True if the data was ingested, false otherwise.
+        :param ingestFrom: optional name of the ingest source.
+        :return: True if the data was ingested, false otherwise.  If True, the
+                 caller must commit the changes.
         """
         if 'timestamp_ms' in data:
             date = int(data['timestamp_ms'])
@@ -1023,6 +1012,8 @@ class RealTimeViaPostgres(ViaPostgres):
                 'instagram' in data['entities']['urls'][0]['display_url']):
             item['source'] = self.decoder.unescape(
                 data['entities']['urls'][0]['display_url'])
+        if ingestFrom:
+            item['ingest_source'] = ingestFrom
         sql = ['INSERT INTO messages (']
         sqlkeys = []
         sqlvals = []
@@ -1135,7 +1126,7 @@ class GeoAppResource(girder.api.rest.Resource):
             setattr(self, attrKey, accessDict)
 
     def findGeneral(self, params, sortKey, fieldTable, accessList,
-                    defaultDbKey, queryBase=None, whereClauses=None):
+                    defaultDbKey, **kwargs):
         """
         Perform a database search for a general find endpoint.
 
@@ -1147,11 +1138,6 @@ class GeoAppResource(girder.api.rest.Resource):
                            different databases.
         :param defaultDbKey: the default database source.  Used with the
                              accessList.
-        :param queryBase: the name of the base query.  This can be use to
-                          allow the same database to be used from multiple
-                          query points.
-        :param whereClauses: a list of extra where clauses that are anded to
-                             any other where clauses.
         :returns: the database response.
         """
         limit, offset, sort = self.getPagingParameters(params, sortKey)
@@ -1172,6 +1158,9 @@ class GeoAppResource(girder.api.rest.Resource):
         poll = 10 if not poll or poll <= 0 else float(poll)
         initwait = params.get('initwait', None)
         initwait = None if not initwait or initwait <= 0 else float(initwait)
+        kwargs['wait'] = wait
+        kwargs['poll'] = poll
+        kwargs['initwait'] = initwait
 
         def resultFunc():
             if wait and initwait:
@@ -1180,38 +1169,41 @@ class GeoAppResource(girder.api.rest.Resource):
             starttime = time.time()
             while True:
                 result = accessObj.find(
-                    params, limit, offset, sort, fields, queryBase=queryBase,
-                    whereClauses=whereClauses)
+                    params, limit, offset, sort, fields, **kwargs)
                 result['datacount'] = len(result.get('data', []))
+                curtime = time.time()
                 if (not wait or result['datacount'] or
-                        time.time() + poll > starttime + wait):
+                        curtime >= starttime + wait):
                     break
                 # Keep alive that should have no ill-effect on the json output
                 yield ' '
-                time.sleep(poll)
+                time.sleep(max(min(poll, starttime + wait - curtime),
+                               poll * 0.5))
                 yield ' '
+                if '_id_min' in params and 'nextId' in result:
+                    params['_id_min'] = result['nextId']
             result['limit'] = limit
             result['offset'] = offset
             result['sort'] = sort
-            if params.get('format', 'list') == 'list':
-                if result.get('format', '') != 'list':
-                    result['fields'] = fields
-                    result['columns'] = {fields[col]: col
-                                         for col in xrange(len(fields))}
-                    if 'data' in result:
-                        result['data'] = [
-                            [row.get(field, None) for field in fields]
-                            for row in result['data']
-                        ]
-                    result['format'] = 'list'
-            else:
-                if result.get('format', '') == 'list':
-                    if 'data' in result:
-                        result['data'] = [{
-                            result['fields'][col]: row[col] for col
-                            in xrange(len(row))} for row in result['data']]
-                    result['format'] = 'dict'
-                    del result['columns']
+            if (params.get('format', 'list') == 'list' and
+                    result.get('format', '') != 'list'):
+                result['fields'] = fields
+                result['columns'] = {fields[col]: col
+                                     for col in xrange(len(fields))}
+                if 'data' in result:
+                    result['data'] = [
+                        [row.get(field, None) for field in fields]
+                        for row in result['data']
+                    ]
+                result['format'] = 'list'
+            elif (params.get('format', 'list') != 'list' and
+                    result.get('format', '') == 'list'):
+                if 'data' in result:
+                    result['data'] = [{
+                        result['fields'][col]: row[col] for col
+                        in xrange(len(row))} for row in result['data']]
+                result['format'] = 'dict'
+                del result['columns']
             # We could let Girder convert the results into JSON, but it is
             # marginally faster to dump the JSON ourselves, since we can
             # exclude sorting and reduce whitespace
@@ -1285,7 +1277,7 @@ class GeoAppResource(girder.api.rest.Resource):
     def findInstagram(self, params):
         return self.findGeneral(
             params, '_id', InstagramFieldTable, self.instagramAccess,
-            'postgres', 'instagram')
+            'postgres', queryBase='instagram')
     findInstagram.description = findGeneralDescription(
         'Get a set of instagram data.', '_id', InstagramFieldTable, 'postgres')
 
@@ -1296,7 +1288,8 @@ class GeoAppResource(girder.api.rest.Resource):
             where.append('latitude is not NULL')
         return self.findGeneral(
             params, [('rand1', 1), ('rand2', 1)], MessageFieldTable,
-            self.instagramAccess, 'rtmsg', 'message', whereClauses=where)
+            self.instagramAccess, 'rtmsg', queryBase='message',
+            whereClauses=where)
     findMessage.description = (
         findGeneralDescription(
             'Get a set of message data.', 'rand1', MessageFieldTable, 'rtmsg')
@@ -1308,7 +1301,7 @@ class GeoAppResource(girder.api.rest.Resource):
     def findTaxi(self, params):
         return self.findGeneral(
             params, 'pickup_datetime', TaxiFieldTable, self.taxiAccess,
-            'mongo', 'taxi')
+            'mongo', queryBase='taxi')
     findTaxi.description = findGeneralDescription(
         'Get a set of taxi data.', 'pickup_datetime', TaxiFieldTable, 'mongo')
 
@@ -1319,16 +1312,25 @@ class GeoAppResource(girder.api.rest.Resource):
         defaultDbKey = 'rtmsg'
         accessList = self.instagramAccess
         accessObj = accessList[params.get('source', defaultDbKey)]
+        ingestFrom = params.get('from', None)
         if isinstance(accessObj, tuple):
             accessObj = accessObj[0](**accessObj[1])
             accessList[params.get('source', defaultDbKey)] = accessObj
+        log = None
+        if 'log' in params and params['log'].isdigit():
+            log = int(params['log'])
         db = accessObj.connect('fresh')
         c = db.cursor()
         for line in cherrypy.request.body:
             try:
                 data = json.loads(line.decode('utf8'))
-                if accessObj.ingest(db, c, data):
+                if accessObj.ingest(db, c, data, ingestFrom):
                     res['ingested'] += 1
+                    if log and not res['ingested'] % log:
+                        duration = time.time() - starttime
+                        if duration:
+                            logger.info('Rate: %5.3f msg/s over %d msgs' % (
+                                res['ingested'] / duration, res['ingested']))
                 else:
                     res['skipped'] = res.get('skipped', 0) + 1
             except ValueError:
@@ -1349,6 +1351,9 @@ class GeoAppResource(girder.api.rest.Resource):
                'using background tasks.')
         .param('body', 'The line-by-line json for the feed.', paramType='body')
         .param('source', 'Database source (default rtmsg).', required=False)
+        .param('from', 'Ingest source description.', required=False)
+        .param('log', 'If set, log every this many messages to show progress.',
+               dataType='int', required=False)
         .errorResponse('Invalid JSON passed in request body.'))
 
     @access.public

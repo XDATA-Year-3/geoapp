@@ -22,6 +22,7 @@ CREATE TABLE messages (
     last_longitude double precision,
     last_msg_date int,
     ingest_date int,
+    ingest_source text,
     rand1 int default random() * 1000000000,
     rand2 int default random() * 1000000000,
     _id bigserial

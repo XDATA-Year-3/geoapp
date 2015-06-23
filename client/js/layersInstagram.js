@@ -56,7 +56,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
         'show-instagram-data'
     ];
 
-    /* Update the taxi map based on the map parameters.  Values that are
+    /* Update the instagram map based on the map parameters.  Values that are
      * updated include:
      *    inst-opacity: the opacity used for non-animated points.
      *
@@ -97,7 +97,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
             strokeColor: m_strokeColor,
             strokeOpacity: 1,
             strokeWidth: 5,
-            stroke: false,
+            stroke: function (d) {
+                return d._selected;
+            },
             radius: 5
         })
         .position(function (d) {
@@ -119,7 +121,35 @@ geoapp.mapLayers.instagram = function (map, arg) {
         $(this.map.getMap().node()).off('.instagram-map-layer').on(
             'mousedown.instagram-map-layer click.instagram-map-layer',
             m_this.clickLayer);
-        this.currentPoint(null, false);
+        /* Reset the tracked points */
+        var oldcur = this.currentPoint(),
+            oldcurInTop = $.inArray(oldcur, m_inPoints.top),
+            oldcurInOther = $.inArray(oldcur, m_inPoints.other);
+        m_inPoints = {top: [], other: []};
+        if (!params.callNumber && oldcur) {
+            /* If this is fresh data, clear the overlay */
+            this.currentPoint(null, false);
+        } else if (params.callNumber && oldcur) {
+            /* If this is updated data, make sure the current point is what we
+             * want. */
+            var newcur = null;
+            _.find(pointData, function (d, idx) {
+                if (d._selected) {
+                    newcur = idx;
+                }
+                return d._selected;
+            });
+            if (newcur !== null && newcur !== oldcur) {
+                this.currentPoint(newcur, null);
+            }
+            if (newcur !== null) {
+                if (oldcurInTop >= 0) {
+                    m_inPoints.top.push(newcur);
+                } else if (oldcurInOther >= 0) {
+                    m_inPoints.other.push(newcur);
+                }
+            }
+        }
     };
 
     /* Return the index of the date column for this data.
@@ -334,6 +364,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param cur: undefined to get the current point.  Otherwise, the 0-based
      *             point index, or null to clear the current point.
      * @param redraw: if false, don't redraw the map.  If true, always update.
+     *                If null, just set the currentPoint's internal value and
+     *                return without doing anything else.
      * @param immediate: if true, show or hide the overlay immediately.
      * @param source: name of the source of setting this point.  Used in
      *                logging.
@@ -351,6 +383,18 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         if (cur === null) {
             m_persistentCurrentPoint = false;
+        }
+        var mapData = m_this.data(true);
+        if (m_currentPoint !== null && m_currentPoint >= 0 &&
+                m_currentPoint < mapData.data.length) {
+            delete mapData.data[m_currentPoint]._selected;
+        }
+        if (cur !== null && cur >= 0 && cur < mapData.data.length) {
+            mapData.data[cur]._selected = true;
+        }
+        if (redraw === null) {
+            m_currentPoint = cur;
+            return m_currentPoint;
         }
         var vpf = m_geoPoints.verticesPerFeature(),
             stroke, i, old = m_currentPoint;

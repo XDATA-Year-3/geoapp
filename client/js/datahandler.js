@@ -394,7 +394,8 @@ geoapp.dataHandlers.instagram = function (arg) {
         m_sortedIndices,
         m_sortOrderList = ['raw', 'date', 'date-desc'],
         m_sortOrderIcons = ['sort', 'sort-down', 'sort-up'],
-        m_lastInstagramTableInit = 0;
+        m_lastInstagramTableInit = 0,
+        m_lastInstagramTableCallNumber;
 
     this.datakey = m_datakey;
     this.equalKeys = {
@@ -480,10 +481,12 @@ geoapp.dataHandlers.instagram = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
+        m_lastInstagramTableCallNumber = options.callNumber;
         var layer = geoapp.map.getLayer(this.datakey);
         layer.data(options.data);
         layer.setCycleDateRange(
             options.params, 'posted_date_min', 'posted_date_max', m_datakey);
+        options.display.callNumber = options.callNumber;
         geoapp.map.showMap(options.description, options.display);
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
@@ -497,46 +500,6 @@ geoapp.dataHandlers.instagram = function (arg) {
         }
         var table = $('#ga-instagram-results-table');
         table.attr('count', options.data.data.length);
-        /* If the offset is non-zero, we've already started displaying the
-         * results. */
-        if (options.params.offset && m_sortOrder === 'raw') {
-            /* Mark it as update anyway. */
-            m_lastInstagramTableInit = new Date().getTime();
-            return;
-        }
-        this.instagramTableInit(true);
-    };
-
-    /* Initialize the results table, clearing any old results.
-     *
-     * @param always: if true, always initialize the table.  If false, only
-     *                do so if the table is currently shown.
-     */
-    this.instagramTableInit = function (always) {
-        if (!always && $('#ga-instagram-results-panel').hasClass('hidden')) {
-            return;
-        }
-        m_lastInstagramTableInit = new Date().getTime();
-        m_sortedIndices = null;
-        var settings = this.routeSettings();
-        if (settings && settings['instagram-table-sort']) {
-            if ($.inArray(settings['instagram-table-sort'],
-                          m_sortOrderList) >= 0) {
-                m_sortOrder = settings['instagram-table-sort'];
-            }
-        }
-        var icon = $('#ga-instagram-results-sort i');
-        for (var i = 0; i < m_sortOrderIcons.length; i += 1) {
-            icon.toggleClass('icon-' + m_sortOrderIcons[i],
-                             m_sortOrder === m_sortOrderList[i]);
-        }
-        $('#ga-instagram-results-panel').removeClass('hidden');
-        $('#ga-instagram-results-table tr:has(td)').remove();
-        $('#ga-instagram-results .results-table').scrollTop(0);
-        if (this.instagramTable()) {
-            geoapp.infiniteScroll('#ga-instagram-results .results-table',
-                                  this.instagramTable, this);
-        }
     };
 
     /* Load more instagram data or indicated that we are finished loading.
@@ -584,7 +547,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         options.params.initwait = options.params.poll * 0.1;
         /* We can make this a longer value, but it ties up cherrypy making it
          * exhaust resources if too many queries are made. */
-        options.params.wait = 30;
+        options.params.wait = 60;
         options.updateFromPoll = true;
         this.dataLoad(options);
     };
@@ -598,7 +561,7 @@ geoapp.dataHandlers.instagram = function (arg) {
      * @param newdata: true if there is new data.
      */
     this.mergeFromPoll = function (options, resp) {
-        /* Set the new _id_max so we don't requery more than we have to. */
+        /* Set the new _id_min so we don't requery more than we have to. */
         options.params._id_min = options.data.nextId = resp.nextId;
         /* If we didn't get any new data, keep polling */
         if (!resp.datacount) {
@@ -623,16 +586,66 @@ geoapp.dataHandlers.instagram = function (arg) {
             options.data.datacount = options.data.data.length;
         }
         resp.datacount = options.data.datacount;
-        //DWM:: need to not hide overlays or reset the message list position
         return true;
+    };
+
+    /* Initialize the results table, clearing any old results.
+     *
+     * @param always: if true, always initialize the table.  If false, only
+     *                do so if the table is currently shown.
+     */
+    this.instagramTableInit = function (always) {
+        if (!always && $('#ga-instagram-results-panel').hasClass('hidden')) {
+            return;
+        }
+        var oldScroll, oldRows;
+        if (m_lastInstagramTableCallNumber) {
+            oldScroll = $('#ga-instagram-results .results-table').scrollTop();
+            if (oldScroll) {
+                var rows = $('#ga-instagram-results-table tr[item]');
+                oldRows = rows.length;
+                var parentRect = $('#ga-instagram-results-table').closest(
+                    '.al-scroller')[0].getBoundingClientRect();
+                for (var row = 0; row < oldRows; row += 100) {
+                    if (rows[row].getBoundingClientRect().top >
+                            parentRect.bottom) {
+                        oldRows = row;
+                        break;
+                    }
+                }
+            }
+        }
+        m_lastInstagramTableInit = new Date().getTime();
+        m_sortedIndices = null;
+        var settings = this.routeSettings();
+        if (settings && settings['instagram-table-sort']) {
+            if ($.inArray(settings['instagram-table-sort'],
+                          m_sortOrderList) >= 0) {
+                m_sortOrder = settings['instagram-table-sort'];
+            }
+        }
+        var icon = $('#ga-instagram-results-sort i');
+        for (var i = 0; i < m_sortOrderIcons.length; i += 1) {
+            icon.toggleClass('icon-' + m_sortOrderIcons[i],
+                             m_sortOrder === m_sortOrderList[i]);
+        }
+        $('#ga-instagram-results-panel').removeClass('hidden');
+        $('#ga-instagram-results-table tr:has(td)').remove();
+        $('#ga-instagram-results .results-table').scrollTop(0);
+        if (this.instagramTable(oldRows, oldScroll)) {
+            geoapp.infiniteScroll('#ga-instagram-results .results-table',
+                                  this.instagramTable, this);
+        }
     };
 
     /* Append rows to the instagram table.
      *
+     * @param oldRows: if defined, make sure at least this many rows are shown.
+     * @param oldScroll: if defined, scroll to this point after adding rows.
      * @return: true if there is more data. */
-    this.instagramTable = function () {
+    this.instagramTable = function (oldRows, oldScroll) {
         var table = $('#ga-instagram-results-table'),
-            page = 100,
+            page = Math.max(100, oldRows || 0),
             layer = geoapp.map.getLayer(this.datakey),
             data = layer.data(true),
             moreData = false;
@@ -707,6 +720,9 @@ geoapp.dataHandlers.instagram = function (arg) {
         }).on('click.instagram-table mouseenter.instagram-table',
             this.instagramTableHighlight
         );
+        if (oldScroll) {
+            $('#ga-instagram-results .results-table').scrollTop(oldScroll);
+        }
         return moreData;
     };
 

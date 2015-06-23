@@ -832,14 +832,16 @@ geoapp.Graph = function (arg) {
                 if (i !== pos && m_this.graphOpts[i].opts.type === 'line') {
                     this.graphOpts[i].opts.left = range[0];
                     this.graphOpts[i].opts.right = range[1];
-                    if ((!range[0] && !range[1]) ||
-                            _.isEqual(range, this.graphOpts[i].xminmax)) {
-                        this.graphOpts[i].c3.unzoom();
-                    } else {
-                        this.graphOpts[i].c3.zoom([
-                            range[0] || this.graphOpts[i].xminmax[0],
-                            range[1] || this.graphOpts[i].xminmax[1]
-                        ]);
+                    if (this.graphOpts[i].c3) {
+                        if ((!range[0] && !range[1]) ||
+                                _.isEqual(range, this.graphOpts[i].xminmax)) {
+                            this.graphOpts[i].c3.unzoom();
+                        } else {
+                            this.graphOpts[i].c3.zoom([
+                                range[0] || this.graphOpts[i].xminmax[0],
+                                range[1] || this.graphOpts[i].xminmax[1]
+                            ]);
+                        }
                     }
                 }
             }
