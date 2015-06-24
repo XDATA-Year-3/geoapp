@@ -300,14 +300,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
-            if (!$('#ga-source option').length) {
-                $('#app-data taxidata option').each(function () {
-                    var opt = $(this);
-                    $('#ga-source').append(
-                        $('<option>').attr('value', opt.attr('key'))
-                        .text(opt.attr('name')));
-                });
-            }
+            _.each({
+                taxidata: 'source',
+                instagramdata: 'msgsource'
+            }, function (sourceelem, datakey) {
+                if (!$('#ga-' + sourceelem + ' option').length) {
+                    $('#app-data ' + datakey + ' option').each(function () {
+                        var opt = $(this);
+                        $('#ga-' + sourceelem).append(
+                            $('<option>').attr('value', opt.attr('key'))
+                            .text(opt.attr('name')));
+                    });
+                }
+            });
             var update = false;
             if (view.initialSettings && !view.usedInitialSettings) {
                 var settings = view.initialSettings;
@@ -609,6 +614,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 });
             }
             delete params.use_taxi_dates;
+            params.source = params.msgsource;
+            delete params.msgsource;
             geoapp.dataLoaders.instagram.dataLoad({
                 params: params,
                 display: results.display

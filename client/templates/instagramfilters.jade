@@ -1,4 +1,8 @@
 #ga-instagram-filter-settings(ga-filter-name="instagram")
+  .form-group.hidden
+    label(for="ga-msgsource") Data Source
+    select#ga-msgsource.form-control.input-sm(title="Database message source",
+        taxifield="msgsource")
   .form-group
     span(title="Use pickup dates if checked")
       input#ga-use-taxi-dates.form-control.input-sm(

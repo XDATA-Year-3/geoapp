@@ -64,7 +64,8 @@ geoapp.DataHandler = function (arg) {
      *      selected data.
      *
      * @param options: a dictionary of options to augment as needed.  Modified.
-     * @param desc: description.
+     * @param desc: short description.  Also used as a key to get some
+     *              settings.
      * @param maxcount: the maximum number of rows to retreive.
      */
     this.setupRequestOptions = function (options, desc, maxcount) {
@@ -81,6 +82,16 @@ geoapp.DataHandler = function (arg) {
             options.requestTime = options.showTime = 0;
             options.origMapParams = geoapp.map.getMapParams(desc);
             options.description = desc;
+            if (options.params.source) {
+                var info = $('#app-data ' + desc + 'data option[key="' +
+                    options.params.source + '"]');
+                _.each(['access', 'poll'], function (attr) {
+                    options[attr] = info.attr(attr);
+                });
+            }
+            if (!options.access) {
+                options.access = desc;
+            }
         }
         if (!options.params.limit) {
             options.params.limit = Math.min(
@@ -110,9 +121,14 @@ geoapp.DataHandler = function (arg) {
     this.processRequestData = function (options, resp, showfunc, loadfunc) {
         if (!options.data) {
             options.data = resp;
+        } else if (options.updateFromPoll) {
+            if (!this.mergeFromPoll(options, resp)) {
+                return;
+            }
         } else {
             $.merge(options.data.data, resp.data);
             options.data.datacount += resp.datacount;
+            options.data.nextId = resp.nextId;
         }
         options.data.requestTime = new Date().getTime();
         options.requestTime += new Date().getTime();
@@ -138,6 +154,11 @@ geoapp.DataHandler = function (arg) {
             options.data.loadFactor = (
                 (options.data.data[options.data.datacount - 1][
                 options.data.columns._id] + 1) / (options.data.maxid + 1));
+        } else if (options.data.columns &&
+                options.data.columns.rand1 !== undefined) {
+            options.data.loadFactor = options.data.data[
+                options.data.datacount - 1][options.data.columns.rand1] *
+                0.000000001;
         }
         showfunc.call(this, options);
         options.callNumber += 1;
@@ -248,6 +269,31 @@ geoapp.DataHandler = function (arg) {
         m_routeSettingsTime = new Date().getTime();
         return m_routeSettings;
     };
+
+    /* Duplicate parameters used in a query where there are nearly equivalent
+     * keys.  This allows a single function to work with different data access
+     * methods.
+     *
+     * @param options: the options block that has paraemters.  If maxocunt is
+     *                 unset, then adjust the parameters.
+     * @param equalKeys: a map between equivalent key names.
+     */
+    this.generalizeParameters = function (options, equalKeys) {
+        if (!options.maxcount && equalKeys) {
+            var params = options.params;
+            _.each(equalKeys, function (key1, key2) {
+                _.each(['', '_min', '_max', '_search'], function (suffix) {
+                    if (params[key1 + suffix] === undefined &&
+                            params[key2 + suffix] !== undefined) {
+                        params[key1 + suffix] = params[key2 + suffix];
+                    } else if (params[key2 + suffix] === undefined &&
+                            params[key1 + suffix] !== undefined) {
+                        params[key2 + suffix] = params[key1 + suffix];
+                    }
+                });
+            });
+        }
+    };
 };
 
 /* -------- taxi data handler -------- */
@@ -348,9 +394,15 @@ geoapp.dataHandlers.instagram = function (arg) {
         m_sortedIndices,
         m_sortOrderList = ['raw', 'date', 'date-desc'],
         m_sortOrderIcons = ['sort', 'sort-down', 'sort-up'],
-        m_lastInstagramTableInit = 0;
+        m_lastInstagramTableInit = 0,
+        m_lastInstagramTableCallNumber;
 
     this.datakey = m_datakey;
+    this.equalKeys = {
+        msg: 'caption',
+        msg_date: 'posted_date',
+        ingest_date: 'scraped_date'
+    };
 
     geoapp.events.on('ga:dataVisibility.' + m_datakey, function (params) {
         /* This had been:
@@ -379,19 +431,39 @@ geoapp.dataHandlers.instagram = function (arg) {
      *                  setupRequestOptions for more details.
      */
     this.dataLoad = function (options) {
+        this.generalizeParameters(options, this.equalKeys);
         this.setupRequestOptions(options, 'instagram', (
             options.params.max_instagrams || this.maximumDataPoints ||
             geoapp.map.maximumMapPoints));
         if (!options.params.fields) {
-            options.params.fields = '_id,' +
-                'posted_date,caption,url,image_url,latitude,longitude';
+            if (options.access === 'message') {
+                options.params.fields = 'rand1,rand2,' +
+                    'msg_date,msg,url,image_url,latitude,longitude';
+            } else {
+                options.params.fields = '_id,' +
+                    'posted_date,caption,url,image_url,latitude,longitude';
+            }
         }
         geoapp.cancelRestRequests('instagramdata');
-        this.loadingAnimation('#ga-instagram-loading', false,
-                              !options.params.offset);
+        if (!options.updateFromPoll) {
+            this.loadingAnimation('#ga-instagram-loading', false,
+                                  !options.params.offset);
+        }
         var xhr = geoapp.restRequest({
-            path: 'geoapp/instagram', type: 'GET', data: options.params
+            path: 'geoapp/' + options.access, type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
+            _.each(m_this.equalKeys, function (key1, key2) {
+                if (resp.columns[key1] === undefined) {
+                    resp.columns[key1] = resp.columns[key2];
+                }
+                if (resp.columns[key2] === undefined) {
+                    resp.columns[key2] = resp.columns[key1];
+                }
+            });
+            if (resp.nextId && !options.params._id_max &&
+                    !options.updateFromPoll) {
+                options.params._id_max = resp.nextId;
+            }
             this.processRequestData(options, resp, this.dataShow,
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
@@ -409,10 +481,12 @@ geoapp.dataHandlers.instagram = function (arg) {
      * @param options: the request options.
      */
     this.dataShow = function (options) {
+        m_lastInstagramTableCallNumber = options.callNumber;
         var layer = geoapp.map.getLayer(this.datakey);
         layer.data(options.data);
         layer.setCycleDateRange(
             options.params, 'posted_date_min', 'posted_date_max', m_datakey);
+        options.display.callNumber = options.callNumber;
         geoapp.map.showMap(options.description, options.display);
         /* Hide the instagram results panel if there is no data.  Show it with
          * a small quantity of data if there is data. */
@@ -426,14 +500,93 @@ geoapp.dataHandlers.instagram = function (arg) {
         }
         var table = $('#ga-instagram-results-table');
         table.attr('count', options.data.data.length);
-        /* If the offset is non-zero, we've already started displaying the
-         * results. */
-        if (options.params.offset && m_sortOrder === 'raw') {
-            /* Mark it as update anyway. */
-            m_lastInstagramTableInit = new Date().getTime();
+    };
+
+    /* Load more instagram data or indicated that we are finished loading.
+     *
+     * @param options: the request options.
+     * @param callNext: true if more data is needed.
+     * @param moreData: true if more data is available.
+     */
+    this.dataLoaded = function (options, callNext, moreData) {
+        this.loadedMessage('#ga-inst-points-loaded', options.data.datacount,
+                           callNext, moreData, 'message', 'messages',
+                           options.data.loadFactor);
+        if (callNext) {
+            this.dataLoad(options);
+        } else {
+            this.loadingAnimation('#ga-instagram-loading', true);
+            if (options.poll && parseFloat(options.poll) > 0) {
+                this.pollMoreData(options, moreData);
+            }
+        }
+    };
+
+    /* Poll for more and changing data.
+     *
+     * @param options: the request options.
+     * @param moreData: true if more data is available.
+     */
+    this.pollMoreData = function (options, moreData) {
+        if (!options.maxcount || !options.data || !options.data.nextId ||
+                !options.data.columns ||
+                options.data.columns.rand1 === undefined) {
             return;
         }
-        this.instagramTableInit(true);
+        options.params.limit = options.maxcount;
+        options.params._id_min = options.data.nextId;
+        options.params.offset = 0;
+        delete options.params._id_max;
+        if (moreData) {
+            options.params.rand1_max = options.data.data[
+                options.data.data.length - 1][options.data.columns.rand1] + 1;
+        }
+        options.params.poll = parseFloat(options.poll);
+        /* We might want this to be configurable, since the initwait is the
+         * fastest update rate when data is coming in constantly. */
+        options.params.initwait = options.params.poll * 0.1;
+        /* We can make this a longer value, but it ties up cherrypy making it
+         * exhaust resources if too many queries are made. */
+        options.params.wait = 60;
+        options.updateFromPoll = true;
+        this.dataLoad(options);
+    };
+
+    /* Merge data from a polling cycle into the main data.  This adjusts the
+     * response to look like a general response and the options.data to
+     * include the new results.
+     *
+     * @param options: the request options.
+     * @param resp: the ajax response.
+     * @param newdata: true if there is new data.
+     */
+    this.mergeFromPoll = function (options, resp) {
+        /* Set the new _id_min so we don't requery more than we have to. */
+        options.params._id_min = options.data.nextId = resp.nextId;
+        /* If we didn't get any new data, keep polling */
+        if (!resp.datacount) {
+            this.pollMoreData(
+                options, options.data.data.length >= options.maxcount);
+            return false;
+        }
+        /* Otherwise, merge the new data into the old, sort it by the random
+         * index, and delete any excess. */
+        $.merge(options.data.data, resp.data);
+        options.data.datacount += resp.datacount;
+        var col1 = options.data.columns.rand1,
+            col2 = options.data.columns.rand2;
+        options.data.data.sort(function (a, b) {
+            if (a[col1] !== b[col1]) {
+                return parseInt(b[col1]) < parseInt(a[col1]) ? 1 : -1;
+            }
+            return parseInt(b[col2]) < parseInt(a[col2]) ? 1 : -1;
+        });
+        if (options.data.data.length > options.maxcount) {
+            options.data.data = options.data.data.slice(0, options.maxcount);
+            options.data.datacount = options.data.data.length;
+        }
+        resp.datacount = options.data.datacount;
+        return true;
     };
 
     /* Initialize the results table, clearing any old results.
@@ -444,6 +597,23 @@ geoapp.dataHandlers.instagram = function (arg) {
     this.instagramTableInit = function (always) {
         if (!always && $('#ga-instagram-results-panel').hasClass('hidden')) {
             return;
+        }
+        var oldScroll, oldRows;
+        if (m_lastInstagramTableCallNumber) {
+            oldScroll = $('#ga-instagram-results .results-table').scrollTop();
+            if (oldScroll) {
+                var rows = $('#ga-instagram-results-table tr[item]');
+                oldRows = rows.length;
+                var parentRect = $('#ga-instagram-results-table').closest(
+                    '.al-scroller')[0].getBoundingClientRect();
+                for (var row = 0; row < oldRows; row += 100) {
+                    if (rows[row].getBoundingClientRect().top >
+                            parentRect.bottom) {
+                        oldRows = row;
+                        break;
+                    }
+                }
+            }
         }
         m_lastInstagramTableInit = new Date().getTime();
         m_sortedIndices = null;
@@ -462,35 +632,20 @@ geoapp.dataHandlers.instagram = function (arg) {
         $('#ga-instagram-results-panel').removeClass('hidden');
         $('#ga-instagram-results-table tr:has(td)').remove();
         $('#ga-instagram-results .results-table').scrollTop(0);
-        if (this.instagramTable()) {
+        if (this.instagramTable(oldRows, oldScroll)) {
             geoapp.infiniteScroll('#ga-instagram-results .results-table',
                                   this.instagramTable, this);
         }
     };
 
-    /* Load more instagram data or indicated that we are finished loading.
-     *
-     * @param options: the request options.
-     * @param callNext: true if more data is needed.
-     * @param moreData: true if more data is available.
-     */
-    this.dataLoaded = function (options, callNext, moreData) {
-        this.loadedMessage('#ga-inst-points-loaded', options.data.datacount,
-                           callNext, moreData, 'message', 'messages',
-                           options.data.loadFactor);
-        if (callNext) {
-            this.dataLoad(options);
-        } else {
-            this.loadingAnimation('#ga-instagram-loading', true);
-        }
-    };
-
     /* Append rows to the instagram table.
      *
+     * @param oldRows: if defined, make sure at least this many rows are shown.
+     * @param oldScroll: if defined, scroll to this point after adding rows.
      * @return: true if there is more data. */
-    this.instagramTable = function () {
+    this.instagramTable = function (oldRows, oldScroll) {
         var table = $('#ga-instagram-results-table'),
-            page = 100,
+            page = Math.max(100, oldRows || 0),
             layer = geoapp.map.getLayer(this.datakey),
             data = layer.data(true),
             moreData = false;
@@ -565,6 +720,9 @@ geoapp.dataHandlers.instagram = function (arg) {
         }).on('click.instagram-table mouseenter.instagram-table',
             this.instagramTableHighlight
         );
+        if (oldScroll) {
+            $('#ga-instagram-results .results-table').scrollTop(oldScroll);
+        }
         return moreData;
     };
 

@@ -73,10 +73,14 @@ class GeoAppRoot(object):
                 if not isinstance(db, dict) or 'class' not in db:
                     continue
                 datalist.append((db.get('order', sys.maxint),
-                                 db.get('name', ''), key))
+                                 db.get('name', ''), key, db))
             datalist.sort()
-            data[dbtype] = [{'key': key, 'name': name} for (order, name, key)
-                            in datalist]
+            data[dbtype] = [{
+                'key': key,
+                'name': name,
+                'access': str(dbdict.get('access', '')),
+                'poll': str(dbdict.get('poll', ''))
+            } for (order, name, key, dbdict) in datalist]
         datastr = []
         for category in data:
             datastr.extend(['<', category, '>'])
@@ -90,7 +94,6 @@ class GeoAppRoot(object):
         vars['data'] = ''.join(datastr)
         if self.indexHtml is None:
             page = open(os.path.join(ROOT_DIR, 'built/index.html')).read()
-            print '%r' % page
             self.indexHtml = mako.template.Template(page).render(**vars)
         return self.indexHtml
 
