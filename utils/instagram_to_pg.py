@@ -38,7 +38,7 @@ import fileutil
 
 
 KeyList = [
-    'user_name', 'user_id_num', 'posted_date', 'url', 'image_url', 'caption',
+    'user_name', 'user_id', 'posted_date', 'url', 'image_url', 'caption',
     'latitude', 'longitude', 'location_id', 'location_name',
     'comment_count', 'like_count'  # , 'comments', 'likes', 'scraped_date'
 ]
@@ -67,6 +67,8 @@ def csvToItems(fptr, partial=False):
                 ).total_seconds())
             except Exception:
                 continue
+        if 'user_id_num' in item:
+            item['user_id'] = str(item['user_id_num'])
         if 'image_url' in item and 'url' not in item:
             item['url'] = item['image_url']
             del item['image_url']
@@ -121,17 +123,17 @@ def jsonToItems(fptr, partial=False):
                     'longitude' not in inst['location']):
                 continue
             item = {
-                'user_name':      inst['user']['username'],
-                'user_id_number': inst['user']['id'],
-                'posted_date':    inst['created_time'],
-                'url':            inst['link'],
-                'latitude':       inst['location']['latitude'],
-                'longitude':      inst['location']['longitude'],
-                'comment_count':  inst['comments']['count'],
-                'comments':       '',
-                'like_count':     inst['likes']['count'],
-                'likes':          '',
-                'scraped_date':   int(inst['created_time']),
+                'user_name':   inst['user']['username'],
+                'user_id':     inst['user']['id'],
+                'posted_date': inst['created_time'],
+                'url':         inst['link'],
+                'latitude':    inst['location']['latitude'],
+                'longitude':   inst['location']['longitude'],
+                'comment_count': inst['comments']['count'],
+                'comments':    '',
+                'like_count':  inst['likes']['count'],
+                'likes':       '',
+                'scraped_date': int(inst['created_time']),
             }
             if inst['caption']:
                 item['caption'] = inst['caption']['text']
@@ -216,7 +218,7 @@ def processFiles(files, items, fileData):
             # Not all formats support seeking back to zero, so just reopen
             (fptr, filename) = processFilesOpen(*filerecord)
             if 'tweet' in line:
-                itemlist = twitterToItems(fptr, fileData is None)
+                itemlist = twitterToItems(fptr, fileData is None, fileData)
             else:
                 itemlist = jsonToItems(fptr, fileData is None)
         for item in itemlist:
@@ -297,7 +299,7 @@ def processFilesOpen(filetype, filename, subname, zptr):
     return fptr, filename
 
 
-def twitterToItems(fptr, partial=False):
+def twitterToItems(fptr, partial=False, matches=None):
     """
     Given a file-like object containing json, read it in, and parse each line.
     Return each element that has necessary metadata reformated to a standard
@@ -305,6 +307,8 @@ def twitterToItems(fptr, partial=False):
 
     :param fptr: a file-like object with json.
     :param partial: if True, partial data is allowed.
+    :param matches: a dictionary to store twitter to instagram correspondence
+                    information.
     :yields: items parsed from the file.
     """
     # I probably need to adjust to match the time zone records of other data
@@ -328,23 +332,25 @@ def twitterToItems(fptr, partial=False):
             else:
                 date -= 14400
             item = {
-                'user_name':      tw['user']['name'],
-                'user_id_number': tw['user']['id_str'],
-                'posted_date':    date,
-                'caption':        decoder.unescape(tw['text']),
-                'url':            't/' + tw['user']['id_str'] + '/' +
-                                  tw['id_str'],
-                # 'comment_count':  inst['comments']['count'],
-                # 'comments':       '',
-                'like_count':     tw.get('retweet_count', 0),
-                # 'likes':          '',
-                'latitude':       tw['coordinates']['coordinates'][1],
-                'longitude':      tw['coordinates']['coordinates'][0],
-                'scraped_date':   date
+                'user_name':     tw['user']['name'],
+                'user_id':       tw['user']['id_str'],
+                'posted_date':   date,
+                'caption':       decoder.unescape(tw['text']),
+                'url':           't/' + tw['user']['id_str'] + '/' +
+                                 tw['id_str'],
+                # 'comment_count': inst['comments']['count'],
+                # 'comments':      '',
+                'like_count':    tw.get('retweet_count', 0),
+                # 'likes':         '',
+                'latitude':      tw['coordinates']['coordinates'][1],
+                'longitude':     tw['coordinates']['coordinates'][0],
+                'scraped_date':  date
             }
             if 'instagr.am\\/p\\/' in line:
                 item['hash'] = line.split('instagr.am\\/p\\/', 1)[1].split(
                     '\\/', 1)[0]
+                if matches and not partial and 'matches' in matches:
+                    matches['matches'][item['user_id']] = item['hash']
             if not partial:
                 if ('entities' in tw and 'media' in tw['entities'] and
                         len(tw['entities']['media']) > 0 and
@@ -366,7 +372,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 2 or '--help' in sys.argv:
         print """Load instagram and twitter data files to a Postgres table.
 
-Syntax: load_instagram.py [--noclear] (files) > (instagram.pg)
+Syntax: load_instagram.py [--noclear] [--match=(file)] (files) > (instagram.pg)
 
 Files must not start with a dash.  Files can be json or csv, eitehr plain or
 stored in zip, bzip2, or gzip files.  Zip, bzip2, and gzip files must end with
@@ -377,7 +383,7 @@ compressed file ending with .json or .csv are ingested.
         sys.exit()
 
     # Parse input files and store results in temporary files
-    fileData = {'numFiles': 20}
+    fileData = {'numFiles': 20, 'matches': {}}
     files = []
     for filespec in sys.argv[1:]:
         if filespec.startswith('-'):
@@ -404,7 +410,7 @@ compressed file ending with .json or .csv are ingested.
 
 CREATE TABLE instagram (
     user_name text,
-    user_id_num int,
+    user_id text,
     posted_date int,
     url text,
     image_url text,
@@ -436,3 +442,9 @@ CREATE INDEX instagram_caption_ix ON instagram USING gin
     (to_tsvector('english', caption));
 """)
     sys.stderr.write('\n%d of %d\n' % (lenItems, processed))
+    for arg in sys.argv[1:]:
+        if arg.startswith('--match=') and 'matches' in fileData:
+            fptr = open(arg.split('=', 1)[1], 'wb')
+            for match in fileData['matches']:
+                fptr.write('%s\t%s\n' % (match, fileData['matches'][match]))
+            fptr.close()
