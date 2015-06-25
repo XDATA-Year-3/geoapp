@@ -840,17 +840,25 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (!val || !val.length) {
             return;
         }
-        var dateString = val.split(this.separator),
+        var dateString = val.split(' - '),
             start = null,
             end = null;
-
+        if (dateString.length === 1) {
+            dateString = val.split(' -');
+        }
+        if (dateString.length === 1) {
+            dateString = val.split('- ');
+        }
+        console.log(dateString);
         if (dateString.length === 2) {
-            start = moment(dateString[0]);
-            end = moment(dateString[1]);
+            start = moment(dateString[0].trim() ? dateString[0] :
+                           geoapp.defaults.startDate);
+            end = moment(dateString[1].trim() ? dateString[1] :
+                         geoapp.defaults.endDate);
         }
 
         if (this.singleDatePicker || start === null || end === null) {
-            start = moment(this.element.val());
+            start = moment(val);
             end = start;
         }
         if (end.isBefore(start)) {
