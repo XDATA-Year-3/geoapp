@@ -50,6 +50,41 @@ GeoappUser = {
 }
 
 
+def insertItemIntoPostgres(db, c, item):
+    """
+    Insert an item record into postgres using the MessageFieldTable format.
+
+    :param db: the database connection.  Needed for commit
+    :param c: the database cursor.
+    :param item: a dictionary of fields for the item.
+    :return: True if the data was ingested, false otherwise.
+    """
+    if not item.get('msg_id', None):
+        return False
+    sql = ['INSERT INTO messages (']
+    sqlkeys = []
+    sqlvals = []
+    sqldata = []
+    for key in MessageFieldTable:
+        if key in item and item[key] is not None:
+            sqlkeys.append(key)
+            dt = MessageFieldTable[key][0]
+            if dt in ('date', 'int'):
+                sqlvals.append(str(int(item[key])))
+            elif dt == 'float':
+                sqlvals.append(str(item[key]))
+            else:
+                sqlvals.append('%s')
+                sqldata.append(item[key])
+    sql.extend(','.join(sqlkeys))
+    sql.append(') VALUES (')
+    sql.extend(','.join(sqlvals))
+    sql.append(')')
+    c.execute(''.join(sql), tuple(sqldata))
+    db.commit()
+    return True
+
+
 def tsqueryAddToList(itemList, addArray):
     """
     Add an array of values that should be added together to a list.
@@ -966,8 +1001,7 @@ class RealTimeViaPostgres(ViaPostgres):
         :param c: database cursor: Used for adding the data.
         :param data: a data dictionary as produced by Twitter.
         :param ingestFrom: optional name of the ingest source.
-        :return: True if the data was ingested, false otherwise.  If True, the
-                 caller must commit the changes.
+        :return: True if the data was ingested, false otherwise.
         """
         if 'timestamp_ms' in data:
             date = int(data['timestamp_ms'])
@@ -1014,28 +1048,7 @@ class RealTimeViaPostgres(ViaPostgres):
                 data['entities']['urls'][0]['display_url'])
         if ingestFrom:
             item['ingest_source'] = ingestFrom
-        sql = ['INSERT INTO messages (']
-        sqlkeys = []
-        sqlvals = []
-        sqldata = []
-        for key in MessageFieldTable:
-            if key in item and item[key] is not None:
-                sqlkeys.append(key)
-                dt = MessageFieldTable[key][0]
-                if dt in ('date', 'int'):
-                    sqlvals.append(str(int(item[key])))
-                elif dt == 'float':
-                    sqlvals.append(str(item[key]))
-                else:
-                    sqlvals.append('%s')
-                    sqldata.append(item[key])
-        sql.extend(','.join(sqlkeys))
-        sql.append(') VALUES (')
-        sql.extend(','.join(sqlvals))
-        sql.append(')')
-        c.execute(''.join(sql), tuple(sqldata))
-        db.commit()
-        return True
+        return insertItemIntoPostgres(db, c, item)
 
 
 # -------- General classes and code --------
