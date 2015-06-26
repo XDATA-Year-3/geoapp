@@ -32,7 +32,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(
 from geoapp import insertItemIntoPostgres
 
 
-def ingest(mongo, mongoCollection, pg, poll=10, batch=100, skipId=None):
+def ingest(mongo, mongoCollection, pg, poll=10, batch=100, skipId=None,
+           nodup=True):
     """
     Ingest from Mongo to Postgres.
 
@@ -41,8 +42,10 @@ def ingest(mongo, mongoCollection, pg, poll=10, batch=100, skipId=None):
     :param pg: postgres connection information.
     :param poll: mongo poll interval in seconds.
     :param batch: maximum number of records to get from mongo at once.
-    :skipId: if present, skip all mongo ObjectIds less than or equal to this
-             value.
+    :param skipId: if present, skip all mongo ObjectIds less than or equal to
+                   this value.
+    :param nodup: if True, check for duplicates and make some effort to avoid
+                  them.
     """
     starttime = time.time()
     if not mongo.startswith('mongodb://'):
@@ -74,7 +77,7 @@ def ingest(mongo, mongoCollection, pg, poll=10, batch=100, skipId=None):
                 item = convertGnipToItem(row)
                 if item is None:
                     continue
-                if insertItemIntoPostgres(pdb, pcursor, item):
+                if insertItemIntoPostgres(pdb, pcursor, item, nodup):
                     ingested += 1
                 skipId = row['_id']
             if oldProcessed == processed:
@@ -148,7 +151,7 @@ if __name__ == '__main__':
         description='Load data from a gnip mongo db to our postgres format.')
     parser.add_argument(
         '--mongo', help='The mongo database and default collection.  For '
-        'example, xd-mongo.xdata.data-tactics-corp.com:27017/ist-qcr or'
+        'example, xd-mongo.xdata.data-tactics-corp.com:27017/ist-qcr or '
         '10.1.92.124/ist-qcr.',
         default='10.1.92.124/ist-qcr')
     parser.add_argument(
@@ -169,5 +172,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '--batch', help='The maximum number of records to get from mongo at a'
         'time.', type=int, default=100)
+    parser.add_argument(
+        '--nodup', help='Check to make sure that an item is not already in '
+        'the postgres database before inserting it.  This doesn\'t guarantee '
+        'no duplicates in the database because a second thread could add one '
+        'at the same time.', action='store_true')
+    parser.add_argument(
+        '--dup', help='Skip duplicate checks.  This is faster, but duplicates '
+        'are allowed', dest='nodup', action='store_false')
+    parser.set_defaults(nodup=True)
     args = vars(parser.parse_args())
     ingest(**args)

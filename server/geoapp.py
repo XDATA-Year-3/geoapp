@@ -50,17 +50,24 @@ GeoappUser = {
 }
 
 
-def insertItemIntoPostgres(db, c, item):
+def insertItemIntoPostgres(db, c, item, nodup=True):
     """
     Insert an item record into postgres using the MessageFieldTable format.
 
     :param db: the database connection.  Needed for commit
     :param c: the database cursor.
     :param item: a dictionary of fields for the item.
+    :param nodup: if True, make some effort to avoid duplciates.  This relies
+                  on distinct msg_id values.
     :return: True if the data was ingested, false otherwise.
     """
     if not item.get('msg_id', None):
         return False
+    if nodup:
+        c.execute('SELECT * FROM messages WHERE msg_id = %s LIMIT 1',
+                  (item['msg_id'], ))
+        if c.rowcount:
+            return False
     sql = ['INSERT INTO messages (']
     sqlkeys = []
     sqlvals = []
@@ -993,7 +1000,7 @@ class RealTimeViaPostgres(ViaPostgres):
         self.decoder = HTMLParser.HTMLParser()
         self.queryBase = 'message'
 
-    def ingest(self, db, c, data, ingestFrom=None):
+    def ingest(self, db, c, data, ingestFrom=None, nodup=False):
         """
         Injest an object from Twitter.
 
@@ -1001,6 +1008,8 @@ class RealTimeViaPostgres(ViaPostgres):
         :param c: database cursor: Used for adding the data.
         :param data: a data dictionary as produced by Twitter.
         :param ingestFrom: optional name of the ingest source.
+        :param nodup: if True, make some effort to avoid duplciates.  This
+                      relies on distinct msg_id values.
         :return: True if the data was ingested, false otherwise.
         """
         if 'timestamp_ms' in data:
@@ -1048,7 +1057,7 @@ class RealTimeViaPostgres(ViaPostgres):
                 data['entities']['urls'][0]['display_url'])
         if ingestFrom:
             item['ingest_source'] = ingestFrom
-        return insertItemIntoPostgres(db, c, item)
+        return insertItemIntoPostgres(db, c, item, nodup)
 
 
 # -------- General classes and code --------
@@ -1326,6 +1335,7 @@ class GeoAppResource(girder.api.rest.Resource):
         accessList = self.instagramAccess
         accessObj = accessList[params.get('source', defaultDbKey)]
         ingestFrom = params.get('from', None)
+        nodup = params.get('nodup', False)
         if isinstance(accessObj, tuple):
             accessObj = accessObj[0](**accessObj[1])
             accessList[params.get('source', defaultDbKey)] = accessObj
@@ -1337,7 +1347,7 @@ class GeoAppResource(girder.api.rest.Resource):
         for line in cherrypy.request.body:
             try:
                 data = json.loads(line.decode('utf8'))
-                if accessObj.ingest(db, c, data, ingestFrom):
+                if accessObj.ingest(db, c, data, ingestFrom, nodup):
                     res['ingested'] += 1
                     if log and not res['ingested'] % log:
                         duration = time.time() - starttime
@@ -1367,6 +1377,8 @@ class GeoAppResource(girder.api.rest.Resource):
         .param('from', 'Ingest source description.', required=False)
         .param('log', 'If set, log every this many messages to show progress.',
                dataType='int', required=False)
+        .param('nodup', 'If set, try to avoid duplicate message ids.',
+               dataType='bool', default=False, required=False)
         .errorResponse('Invalid JSON passed in request body.'))
 
     @access.public
