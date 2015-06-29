@@ -98,3 +98,65 @@ geoapp.waitForRepaint = function (callback) {
         requestAnimationFrame(callback);
     });
 };
+
+geoapp.ThrottledCallbacks = {};
+/* Throttle calls to a function.  Instead of a callback, an action can be
+ * specified:
+ *   cancel - cancels any pending callbacks.
+ *
+ * @param name: the name of the callback timer.
+ * @param callback: the callback to execute when appropriate.  null when this
+ *                  is called after a timeout.  Alternately, a keyword to
+ *                  perform some action; see above.
+ * @param minDelay: minimum delay in milliseconds between calls.  If 0, push
+ *                  back any pending request by the specified initDelay (which
+ *                  must be positive).
+ * @param initDelay: delay in milliseconds before first call if no calls are
+ *                   outstanding.
+ */
+geoapp.throttleCallback = function (name, callback, minDelay, initDelay) {
+    if (!geoapp.ThrottledCallbacks[name]) {
+        geoapp.ThrottledCallbacks[name] = {};
+    }
+    if (!callback) {
+        if (!geoapp.ThrottledCallbacks[name].call) {
+            delete geoapp.ThrottledCallbacks[name];
+            return;
+        }
+    } else if (callback === 'cancel') {
+        if (geoapp.ThrottledCallbacks[name].timeout) {
+            window.clearTimeout(geoapp.ThrottledCallbacks[name].timeout);
+        }
+        delete geoapp.ThrottledCallbacks[name];
+        return;
+    } else if (callback && geoapp.ThrottledCallbacks[name].timeout &&
+            (!initDelay || minDelay !== 0)) {
+        geoapp.ThrottledCallbacks[name].call = true;
+        return;
+    }
+    if (geoapp.ThrottledCallbacks[name].timeout) {
+        window.clearTimeout(geoapp.ThrottledCallbacks[name].timeout);
+    }
+    geoapp.ThrottledCallbacks[name].callback = (callback ||
+        geoapp.ThrottledCallbacks[name].callback);
+    geoapp.ThrottledCallbacks[name].delay = (minDelay ||
+        geoapp.ThrottledCallbacks[name].delay || 0);
+    if (initDelay) {
+        geoapp.ThrottledCallbacks[name].call = true;
+        geoapp.ThrottledCallbacks[name].timeout = window.setTimeout(
+            function () {
+                geoapp.throttleCallback(name);
+            }, initDelay);
+        return;
+    }
+    geoapp.ThrottledCallbacks[name].callback();
+    geoapp.ThrottledCallbacks[name].call = false;
+    if (geoapp.ThrottledCallbacks[name].delay) {
+        geoapp.ThrottledCallbacks[name].timeout = window.setTimeout(
+            function () {
+                geoapp.throttleCallback(name);
+            }, geoapp.ThrottledCallbacks[name].delay);
+    } else {
+        delete geoapp.ThrottledCallbacks[name];
+    }
+};

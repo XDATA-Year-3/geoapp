@@ -381,9 +381,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         });
         ctls.trigger($.Event('ready.geoapp.view', {relatedTarget: ctls}));
-        $('#ga-main-map').off('ga:map.moved').on('ga:map.moved', function () {
-            view.mapMoved();
-        });
+        $('#ga-main-map').off('ga:map.moved.quick').on(
+            'ga:map.moved.quick', function () {
+                view.mapMoved();
+            });
         geoapp.View.prototype.render.apply(this, arguments);
         return this;
     },
@@ -827,6 +828,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var display  = this.updateSection('display', false);
         if (display['display-process'] === 'binned') {
             $('#ga-display-update').addClass('btn-primary');
+            geoapp.throttleCallback('updatebin', _.bind(function () {
+                $('#ga-display-update').removeClass('btn-primary');
+                geoapp.map.updateMapParams(
+                    'all', this.updateSection('display', false), 'always');
+            }, this), 0, 300);
         }
     },
 
