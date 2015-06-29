@@ -1,13 +1,13 @@
-mixin standardPanel(panel_id, content_id, title, tooltip)
-  .panel-group(id=panel_id, class!=attributes .class)
+mixin standardPanel(panel_id, content_id, title, tooltip, group)
+  .panel-group(id=panel_id, class!=attributes .class, loggroup=group || title)
     .panel.panel-default
-      .panel-heading
+      .panel-heading(logsub="header", logid=(group || panel_id) + "_panel")
         a(data-toggle="collapse", data-parent="#"+panel_id,
             href="#"+content_id)
           .panel-title
             b= title
             i.icon-info-circled(data-placement="bottom", data-container="body",
-                title=tooltip)
+                title=tooltip, logid="help_icon")
             i.icon-down-open.open-icon.toggle-icon
             i.icon-up-open.close-icon.toggle-icon
       .panel-collapse.collapse.in(id=content_id)
@@ -20,11 +20,12 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
 #ga-main-page.ga-main-ui
   +standardPanel('ga-filter-settings-panel', 'ga-filter-settings', 'Filters',
       "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.",
-      true)
+      'filters')
     include taxifilters.jade
     include instagramfilters.jade
   +standardPanel('ga-display-settings-panel', 'ga-display-settings', 'Display',
-      "These parameters update the display as soon as they are changed.  They do not affect what data is used, only how it appears.")
+      "These parameters update the display as soon as they are changed.  They do not affect what data is used, only how it appears.",
+      'display')
     .form-group
       label(for="ga-tile-set") Map Source
       select#ga-tile-set.form-control.input-sm(title="Map Source",
@@ -168,7 +169,8 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
       button#ga-place-template.btn.btn-info.btn-sm.ga-place.hidden
         i.icon-target
   +standardPanel('ga-anim-settings-panel', 'ga-anim-settings', 'Animation',
-      "After changing animation parameters, select Update to use the new values.")
+      "After changing animation parameters, select Update to use the new values.",
+      'animation')
     .form-group
       label(for="ga-cycle") Cycle
       select#ga-cycle.form-control.input-sm(title="Animation cycle (for example, selecting Day means that all days are combined together so you can see what happens on the average day)",

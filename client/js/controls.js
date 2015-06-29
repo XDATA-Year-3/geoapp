@@ -347,6 +347,17 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 .on({'keyup.daterangepicker': $.proxy(
                     view.DateRangePicker_updateFromControl,
                     elem.data('daterangepicker'))});
+                var pick = elem.data('daterangepicker').container;
+                pick.attr('loggroup', elem.attr('id') + '_calendar');
+                $('.calendar.left', pick).attr(
+                    'logid', 'calendar_start_panel');
+                $('.calendar.right', pick).attr('logid', 'calendar_end_panel');
+                $('.daterangepicker_start_input', pick).attr(
+                    'logid', 'start_text');
+                $('.daterangepicker_end_input', pick).attr(
+                    'logid', 'end_text');
+                $('.applyBtn', pick).attr('logid', 'apply');
+                $('.cancelBtn', pick).attr('logid', 'cancel');
             });
             $('[title]').tooltip(geoapp.defaults.tooltip);
             $('#ga-step-slider').slider({
@@ -370,7 +381,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     var button = $('#ga-place-template').clone();
                     button.removeClass('hidden').attr({
                         'data-place': placeKey,
-                        title: geoapp.placeList[placeKey].title
+                        title: geoapp.placeList[placeKey].title,
+                        id: null,
+                        logid: 'ga-place',
+                        logsub: placeKey
                     });
                     button.append(' ' + geoapp.placeList[placeKey].name);
                     $('#ga-place-group').append(button);
@@ -855,7 +869,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (dateString.length === 1) {
             dateString = val.split('- ');
         }
-        console.log(dateString);
         if (dateString.length === 2) {
             start = moment(dateString[0].trim() ? dateString[0] :
                            geoapp.defaults.startDate);
