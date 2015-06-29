@@ -86,11 +86,13 @@ mixin standardPanel(panel_id, content_id, title, tooltip)
             taxifield="display-max-lines", taxitype="int")
       span#ga-display-num-bins-group.hidden
         label(for="ga-display-num-bins") Bins
-        input#ga-display-num-bins.form-control.input-sm(
-          type="text", placeholder="#",
-          title="Number of bins across short dimension of the map",
-          taxifield="display-num-bins", taxitype="int")
-        button#ga-display-update.btn.btn-default.btn-sm
+        input#ga-display-num-bins.form-control.input-sm.ga-slider-ctl(
+            type="text", data-slider-min="5",
+            data-slider-max="30", data-slider-step="1",
+            data-slider-value="15", data-slider-handle="square",
+            data-slider-id="ga-display-num-bins-ctl",
+            taxifield="display-num-bins", taxitype="int")
+        button#ga-display-update.btn.btn-default.btn-sm.hidden
           i.icon-cw
           |  Update Bins
       label.ga-slider-label(for="ga-data-opacity",

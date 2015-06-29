@@ -132,10 +132,15 @@ geoapp.Map = function (arg) {
                 return;
             }
         }
+        var bounds = m_geoMap.bounds();
+        var zoom = m_geoMap.zoom();
+        /* The quick version of the event fires on all movements. */
+        $('#ga-main-map').trigger('ga:map.moved.quick', {
+            bounds: bounds,
+            zoom: zoom
+        });
         if (!m_panTimer) {
             var view = this;
-            var bounds = m_geoMap.bounds();
-            var zoom = m_geoMap.zoom();
             geoapp.activityLog.logActivity('map_moved', 'map', {
                 bounds: bounds,
                 zoom: zoom
@@ -147,6 +152,7 @@ geoapp.Map = function (arg) {
                 y1: bounds.lowerRight.y.toFixed(7),
                 zoom: zoom.toFixed(2)
             }, false, true);
+            /* The non-quick version of the event is throttled */
             $('#ga-main-map').trigger('ga:map.moved', {
                 bounds: bounds,
                 zoom: zoom
@@ -155,7 +161,6 @@ geoapp.Map = function (arg) {
             m_panTimer = window.setTimeout(function () {
                 view.mapMovedEvent();
             }, 250);
-            return;
         } else {
             m_panQueued = true;
         }
