@@ -48,11 +48,13 @@
         each datakey in datasets
           li.ga-dataset-entry(title=datasetInfo[datakey].description,
               data-placement="left", datakey=datakey)
-            span.drag-handle &#x2630;
-            input(type="checkbox", checked=($.inArray(datakey, series) >= 0 ?
-                "checked" : undefined))
-            .ga-dataset-name
-              = datasetInfo[datakey].longname ? datasetInfo[datakey].longname : datasetInfo[datakey].name
+            .checkbox
+              label
+                span.drag-handle &#x2630;
+                input(type="checkbox", checked=($.inArray(datakey, series) >= 0 ?
+                    "checked" : undefined))
+                .ga-dataset-name
+                  = datasetInfo[datakey].longname ? datasetInfo[datakey].longname : datasetInfo[datakey].name
       .g-validation-failed-message
     .modal-footer
       a.btn.btn-small.btn-default(data-dismiss="modal") Cancel
