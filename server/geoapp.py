@@ -359,7 +359,7 @@ class ViaPostgres():
         Check the max ID for this table.  This can be reported with the results
         to aid in determining what percentage of the total data was retreived.
         """
-        if self.maxId is None and self.queryBase == 'instagram':
+        if self.maxId is None and self.queryBase in ('instagram', 'taxi'):
             c = self.connect().cursor()
             try:
                 c.execute('SELECT max(_id) FROM %s' % self.tableName)
@@ -1000,7 +1000,7 @@ class RealTimeViaPostgres(ViaPostgres):
         self.decoder = HTMLParser.HTMLParser()
         self.queryBase = 'message'
 
-    def ingest(self, db, c, data, ingestFrom=None, nodup=False):
+    def ingestTwitter(self, db, c, data, ingestFrom=None, nodup=False):
         """
         Injest an object from Twitter.
 
@@ -1347,7 +1347,7 @@ class GeoAppResource(girder.api.rest.Resource):
         for line in cherrypy.request.body:
             try:
                 data = json.loads(line.decode('utf8'))
-                if accessObj.ingest(db, c, data, ingestFrom, nodup):
+                if accessObj.ingestTwitter(db, c, data, ingestFrom, nodup):
                     res['ingested'] += 1
                     if log and not res['ingested'] % log:
                         duration = time.time() - starttime
