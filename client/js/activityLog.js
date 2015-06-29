@@ -112,11 +112,13 @@
          *
          * @param activity: one of the activity names in the activitySpec
          *                  object.
-         * @param group: element group to log.
+         * @param group: element group to log.  Alternately, if this is a
+         *               jquery element, extract the element group, subelement,
+         *               and element id from the jquery element.
          * @param data: an object with data to log about the activity.  For
          *              instance, the id of the control, or the coordinates of
          *              the mouse.
-         * @param subElement: a strign to pass as the elementSub.
+         * @param subElement: a string to pass as the elementSub.
          * @param system: true if system.
          * @param limit: if not falsy, rate limit activity of this sort.  If
          *               the most recent call to logActivity has the same
@@ -128,6 +130,12 @@
                                limit) {
             if (!logger) {
                 return;
+            }
+            var elem;
+            if (!(group instanceof String)) {
+                elem = $(group);
+                group = (elem.closest('[loggroup]').attr('loggroup') ||
+                         'control');
             }
             if (this.limitActivity(activity, group, limit)) {
                 return;
@@ -171,6 +179,27 @@
                 }
             } else {
                 console.log(['Unknown activity', activity, data]);
+            }
+            if (elem) {
+                msg.elementSub = (elem.closest('[logsub]').attr('logsub') ||
+                                  msg.elementSub);
+                /* The type must be from the limited list */
+                msg.elementType = (elem.closest('[logtype]').attr('logtype') ||
+                                   msg.elementType);
+                if (!system) {
+                    var oldid = msg.elementId;
+                    msg.elementId = (elem.closest('[logid]').attr('logid') ||
+                                     msg.elementId);
+                    if (!msg.elementSub && oldid && oldid !== msg.elementId) {
+                        msg.elementSub = oldid;
+                    }
+                    if (!msg.elementSub) {
+                        var altid = this.getControlId(elem, true);
+                        if (altid && altid !== msg.elementId) {
+                            msg.elementSub = altid;
+                        }
+                    }
+                }
             }
             try {
                 logger.log(msg);
@@ -249,21 +278,23 @@
                 log.logSystem('show_view', 'main', {view: viewName});
             }
             parent.on('change', 'input[type="text"]:visible', function () {
-                log.logActivity('input_change', 'controls', {
-                    id: log.getControlId(this),
-                    value: $(this).val()
+                var ctl = $(this);
+                log.logActivity('input_change', ctl, {
+                    id: log.getControlId(ctl),
+                    value: ctl.val()
                 });
             });
             parent.on('change', 'select:visible', function () {
-                log.logActivity('select_change', 'controls', {
-                    id: log.getControlId(this),
-                    value: $(this).val()
+                var ctl = $(this);
+                log.logActivity('select_change', ctl, {
+                    id: log.getControlId(ctl),
+                    value: ctl.val()
                 });
             }).on('focus', 'select:visible', function () {
                 var ctl = $(this);
                 if (!ctl.hasClass('hasFocus')) {
                     ctl.addClass('hasFocus');
-                    log.logActivity('select_open', 'controls', {
+                    log.logActivity('select_open', ctl, {
                         id: log.getControlId(ctl)
                     });
                 }
@@ -271,7 +302,7 @@
                 var ctl = $(this);
                 if (ctl.hasClass('hasFocus')) {
                     ctl.removeClass('hasFocus');
-                    log.logActivity('select_close', 'controls', {
+                    log.logActivity('select_close', ctl, {
                         id: log.getControlId(ctl)
                     });
                 }
@@ -279,7 +310,7 @@
             parent.on('click', 'a', function () {
                 var ctl = $(this);
                 if (ctl.attr('href')) {
-                    log.logActivity('link_click', 'controls', {
+                    log.logActivity('link_click', ctl, {
                         id: log.getControlId(ctl),
                         closestId: (ctl.attr('id') ? undefined :
                                     ctl.closest('[id]').attr('id')),
@@ -287,7 +318,7 @@
                         value: ctl.attr('href')
                     });
                 } else {
-                    log.logActivity('button_click', 'controls', {
+                    log.logActivity('button_click', ctl, {
                         id: log.getControlId(ctl),
                         closestId: (ctl.attr('id') ? undefined :
                                     ctl.closest('[id]').attr('id')),
@@ -297,7 +328,7 @@
             });
             parent.on('click', 'button,.log-as-button', function () {
                 var ctl = $(this);
-                log.logActivity('button_click', 'controls', {
+                log.logActivity('button_click', ctl, {
                     id: log.getControlId(ctl),
                     closestId: (ctl.attr('id') ? undefined :
                                 ctl.closest('[id]').attr('id')),
@@ -305,14 +336,15 @@
                 });
             });
             parent.on('change', 'input[type="checkbox"]:visible', function () {
-                log.logActivity('checkbox_change', 'controls', {
-                    id: log.getControlId(this),
-                    value: $(this).is(':checked')
+                var ctl = $(this);
+                log.logActivity('checkbox_change', ctl, {
+                    id: log.getControlId(ctl),
+                    value: ctl.is(':checked')
                 });
             });
             parent.on('click', 'input[type="radio"]', function () {
                 var ctl = $(this);
-                log.logActivity('radio_click', 'controls', {
+                log.logActivity('radio_click', ctl, {
                     id: log.getControlId(ctl) || ctl.attr('name'),
                     closestId: (ctl.attr('id') ? undefined :
                                 ctl.closest('[id]').attr('id')),
@@ -320,41 +352,43 @@
                 });
             });
             parent.on('slide slideStart slideStop', '.slider', function (evt) {
-                log.logActivity(evt.type, 'controls', {
-                    id: log.getControlId(this),
+                var ctl = $(this);
+                log.logActivity(evt.type, ctl, {
+                    id: log.getControlId(ctl),
                     value: evt.value
                 });
             });
             parent.on('apply.daterangepicker cancel.daterangepicker ' +
                 'hide.daterangepicker show.daterangepicker', '.ga-date-range',
                 function (evt) {
-                log.logActivity('date_' + evt.type, 'controls', {
-                    id: $(this).attr('id'),
-                    value: $(this).val()
+                var ctl = $(this);
+                log.logActivity('date_' + evt.type, ctl, {
+                    id: ctl.attr('id'),
+                    value: ctl.val()
                 });
             });
             parent.on('scroll', '.al-scroller', function () {
                 /* log scrolling with a maximum rate and some delay.  This will
                  * show where the scrolling ended up and prevent swamping the
                  * log system with scroll events. */
-                var elem = $(this),
-                    id = elem.closest('[id]').attr('id');
+                var ctl = $(this),
+                    id = ctl.closest('[id]').attr('id');
                 if (!log.scrollerTimers) {
                     log.scrollerTimers = {};
                 }
                 if (!log.scrollerTimers[id]) {
                     log.scrollerTimers[id] = window.setTimeout(function () {
                         log.scrollerTimers[id] = null;
-                        log.logActivity('scroll', 'controls', {
+                        log.logActivity('scroll', ctl, {
                             id: id,
-                            value: elem.scrollTop() || elem.scrollLeft()
+                            value: ctl.scrollTop() || ctl.scrollLeft()
                         });
                     }, 333);
                 }
             });
             parent.on('sort', '.g-sort-parent', function (evt) {
                 var ctl = $(evt.originalEvent.item);
-                log.logActivity('drag_sortable', 'controls', {
+                log.logActivity('drag_sortable', ctl, {
                     id: ctl.attr('datakey') || log.getControlId(ctl),
                     value: evt.originalEvent.newIndex,
                     newIndex: evt.originalEvent.newIndex,
@@ -367,7 +401,7 @@
             parent.on('c3_zoomstart c3_zoomend c3_brush', '.c3',
                     function (evt, range) {
                 var ctl = $(this);
-                log.logActivity(evt.type, 'controls', {
+                log.logActivity(evt.type, ctl, {
                     id: ctl.closest('[id]').attr('id'),
                     range: range
                 });
@@ -376,7 +410,7 @@
                     function (evt, elem, title) {
                 var ctl = $(elem),
                     id = ctl.closest('[id]').attr('id');
-                log.logActivity('graph_tooltip', 'controls', {
+                log.logActivity('graph_tooltip', ctl, {
                     id: id,
                     title: title
                 }, undefined, undefined, {id: id});
@@ -402,7 +436,7 @@
                 window.setTimeout(function () {
                     if (ctl.next('.tooltip.in').length ||
                             $('body>.tooltip.in').length) {
-                        log.logActivity('show_tooltip', 'controls', {
+                        log.logActivity('show_tooltip', ctl, {
                             id: ctl.closest('[id]').attr('id')
                         });
                     }
@@ -412,14 +446,15 @@
             $('.daterangepicker *').off('.activityLog');
             $('.daterangepicker input[type="text"]:visible')
             .on('change.activityLog', function () {
-                log.logActivity('input_change', 'controls', {
-                    id: $(this).attr('name'),
-                    value: $(this).val()
+                var ctl = $(this);
+                log.logActivity('input_change', ctl, {
+                    id: ctl.attr('name'),
+                    value: ctl.val()
                 });
             });
             $('.daterangepicker button').on('click.activityLog', function () {
                 var ctl = $(this);
-                log.logActivity('button_click', 'controls', {
+                log.logActivity('button_click', ctl, {
                     id: ctl.text().toLowerCase(),
                     classes: ctl.attr('class')
                 });
@@ -427,7 +462,7 @@
             $('.daterangepicker .available')
             .on('click.activityLog', function () {
                 var ctl = $(this);
-                log.logActivity('calendar_click', 'controls', {
+                log.logActivity('calendar_click', ctl, {
                     id: ctl.attr('data-title'),
                     side: ctl.closest('.calendar').attr('class'),
                     classes: ctl.attr('class')
@@ -435,16 +470,17 @@
                 window.setTimeout(_.bind(log.logGlobalControls, log), 1);
             });
             $('.daterangepicker select').on('change.activityLog', function () {
-                log.logActivity('select_change', 'controls', {
-                    id: log.getControlId(this),
-                    value: $(this).val()
+                var ctl = $(this);
+                log.logActivity('select_change', ctl, {
+                    id: log.getControlId(ctl),
+                    value: ctl.val()
                 });
                 window.setTimeout(_.bind(log.logGlobalControls, log), 1);
             }).on('focus.activityLog', function () {
                 var ctl = $(this);
                 if (!ctl.hasClass('hasFocus')) {
                     ctl.addClass('hasFocus');
-                    log.logActivity('select_open', 'controls', {
+                    log.logActivity('select_open', ctl, {
                         id: log.getControlId(ctl)
                     });
                 }
@@ -452,21 +488,21 @@
                 var ctl = $(this);
                 if (ctl.hasClass('hasFocus')) {
                     ctl.removeClass('hasFocus');
-                    log.logActivity('select_close', 'controls', {
+                    log.logActivity('select_close', ctl, {
                         id: log.getControlId(ctl)
                     });
                 }
             });
         },
 
-        getControlId: function (ctl) {
+        getControlId: function (ctl, all) {
             ctl = $(ctl);
             var id = ctl.attr('id'),
                 classes = ctl.attr('class');
             if (!id && classes) {
                 classes = classes.split(' ');
                 for (var i = 0; i < classes.length; i += 1) {
-                    if (classes[i].substr(0, 3) === 'ga-') {
+                    if (classes[i].substr(0, 3) === 'ga-' || all) {
                         if (id) {
                             return undefined;
                         }

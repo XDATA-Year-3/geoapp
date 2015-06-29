@@ -2,7 +2,7 @@
   +standardPanel('ga-instagram-results-panel', 'ga-instagram-results',
       'Instagram and Twitter Results',
       "These are the instagram results based on the Caption Search in the Filters panel.",
-      'hidden')(class="hidden")
+      'results')(class="hidden")
     .results-table.al-scroller
       table#ga-instagram-results-table
         tr
@@ -29,7 +29,8 @@
     a(target="_blank")
 #ga-graph-page.ga-results-ui
   +standardPanel('ga-graph-panel', 'ga-graph', 'Graphs',
-      "These graphs are based on data selected in the Filters panel.")
+      "These graphs are based on data selected in the Filters panel.",
+      'graphs')
     .no-graph
       .graph-region
         .graph-clip
