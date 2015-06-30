@@ -57,7 +57,8 @@ class GeoAppRoot(object):
             iniList.update(config['resources'])
         sectionList = {
             'controls': 'defaultControls',
-            'places': 'placeControls'
+            'places': 'placeControls',
+            'regions': 'regionControls'
         }
         for key in sectionList:
             if key in config:

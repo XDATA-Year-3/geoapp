@@ -4,6 +4,7 @@ CREATE TABLE messages (
     msg_id text,
     user_id text,
     user_name text,
+    user_fullname text,
     msg_date int,
     msg_date_ms double precision,
     url text,
@@ -23,6 +24,8 @@ CREATE TABLE messages (
     last_msg_date int,
     ingest_date int,
     ingest_source text,
+    service text, -- a short value such as t for twitter, i for instagram
+    region text, -- used for geographic grouping
     rand1 int default random() * 1000000000,
     rand2 int default random() * 1000000000,
     _id bigserial

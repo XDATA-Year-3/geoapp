@@ -179,6 +179,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* This is a dictionary of control sections used in routing. */
     controlSections: {
+        'general-filter': '#ga-general-filter-settings #',
         'taxi-filter': '#ga-taxi-filter-settings #',
         'instagram-filter': '#ga-instagram-filter-settings #',
         display: '#ga-display-settings #',
@@ -208,6 +209,21 @@ geoapp.views.ControlsView = geoapp.View.extend({
                         return (places[a].order || 0) - (places[b].order || 0);
                     }
                     return places[b].name < places[a].name ? 1 : -1;
+                });
+            }
+            var regions = geoapp.parseJSON($('body').attr('regionControls'));
+            if (_.size(regions) > 0) {
+                geoapp.regionList = regions;
+                geoapp.regionOrder = [];
+                _.each(regions, function (region, key) {
+                    geoapp.regionOrder.push(key);
+                });
+                geoapp.regionOrder.sort(function (a, b) {
+                    if (regions[b].order !== regions[a].order) {
+                        return (regions[a].order || 0) -
+                            (regions[b].order || 0);
+                    }
+                    return regions[b].name < regions[a].name ? 1 : -1;
                 });
             }
         }
@@ -377,6 +393,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 /* Make sure our layers are created in the desired order */
                 geoapp.map.getLayer('taxi');
                 geoapp.map.getLayer('instagram');
+                /* Add the place buttons */
                 _.each(geoapp.placeOrder, function (placeKey) {
                     var button = $('#ga-place-template').clone();
                     button.removeClass('hidden').attr({
@@ -389,6 +406,15 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     button.append(' ' + geoapp.placeList[placeKey].name);
                     $('#ga-place-group').append(button);
                 });
+                /* Populate the region control */
+                _.each(geoapp.regionOrder, function (regionKey) {
+                    $('#ga-region').append($('<option>').attr(
+                        'value', regionKey).text(
+                        geoapp.regionList[regionKey].name));
+                });
+                if ($('#ga-region option').length <= 1) {
+                    $('#ga-region').closest('.form-group').addClass('hidden');
+                }
             }
             if (update) {
                 view.updateView(false);
@@ -585,6 +611,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             sections[updateSection] = true;
             updateSection = sections;
         }
+        results['general-filter'] = this.updateSection(
+            'general-filter',
+            updateNav || (!updateSection || updateSection['general-filter']));
         if (!updateSection || updateSection['taxi-filter']) {
             results['taxi-filter'] = this.updateSection(
                 'taxi-filter', updateNav);
