@@ -44,10 +44,10 @@
                 checked=(opts.bin === "month" ? "checked" : undefined))
             | Monthly
       | Available Data Sets:
-      ul#ga-dataset-list.g-sort-parent
+      ul#ga-dataset-list.g-sort-parent(logid="ga-dataset-list")
         each datakey in datasets
           li.ga-dataset-entry(title=datasetInfo[datakey].description,
-              data-placement="left", datakey=datakey)
+              data-placement="left", datakey=datakey, logsub=datakey)
             .checkbox
               label
                 span.drag-handle &#x2630;
