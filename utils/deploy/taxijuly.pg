@@ -1,0 +1,41 @@
+DROP TABLE trips;
+
+CREATE TABLE trips (
+    medallion text,
+    hack_license text,
+    vendor_id text,
+    rate_code int,
+    store_and_fwd_flag text,
+    pickup_datetime int,
+    dropoff_datetime int,
+    passenger_count int,
+    trip_time_in_secs int,
+    trip_distance real,
+    pickup_longitude double precision,
+    pickup_latitude double precision,
+    dropoff_longitude double precision,
+    dropoff_latitude double precision,
+    payment_type text,
+    fare_amount real,
+    surcharge real,
+    mta_tax real,
+    tip_amount real,
+    tolls_amount real,
+    total_amount real,
+
+    ingest_source text,
+    service text, -- a short value such as x for taxi, b for bikeshare
+    region text, -- used for geographic grouping
+    rand1 int default random() * 1000000000,
+    rand2 int default random() * 1000000000,
+    _id bigserial
+);
+
+CREATE INDEX trips_rand_ix ON trips (rand1, rand2);
+CLUSTER trips USING trips_rand_ix;    
+CREATE INDEX trips_id_ix ON trips (_id);
+CREATE INDEX trips_pickup_datetime_ix ON trips (pickup_datetime);
+CREATE INDEX trips_medallion_ix ON trips (medallion);
+CREATE INDEX trips_hack_license_ix ON trips (hack_license);
+CREATE INDEX trips_region_ix ON trips (region);
+CREATE INDEX trips_region_rand_ix ON trips (region, rand1, rand2);

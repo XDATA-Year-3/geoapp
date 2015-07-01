@@ -20,7 +20,7 @@ var m_lastUpdateNavigationSection;
 moment.suppressDeprecationWarnings = true;
 
 /* Also update docs/conf.py and package.json */
-geoapp.version = '0.1.3';
+geoapp.version = '0.1.4';
 
 geoapp.App = geoapp.View.extend({
     initialize: function () {

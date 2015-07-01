@@ -97,7 +97,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function () {
+        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips,#ga-general-filter-settings select:visible': function () {
             $('#ga-taxi-filter').addClass('btn-primary');
         },
         'change #ga-taxi-filter-settings #ga-pickup-date': function () {
@@ -105,7 +105,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 $('#ga-instagram-filter').addClass('btn-primary');
             }
         },
-        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function () {
+        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"],#ga-general-filter-settings select:visible': function () {
             $('#ga-instagram-filter').addClass('btn-primary');
         },
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function () {
@@ -211,21 +211,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     return places[b].name < places[a].name ? 1 : -1;
                 });
             }
-            var regions = geoapp.parseJSON($('body').attr('regionControls'));
-            if (_.size(regions) > 0) {
-                geoapp.regionList = regions;
-                geoapp.regionOrder = [];
-                _.each(regions, function (region, key) {
-                    geoapp.regionOrder.push(key);
-                });
-                geoapp.regionOrder.sort(function (a, b) {
-                    if (regions[b].order !== regions[a].order) {
-                        return (regions[a].order || 0) -
-                            (regions[b].order || 0);
-                    }
-                    return regions[b].name < regions[a].name ? 1 : -1;
-                });
-            }
         }
         this.render();
         geoapp.graph.initialize(this);
@@ -316,6 +301,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
+            view.updateRegionControl();
             _.each({
                 taxidata: 'source',
                 instagramdata: 'msgsource'
@@ -406,15 +392,6 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     button.append(' ' + geoapp.placeList[placeKey].name);
                     $('#ga-place-group').append(button);
                 });
-                /* Populate the region control */
-                _.each(geoapp.regionOrder, function (regionKey) {
-                    $('#ga-region').append($('<option>').attr(
-                        'value', regionKey).text(
-                        geoapp.regionList[regionKey].name));
-                });
-                if ($('#ga-region option').length <= 1) {
-                    $('#ga-region').closest('.form-group').addClass('hidden');
-                }
             }
             if (update) {
                 view.updateView(false);
@@ -427,6 +404,37 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         geoapp.View.prototype.render.apply(this, arguments);
         return this;
+    },
+
+    /* Populate the region control */
+    updateRegionControl: function () {
+        if (!geoapp.regionOrder) {
+            var regions = geoapp.parseJSON($('body').attr('regionControls'));
+            if (_.size(regions) > 0) {
+                geoapp.regionList = regions;
+                geoapp.regionOrder = [];
+                _.each(regions, function (region, key) {
+                    geoapp.regionOrder.push(key);
+                });
+                geoapp.regionOrder.sort(function (a, b) {
+                    if (regions[b].order !== regions[a].order) {
+                        return (regions[a].order || 0) -
+                               (regions[b].order || 0);
+                    }
+                    return regions[b].name < regions[a].name ? 1 : -1;
+                });
+            }
+        }
+        if ($('#ga-region option').length === 1) {
+            _.each(geoapp.regionOrder, function (regionKey) {
+                $('#ga-region').append($('<option>').attr(
+                    'value', regionKey).text(
+                    geoapp.regionList[regionKey].name));
+            });
+        }
+        if ($('#ga-region option').length <= 1) {
+            $('#ga-region').closest('.form-group').addClass('hidden');
+        }
     },
 
     /* Get a range from a date range control.  The ranges are of the form
@@ -634,6 +642,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             results.display = this.updateSection('display', false);
         }
         if (results['taxi-filter']) {
+            params = $.extend({}, results['taxi-filter'],
+                              results['general-filter']);
             geoapp.dataLoaders.taxi.dataLoad({
                 params: results['taxi-filter'],
                 display: results.display
@@ -642,7 +652,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (results['instagram-filter']) {
             /* If 'use_taxi_dates' is checked, pull it from the taxi controls.
              */
-            params = $.extend({}, results['instagram-filter']);
+            params = $.extend({}, results['instagram-filter'],
+                              results['general-filter']);
             if ('' + params.use_taxi_dates === 'true') {
                 if (!results['taxi-filter']) {
                     results['taxi-filter'] = this.updateSection(

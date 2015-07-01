@@ -927,6 +927,7 @@ class TaxiViaPostgresRandom(ViaPostgres):
         self.fieldTable = TaxiFieldTableRand
         self.tableName = 'trips'
         self.queryBase = 'taxi'
+        self.defaultSort = [('rand1', 1), ('rand2', 1)]
 
 
 # -------- Instagram classes and code --------
