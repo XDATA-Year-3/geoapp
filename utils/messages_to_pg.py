@@ -60,14 +60,16 @@ JSONKeyList = [
     'comment_count', 'like_count', 'favorites_count', 'followers_count',
     'friends_count', 'statuses_count',
 ]
-MentionPattern = re.compile('@[a-zA-Z0-9_]{1,15}')
+TwitterMentionPattern = re.compile('@[a-zA-Z0-9_]{1,15}')
+InstagramMentionPattern = re.compile(
+    '@[a-zA-Z0-9_][a-zA-Z0-9_.]{0,28}[a-zA-Z0-9_]?')
 IngestTime = time.time()
 
 
 def adjustItemForStorage(item, format=None, ingestSource=None, service=None,
                          region=None):
     """
-    Adjust an item to store it the way we wan to based on the format and
+    Adjust an item to store it the way we want to based on the format and
     other restrictions.
 
     :param item: item to modify
@@ -80,7 +82,7 @@ def adjustItemForStorage(item, format=None, ingestSource=None, service=None,
         item['url'] = (
             'i/' + item['url'].split('http://instagram.com/p/', 1)[1])
     if format == 'message' or format == 'json':
-        item['msg_date'] = item['posted_date']
+        item['msg_date'] = int(item['posted_date'])
         item['msg_date_ms'] = int(float(item['posted_date']) * 1000)
         if 'caption' in item:
             item['msg'] = item['caption']
@@ -478,7 +480,9 @@ def processFiles(files, items, fileData, format='instagram'):
             if key not in items or scrapedDate != items[key]:
                 continue
             del items[key]
-            trackMentions(fileData.get('mentions', None), item)
+            trackMentions(fileData.get('mentions', None), item, service)
+            trackLikes(fileData.get('mentions', None), item,
+                       fileData.get('likes', False))
             adjustItemForStorage(item, format, ingestSource, service, region)
             if format == 'json':
                 item = json.dumps({jkey: item[jkey] for jkey in keylist
@@ -525,7 +529,36 @@ def processFilesOpen(filename, filetype='file', subname='', zptr=None,
     return fptr, filename
 
 
-def trackMentions(mentions, item):
+def trackLikes(mentions, item, likes=False):
+    """
+    If we are tracking mentions and likes, parse likes and comments and add
+    those users to the user mention dictionaries.
+
+    :param mentions: either a dictionary to store mentions or None to skip the
+                     process.
+    :param item: an item to parse for mentions.
+    :param likes: if True, add likes and comments to the tracking.
+    """
+    if (mentions is None or not likes or (not item.get('likes', None) and
+                                          not item.get('comments', None))):
+        return
+    users = []
+    likes = item.get('likes', None)
+    if likes:
+        users.extend([like.split(';', 1)[0] for like in likes.split('|')])
+    comments = item.get('comments', None)
+    if comments:
+        users.extend([like.split(';', 1)[0] for like in comments.split('|')])
+    if not len(users):
+        return
+    user = item['user_name'].lower()
+    mentions[user] = mentions.get(user, {})
+    for mention in users:
+        name = mention[1:].lower()
+        mentions[user][name] = mentions[user].get(name, 0) + 1
+
+
+def trackMentions(mentions, item, service):
     """
     If we are tracking mentions, parse a message string for mentions and build
     user mention dictionaries.
@@ -533,11 +566,15 @@ def trackMentions(mentions, item):
     :param mentions: either a dictionary to store mentions or None to skip the
                      process.
     :param item: an item to parse for mentions.
+    :param service: either 'i' for instagram or 't' for twitter.
     """
     if (mentions is None or not item.get('caption', None) or
             '@' not in item['caption']):
         return
-    users = MentionPattern.findall(item['caption'])
+    if service == 'i':
+        users = InstagramMentionPattern.findall(item['caption'])
+    else:
+        users = TwitterMentionPattern.findall(item['caption'])
     if not len(users):
         return
     user = item['user_name'].lower()
@@ -598,14 +635,15 @@ if __name__ == '__main__':
     if len(sys.argv) < 2 or '--help' in sys.argv:
         print """Load instagram and twitter data files to a Postgres table.
 
-Syntax: files_to_pg.py [--noclear] [--message|--json] [--match=(file)]
-                       [--mentions=(file)] (files) > (data.pg)
+Syntax: messages_to_pg.py [--noclear] [--message|--json] [--match=(file)]
+                          [--mentions=(file) [--likes]] (files) > (data.pg)
 
-Files must not start with a dash.  Files can be json or csv, eitehr plain or
+Files must not start with a dash.  Files can be json or csv, either plain or
 stored in zip, bzip2, or gzip files.  Zip, bzip2, and gzip files must end with
 .zip, .bz2, and .gz respectively.  In a zip archive, only files within the
 compressed file ending with .json or .csv are ingested.
 --json outputs json instead of a postgres copy command.
+--likes combines likes and comments users into the mentions graph.
 --match writes out twitter-to-instagram matches to a separate file.
 --mentions parses mentions from messages and builds a user mentions graph.
     The output is a json file.
@@ -624,6 +662,8 @@ compressed file ending with .json or .csv are ingested.
             fileData['matches'] = {}
         elif arg.startswith('--mentions='):
             fileData['mentions'] = {}
+            if '--likes' in sys.argv[1:]:
+                fileData['likes'] = True
     files = []
     region = None
     for filespec in sys.argv[1:]:
