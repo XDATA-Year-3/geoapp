@@ -97,7 +97,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips': function () {
+        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips,#ga-general-filter-settings select:visible': function () {
             $('#ga-taxi-filter').addClass('btn-primary');
         },
         'change #ga-taxi-filter-settings #ga-pickup-date': function () {
@@ -105,7 +105,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 $('#ga-instagram-filter').addClass('btn-primary');
             }
         },
-        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"]': function () {
+        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"],#ga-general-filter-settings select:visible': function () {
             $('#ga-instagram-filter').addClass('btn-primary');
         },
         'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function () {
@@ -179,6 +179,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* This is a dictionary of control sections used in routing. */
     controlSections: {
+        'general-filter': '#ga-general-filter-settings #',
         'taxi-filter': '#ga-taxi-filter-settings #',
         'instagram-filter': '#ga-instagram-filter-settings #',
         display: '#ga-display-settings #',
@@ -300,6 +301,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
+            view.updateRegionControl();
             _.each({
                 taxidata: 'source',
                 instagramdata: 'msgsource'
@@ -377,6 +379,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 /* Make sure our layers are created in the desired order */
                 geoapp.map.getLayer('taxi');
                 geoapp.map.getLayer('instagram');
+                /* Add the place buttons */
                 _.each(geoapp.placeOrder, function (placeKey) {
                     var button = $('#ga-place-template').clone();
                     button.removeClass('hidden').attr({
@@ -401,6 +404,37 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         geoapp.View.prototype.render.apply(this, arguments);
         return this;
+    },
+
+    /* Populate the region control */
+    updateRegionControl: function () {
+        if (!geoapp.regionOrder) {
+            var regions = geoapp.parseJSON($('body').attr('regionControls'));
+            if (_.size(regions) > 0) {
+                geoapp.regionList = regions;
+                geoapp.regionOrder = [];
+                _.each(regions, function (region, key) {
+                    geoapp.regionOrder.push(key);
+                });
+                geoapp.regionOrder.sort(function (a, b) {
+                    if (regions[b].order !== regions[a].order) {
+                        return (regions[a].order || 0) -
+                               (regions[b].order || 0);
+                    }
+                    return regions[b].name < regions[a].name ? 1 : -1;
+                });
+            }
+        }
+        if ($('#ga-region option').length === 1) {
+            _.each(geoapp.regionOrder, function (regionKey) {
+                $('#ga-region').append($('<option>').attr(
+                    'value', regionKey).text(
+                    geoapp.regionList[regionKey].name));
+            });
+        }
+        if ($('#ga-region option').length <= 1) {
+            $('#ga-region').closest('.form-group').addClass('hidden');
+        }
     },
 
     /* Get a range from a date range control.  The ranges are of the form
@@ -585,6 +619,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             sections[updateSection] = true;
             updateSection = sections;
         }
+        results['general-filter'] = this.updateSection(
+            'general-filter',
+            updateNav || (!updateSection || updateSection['general-filter']));
         if (!updateSection || updateSection['taxi-filter']) {
             results['taxi-filter'] = this.updateSection(
                 'taxi-filter', updateNav);
@@ -605,6 +642,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             results.display = this.updateSection('display', false);
         }
         if (results['taxi-filter']) {
+            params = $.extend({}, results['taxi-filter'],
+                              results['general-filter']);
             geoapp.dataLoaders.taxi.dataLoad({
                 params: results['taxi-filter'],
                 display: results.display
@@ -613,7 +652,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (results['instagram-filter']) {
             /* If 'use_taxi_dates' is checked, pull it from the taxi controls.
              */
-            params = $.extend({}, results['instagram-filter']);
+            params = $.extend({}, results['instagram-filter'],
+                              results['general-filter']);
             if ('' + params.use_taxi_dates === 'true') {
                 if (!results['taxi-filter']) {
                     results['taxi-filter'] = this.updateSection(

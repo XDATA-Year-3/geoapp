@@ -592,6 +592,14 @@ TaxiFieldTable = collections.OrderedDict([
     ('tolls_amount', ('float', 'Tolls')),
     ('total_amount', ('float', 'Total cost')),
 ])
+TaxiFieldTableRand = collections.OrderedDict(TaxiFieldTable.items() + [
+    ('ingest_source',     ('text',   'Ingest Source')),
+    ('service',           ('text',   'Service')),
+    ('region',            ('text',   'Region')),
+    ('rand1',             ('int',    'Random Index 1')),
+    ('rand2',             ('int',    'Random Index 2')),
+    ('_id',               ('bigint', 'Ingest Order')),
+])
 
 
 class TaxiViaMongo():
@@ -909,6 +917,19 @@ class TaxiViaPostgresSeconds(TaxiViaPostgres):
         self.useMilliseconds = False
 
 
+class TaxiViaPostgresRandom(ViaPostgres):
+    # These databases have times in epoch seconds, not epoch milliseconds,
+    # and have additional fields for rand1, rand2, etc.
+
+    def __init__(self, db=None, **params):
+        ViaPostgres.__init__(self, db, **params)
+        self.useMilliseconds = True
+        self.fieldTable = TaxiFieldTableRand
+        self.tableName = 'trips'
+        self.queryBase = 'taxi'
+        self.defaultSort = [('rand1', 1), ('rand2', 1)]
+
+
 # -------- Instagram classes and code --------
 
 InstagramFieldTable = collections.OrderedDict([
@@ -958,14 +979,16 @@ MessageFieldTable = collections.OrderedDict([
     ('reply_to_msg_id',   ('text',   'In Reply To Message ID')),
     ('reply_to_user_id',  ('text',   'In Reply To User ID')),
     ('utc_offset',        ('int',    'User UTC Offset')),
-    ('rand1',             ('int',    'Random Index 1')),
-    ('rand2',             ('int',    'Random Index 2')),
     ('last_msg_id',       ('text',   'Last Message ID')),
     ('last_msg_date',     ('date',   'Last Message date')),
     ('last_latitude',     ('float',  'Last Latitude')),
     ('last_longitude',    ('float',  'Last Longitude')),
     ('ingest_date',       ('date',   'Ingest Date')),
     ('ingest_source',     ('text',   'Ingest Source')),
+    ('service',           ('text',   'Service')),
+    ('region',            ('text',   'Region')),
+    ('rand1',             ('int',    'Random Index 1')),
+    ('rand2',             ('int',    'Random Index 2')),
     ('_id',               ('bigint', 'Ingest Order')),
 ])
 
@@ -1322,10 +1345,11 @@ class GeoAppResource(girder.api.rest.Resource):
     @access.public
     def findTaxi(self, params):
         return self.findGeneral(
-            params, 'pickup_datetime', TaxiFieldTable, self.taxiAccess,
+            params, 'pickup_datetime', TaxiFieldTableRand, self.taxiAccess,
             'mongo', queryBase='taxi')
     findTaxi.description = findGeneralDescription(
-        'Get a set of taxi data.', 'pickup_datetime', TaxiFieldTable, 'mongo')
+        'Get a set of taxi data.', 'pickup_datetime', TaxiFieldTableRand,
+        'mongo')
 
     @access.public
     def ingestMessages(self, params):

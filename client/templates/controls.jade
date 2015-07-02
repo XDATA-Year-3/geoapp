@@ -21,6 +21,12 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
   +standardPanel('ga-filter-settings-panel', 'ga-filter-settings', 'Filters',
       "Filters select which data is available to be displayed.  After adjusting the settings, select Filter to load the new data.",
       'filters')
+    #ga-general-filter-settings(ga-filter-name="general")
+      .form-group
+        label(for="ga-region") Region
+        select#ga-region.form-control.input-sm(title="Geographic Region",
+            taxifield="region")
+          option(value="") All
     include taxifilters.jade
     include instagramfilters.jade
   +standardPanel('ga-display-settings-panel', 'ga-display-settings', 'Display',
