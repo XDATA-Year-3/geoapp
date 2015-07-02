@@ -74,7 +74,7 @@ def ingest(mongo, mongoCollection, pg, poll=10, batch=100, skipId=None,
             oldProcessed = processed
             for row in mcursor:
                 processed += 1
-                item = convertGnipToItem(row)
+                item = convertGnipToTwitterItem(row)
                 if item is None:
                     continue
                 if insertItemIntoPostgres(pdb, pcursor, item, nodup):
@@ -94,7 +94,7 @@ def ingest(mongo, mongoCollection, pg, poll=10, batch=100, skipId=None,
             return
 
 
-def convertGnipToItem(gnip):
+def convertGnipToTwitterItem(gnip):
     """
     Convert a GNIP object into our item format.
 

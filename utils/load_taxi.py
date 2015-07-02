@@ -513,6 +513,9 @@ def readFiles(opts={}):
             time.time() - starttime))
         sys.stdout.flush()
     medallionTable, hackTable = dehash(medallions.keys(), hacks.keys())
+    open('rainbow.json', 'wb').write(json.dumps({
+        'medallion': medallionTable,
+        'hack': hackTable}))
     sys.stdout.write('Dehashed %3.1fs\n' % (time.time() - starttime))
     fileData = {'count': numRows}
     if opts.get('sampleRate', None):

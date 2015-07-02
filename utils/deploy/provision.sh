@@ -54,6 +54,7 @@ cat <<EOT > /etc/nginx/sites-available/default
 server {
     listen 80 default_server;
     listen [::]:80 default_server ipv6only=on;
+    client_max_body_size 2G;
 
     root /home/`logname`/demoweb;
     index index.html index.htm;
