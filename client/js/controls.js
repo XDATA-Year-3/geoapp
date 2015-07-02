@@ -167,6 +167,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             if (filter === 'taxi' && $('#ga-use-taxi-dates').is(':checked')) {
                 $('#ga-instagram-filter').addClass('btn-primary');
             }
+            $('#ga-taxi-filter').trigger('click');
+            $('#ga-instagram-filter').trigger('click');
         },
         'keydown input.ga-date-range': function (evt) {
             $(evt.target).data('daterangepicker').hide();
@@ -645,7 +647,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             params = $.extend({}, results['taxi-filter'],
                               results['general-filter']);
             geoapp.dataLoaders.taxi.dataLoad({
-                params: results['taxi-filter'],
+                params: params,
                 display: results.display
             });
         }

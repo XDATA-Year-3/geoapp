@@ -1,4 +1,12 @@
 #ga-taxi-filter-settings(ga-filter-name="taxi")
+  .form-group
+    label(for="ga-pickup-date") Date
+    input#ga-pickup-date.ga-date-range.form-control.input-sm(
+      type="text", placeholder="MMM DD hh:mm - MMM DD hh:mm",
+      title="Pickup date range",
+      taxifield="pickup_datetime", taxitype="dateRange")
+  .form-group.ga-section-group
+    label.ga-section-label Taxi and Bike Share
   .form-group.hidden
     label(for="ga-source") Data Source
     select#ga-source.form-control.input-sm(title="Database Taxi source",
@@ -8,19 +16,13 @@
     .form-group
       label(for="ga-medallion") Medallion
       input#ga-medallion.form-control.input-sm(
-        type="text", placeholder="#XX##", title="Taxi medallion",
+        type="text", placeholder="#XX##", title="Taxi medallion or bike ID",
         taxifield="medallion")
     .form-group
       label(for="ga-hack-license") Hack License
       input#ga-hack-license.form-control.input-sm(
         type="text", placeholder="#######", title="Hack license",
         taxifield="hack_license")
-  .form-group
-    label(for="ga-pickup-date") Pickup Date
-    input#ga-pickup-date.ga-date-range.form-control.input-sm(
-      type="text", placeholder="MMM DD hh:mm - MMM DD hh:mm",
-      title="Pickup date range",
-      taxifield="pickup_datetime", taxitype="dateRange")
   .form-group
     label(for="ga-trip-distance") Trip Distance
     input#ga-trip-distance.form-control.input-sm(
@@ -34,7 +36,8 @@
       title="Number of passengers",
       taxifield="passenger_count", taxitype="intRange")
   .form-group
-    button#ga-taxi-filter.btn.btn-default.btn-sm
+    button#ga-taxi-filter.btn.btn-default.btn-sm(
+        title="Load trip information from the database")
       i.icon-ok
       |  Filter
     #ga-taxi-loading.ga-loading-spinner.hidden
