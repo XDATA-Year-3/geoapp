@@ -160,7 +160,9 @@ $(function () {
         geoapp.dataLoaders[handlerKey] = handlerFunc();
     });
     var staticData = {
-        weather: 'weather.json',
+        weathernyc: 'weathernyc.json',
+        weatherboston: 'weatherboston.json',
+        weatherdc: 'weatherdc.json',
         taximodel: 'taximodel.json'
     };
     _.each(staticData, function (url, key) {

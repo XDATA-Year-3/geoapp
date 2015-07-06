@@ -14,6 +14,7 @@
  */
 
 geoapp.graphData = {};
+geoapp.graphDataClasses = {};
 
 /* -------- base data class -------- */
 
@@ -280,15 +281,20 @@ geoapp.graphData.internal = geoapp.graphData.internal();
 
 /* -------- weather graph data -------- */
 
-geoapp.graphData.weather = function (arg) {
+geoapp.graphDataClasses.weather = function (arg) {
     'use strict';
     var m_datakey = 'weather';
 
-    if (!(this instanceof geoapp.graphData[m_datakey])) {
-        return new geoapp.graphData[m_datakey](arg);
+    if (!(this instanceof geoapp.graphDataClasses[m_datakey])) {
+        return new geoapp.graphDataClasses[m_datakey](arg);
     }
     arg = arg || {};
     geoapp.GraphData.call(this, arg);
+
+    if (arg.name) {
+        m_datakey = arg.name;
+    }
+    var m_options = arg;
 
     this.dataItems = {
         temp_mean: {
@@ -333,22 +339,35 @@ geoapp.graphData.weather = function (arg) {
             longname: 'Wind Gust Speed (mph)',
             description: 'Gust speed in mph',
             units: 'mph',
-            collate: 'max'
+            collate: 'max',
+            exclude: true
         },
         wind_max: {
             name: 'Wind Max',
             longname: 'Wind Maximum Speed (mph)',
             description: 'Max wind speed in mph',
             units: 'mph',
-            collate: 'max'
+            collate: 'max',
+            exclude: true
         },
         wind_mean: {
             name: 'Wind',
             longname: 'Wind Average Speed (mph)',
             description: 'Mean wind speed in mph',
-            units: 'mph'
+            units: 'mph',
+            exclude: true
         }
     };
+
+    _.each(this.dataItems, function (item) {
+        if (m_options.region_name) {
+            item.longname = 'Weather - ' + m_options.region_name + ' - ' + (
+                item.longname || item.name);
+        }
+        if (m_options.region_shortname) {
+            item.name = m_options.region_shortname + ' - ' + item.name;
+        }
+    });
 
     geoapp.events.on('ga:staticDataLoaded.' + m_datakey, function () {
         this.dataTime(true);
@@ -421,7 +440,8 @@ geoapp.graphData.weather = function (arg) {
                     }
                 });
             } else {  /* week and month */
-                var res = this.makeDateBins(dataItem.data[0].x, dataItem.data[dataItem.data.length - 1].x, opts.bin),
+                var res = this.makeDateBins(dataItem.data[0].x,
+                        dataItem.data[dataItem.data.length - 1].x, opts.bin),
                     start = res.start,
                     end = res.end,
                     bins = res.bins,
@@ -479,8 +499,26 @@ geoapp.graphData.weather = function (arg) {
     };
 };
 
-inherit(geoapp.graphData.weather, geoapp.GraphData);
-geoapp.graphData.weather = geoapp.graphData.weather();
+inherit(geoapp.graphDataClasses.weather, geoapp.GraphData);
+
+geoapp.graphData.weathernyc = geoapp.graphDataClasses.weather({
+    name: 'weathernyc',
+    region: 'nyc',
+    region_name: 'NYC',
+    region_shortname: 'NYC'
+});
+geoapp.graphData.weatherboston = geoapp.graphDataClasses.weather({
+    name: 'weatherboston',
+    region: 'boston',
+    region_name: 'Boston',
+    region_shortname: 'Bos.'
+});
+geoapp.graphData.weatherdc = geoapp.graphDataClasses.weather({
+    name: 'weatherdc',
+    region: 'dc',
+    region_name: 'D.C.',
+    region_shortname: 'DC'
+});
 
 /* -------- taxi model graph data -------- */
 
