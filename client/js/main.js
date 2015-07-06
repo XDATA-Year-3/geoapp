@@ -163,6 +163,10 @@ $(function () {
         weathernyc: 'weathernyc.json',
         weatherboston: 'weatherboston.json',
         weatherdc: 'weatherdc.json',
+        crimenyc: 'crimenyc.json',
+        crimeboston: 'crimeboston.json',
+        crimedc: 'crimedc.json',
+        transitboston: 'transitboston.json',
         taximodel: 'taximodel.json'
     };
     _.each(staticData, function (url, key) {

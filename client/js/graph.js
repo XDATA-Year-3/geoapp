@@ -652,6 +652,7 @@ geoapp.Graph = function (arg) {
                 datasetInfo[key] = dataSrc.describe(datakey);
             });
         });
+        console.log(datasets, datasetInfo); //DWM::
         /* Sort datasets so selected items are first and in order, then
          * previously sorted items, then by datasetInfo.sort, then by name. */
         datasets.sort(function (a, b) {
@@ -674,7 +675,9 @@ geoapp.Graph = function (arg) {
             if (ina !== inb) {
                 return ina === -1 ? 1 : (inb === -1 ? -1 : ina - inb);
             }
-            return datasetInfo[a].name > datasetInfo[b].name ? 1 : -1;
+            var namea = datasetInfo[a].longname || datasetInfo[a].name,
+                nameb = datasetInfo[b].longname || datasetInfo[b].name;
+            return namea > nameb ? 1 : -1;
         });
         return {datasets: datasets, datasetInfo: datasetInfo};
     };
