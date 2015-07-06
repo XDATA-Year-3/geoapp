@@ -923,7 +923,7 @@ class TaxiViaPostgresRandom(ViaPostgres):
 
     def __init__(self, db=None, **params):
         ViaPostgres.__init__(self, db, **params)
-        self.useMilliseconds = True
+        self.useMilliseconds = False
         self.fieldTable = TaxiFieldTableRand
         self.tableName = 'trips'
         self.queryBase = 'taxirandom'
