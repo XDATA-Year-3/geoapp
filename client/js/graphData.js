@@ -734,34 +734,34 @@ geoapp.graphData.taxi = function (arg) {
 
     this.dataItems = {
         pickups: {
-            name: 'Taxi Pickups',
-            longname: 'Taxi Pickups (based on current filters)',
-            description: 'Filtered taxi pickups',
+            name: 'Trip Pickups',
+            longname: 'Trip Pickups (based on current filters)',
+            description: 'Filtered trip pickups',
             column: 'pickup_datetime',
             unit: 'trip',
             units: 'trips',
             axisunits: null
         },
         dropoffs: {
-            name: 'Taxi Dropoffs',
-            longname: 'Taxi Dropoffs (based on current filters)',
-            description: 'Filtered taxi dropoffs',
+            name: 'Trip Dropoffs',
+            longname: 'Trip Dropoffs (based on current filters)',
+            description: 'Filtered trip dropoffs',
             column: 'dropoff_datetime',
             unit: 'trip',
             units: 'trips',
             axisunits: null
         },
         scaledpickups: {
-            name: 'Taxi Scaled Pickups',
-            description: 'Filtered taxi pickups scaled to full data range',
+            name: 'Trip Scaled Pickups',
+            description: 'Filtered trip pickups scaled to full data range',
             column: 'pickup_datetime',
             scaled: true,
             units: 'trips/hour',
             format: m_this.unlog2
         },
         scaleddropoffs: {
-            name: 'Taxi Scaled Dropoffs',
-            description: 'Filtered taxi dropoffs scaled to full data range',
+            name: 'Trip Scaled Dropoffs',
+            description: 'Filtered trip dropoffs scaled to full data range',
             column: 'dropoff_datetime',
             scaled: true,
             units: 'trips/hour',
@@ -830,3 +830,181 @@ geoapp.graphData.instagram = function (arg) {
 
 inherit(geoapp.graphData.instagram, geoapp.GraphDataFromColumns);
 geoapp.graphData.instagram = geoapp.graphData.instagram();
+
+/* -------- city graph data -------- */
+
+geoapp.graphDataClasses.city = function (arg) {
+    'use strict';
+    var m_datakey = 'city';
+
+    if (!(this instanceof geoapp.graphDataClasses[m_datakey])) {
+        return new geoapp.graphDataClasses[m_datakey](arg);
+    }
+    arg = arg || {};
+    geoapp.GraphData.call(this, arg);
+
+    if (arg.name) {
+        m_datakey = arg.name;
+    }
+    var m_options = arg;
+
+    this.dataItems = {
+        crime_events: {
+            name: 'Events',
+            longname: 'Events',
+            description: 'Frequency of all crime records',
+            units: 'per hour'
+        },
+        transit_events: {
+            name: 'Riders',
+            longname: 'Weekend Late-Night Riders',
+            description: 'Frequency of all riders entering the system',
+            units: 'per hour'
+        }
+    };
+
+    _.each(this.dataItems, function (item) {
+        if (m_options.region_name) {
+            item.longname = (m_options.type_name + ' - ' +
+                m_options.region_name + ' - ' + (item.longname || item.name));
+        }
+        if (m_options.region_shortname) {
+            item.name = m_options.region_shortname + ' - ' + item.name;
+        }
+        if (item.regions && $.inArray(m_options.region, item.regions) < 0) {
+            item.exclude = true;
+        }
+    });
+
+    geoapp.events.on('ga:staticDataLoaded.' + m_datakey, function () {
+        this.dataTime(true);
+        geoapp.graph.updateGraphDelayed();
+    }, this);
+
+    /* List what data, if any, is available to be graphed.
+     *
+     * @param datakey: if present, check if this datakey is available.
+     * @returns: a list of available data keys if datakey is undefined, or a
+     *           boolean indicating if the specified datakey is available.
+     */
+    this.available = function (datakey) {
+        var data = geoapp.staticData ? geoapp.staticData[m_datakey] : null;
+        if (data && !data.columns && data.fields) {
+            data.columns = {};
+            _.each(data.fields, function (key, idx) {
+                if (key === 'start_date') {
+                    key = 'date';
+                } else if (key === 'date') {
+                    key = 'datestr';
+                } else {
+                    key = m_options.type + '_' + key;
+                }
+                data.columns[key] = idx;
+            });
+        }
+        if (!data || !data.columns || !data.data) {
+            return datakey ? false : [];
+        }
+        var avail = [];
+        _.each(this.dataItems, function (item, key) {
+            if (!item.exclude && (item.events ||
+                   data.columns[key] !== undefined)) {
+                avail.push(key);
+            }
+        });
+        return datakey ? ($.inArray(datakey, avail) >= 0) : avail;
+    };
+
+    /* Given a datakey, return the associated data.
+     *
+     * @param datakey: the datakey to retreive.
+     * @param opts: options that may affect the date range returned.
+     * @return data: an array of data.  Each item contains 'x', the millisecond
+     *               epoch, and 'y', the data value.
+     */
+    this.data = function (datakey, opts) {
+        var binName = 'data-' + opts.bin,
+            dataItem = this.dataItems[datakey];
+        if (!dataItem[binName]) {
+            var data = geoapp.staticData[m_datakey],
+                xcol = data.columns.date,
+                ycol = data.columns[dataItem.column || datakey],
+                lastitem,
+                hoursperbin = (moment.duration(1, opts.bin) /
+                               moment.duration(1, 'hour')),
+                results = [];
+            _.each(data.data, function (d) {
+                var item = {
+                        x: 0 + moment.utc(d[xcol]).startOf(opts.bin),
+                        y: parseFloat(d[ycol]) / hoursperbin,
+                        tally: d[ycol],
+                        count: 1
+                    };
+                if (lastitem && item.x === lastitem.x) {
+                    lastitem.count += 1;
+                    lastitem.tally += item.tally;
+                    if (lastitem.tally) {
+                        lastitem.y = lastitem.tally / hoursperbin;
+                    }
+                } else {
+                    results.push(item);
+                    lastitem = item;
+                }
+            });
+            dataItem[binName] = results;
+            dataItem[binName + 'Time'] = new Date().getTime();
+        }
+        return dataItem[binName];
+    };
+
+    /* Get the date range for the specific datakey.
+     *
+     * @param datakey: the data for which the date range is returned.
+     * @param opts: options that may affect the date range returned.
+     * @returns: the start (inclusive) and end (exclusive) date range for the
+     *           data.
+     */
+    this.dateRange = function (datakey, opts) {
+        var data = this.data(datakey, $.extend({}, opts, {bin: 'day'}));
+        return {
+            start: 0 + moment.utc(data[0].x).startOf('day'),
+            end: 0 + moment.utc(data[data.length - 1].x).subtract(
+                1, 'ms').endOf('day').add(1, 'ms')
+        };
+    };
+};
+
+inherit(geoapp.graphDataClasses.city, geoapp.GraphData);
+
+geoapp.graphData.crimenyc = geoapp.graphDataClasses.city({
+    type: 'crime',
+    type_name: 'Crime',
+    name: 'crimenyc',
+    region: 'nyc',
+    region_name: 'NYC',
+    region_shortname: 'NYC'
+});
+geoapp.graphData.crimeboston = geoapp.graphDataClasses.city({
+    type: 'crime',
+    type_name: 'Crime',
+    name: 'crimeboston',
+    region: 'boston',
+    region_name: 'Boston',
+    region_shortname: 'Bos.'
+});
+geoapp.graphData.crimedc = geoapp.graphDataClasses.city({
+    type: 'crime',
+    type_name: 'Crime',
+    name: 'crimedc',
+    region: 'dc',
+    region_name: 'D.C.',
+    region_shortname: 'DC'
+});
+geoapp.graphData.transitboston = geoapp.graphDataClasses.city({
+    type: 'transit',
+    type_name: 'Mass Transit',
+    name: 'transitboston',
+    region: 'boston',
+    region_name: 'Boston',
+    region_shortname: 'Bos.'
+});
