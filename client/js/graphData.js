@@ -334,6 +334,13 @@ geoapp.graphDataClasses.weather = function (arg) {
             events: 'snow',
             collate: 'add'
         },
+        thunder: {
+            regions: ['boston'],
+            name: 'Thunder',
+            description: 'Thunder occurred',
+            events: 'thunder',
+            collate: 'add'
+        },
         wind_gust: {
             name: 'Wind Gust',
             longname: 'Wind Gust Speed (mph)',
@@ -366,6 +373,9 @@ geoapp.graphDataClasses.weather = function (arg) {
         }
         if (m_options.region_shortname) {
             item.name = m_options.region_shortname + ' - ' + item.name;
+        }
+        if (item.regions && $.inArray(m_options.region, item.regions) < 0) {
+            item.exclude = true;
         }
     });
 

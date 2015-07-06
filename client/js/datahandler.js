@@ -322,7 +322,12 @@ geoapp.dataHandlers.taxi = function (arg) {
             Math.max(geoapp.map.maximumMapPoints,
                      geoapp.map.maximumVectors)));
         if (!options.params.fields) {
-            options.params.fields = '_id,' +
+            if (options.access === 'message') {
+                options.params.fields = 'rand1,';
+            } else {
+                options.params.fields = '_id,';
+            }
+            options.params.fields +=
                 'pickup_datetime,pickup_longitude,pickup_latitude,' +
                 'dropoff_datetime,dropoff_longitude,dropoff_latitude';
         }
