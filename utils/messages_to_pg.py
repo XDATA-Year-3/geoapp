@@ -554,7 +554,7 @@ def trackLikes(mentions, item, likes=False):
     user = item['user_name'].lower()
     mentions[user] = mentions.get(user, {})
     for mention in users:
-        name = mention[1:].lower()
+        name = mention.lower()
         mentions[user][name] = mentions[user].get(name, 0) + 1
 
 

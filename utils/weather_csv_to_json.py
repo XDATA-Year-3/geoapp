@@ -1,5 +1,9 @@
+# Syntax: weather_csv_to_json.py (csv file) > (json file)
+# This will work with the NYC and Boston data.  It won't work with the DC data.
+
 import calendar
 import csv
+import dateutil.parser
 import json
 import sys
 import time
@@ -28,6 +32,13 @@ Properties = {
     'maxgustspeedmph':        {'name': 'wind_gust'},
     'maxwindspeedmph':        {'name': 'wind_max'},
     'meanwindspeedmph':       {'name': 'wind_mean'},
+
+    'day':                    {'name': 'date',          'format': 'date'},
+    'temp':                   {'name': 'temp_mean',     'format': 'float'},
+    'rain':                   {'name': 'precipitation', 'format': 'float'},
+    'snow_depth':             {'name': 'snow_depth',    'format': 'float'},
+
+    'DATE':                   {'name': 'date',          'format': 'date'},
 }
 
 sptr = csv.reader(open(sys.argv[1]))
@@ -55,14 +66,26 @@ for line in sptr:
                     value = 0.001
                 value = float(value)
             elif form == 'date':
-                when = calendar.timegm(time.strptime(value, '%Y-%m-%d'))
+                try:
+                    when = int(calendar.timegm(dateutil.parser.parse(
+                        value).utctimetuple()))
+                except Exception:
+                    when = calendar.timegm(time.strptime(value, '%Y%m%d'))
                 info['date_start'] = when * 1000
                 # info['date_end'] = when + 86400 * 1000
             info[key] = value
         except Exception:
             print 'Error', value, header[col], line
-    if 'date' not in info or not info['date'].startswith('2013-'):
+    year = int(info.get('date', '0')[:4])
+    if year < 2012:
         continue
+    if 'fog' in info:
+        info['events'] = '-'.join([
+            event for event in ['fog', 'snow', 'thunder']
+            if info.get(event, 0) == 1] + (
+            ['rain'] if info['precipitation'] > 0.005 else []))
+        for event in ['fog', 'snow', 'thunder']:
+            del info[event]
     list.append(info)
     allKeys.update(info)
 keys = sorted(allKeys.keys())
