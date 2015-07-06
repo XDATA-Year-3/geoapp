@@ -322,7 +322,7 @@ geoapp.dataHandlers.taxi = function (arg) {
             Math.max(geoapp.map.maximumMapPoints,
                      geoapp.map.maximumVectors)));
         if (!options.params.fields) {
-            if (options.access === 'message') {
+            if (options.access === 'taxirandom') {
                 options.params.fields = 'rand1,';
             } else {
                 options.params.fields = '_id,';

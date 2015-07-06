@@ -9,7 +9,8 @@ Trip Data
 =========
 
 * **Taxicab Trips - NYC**
-    This includes all yellow cab trips in Mahattan and some of the green cab
+    All of the New York city trip data is from taxi cabs in 2013.  This
+    includes all yellow cab trips in Mahattan and some of the green cab
     trips in the outer boroughs.  The data includes pickup and dropoff 
     locations and time, plus a variety of other data.  Around 173 million
     yellow cab trips and 6 millions green cab trips are in the database.
@@ -41,8 +42,11 @@ Graph Data
 
 There is some additional data that can be plotted on graphs, but not on the map:
 
-* **Central Park Weather**
-      There is daily information on temperature, wind, precipitation and other values.
+* **Weather - Central Park, NYC**
+      There is daily information on temperature, precipitation and other values.
+
+* **Weather - Boston**
+      There is daily information on temperature, precipitation and other values.
   
 * **Taxi Statistical Trends**
     The taxi activity was processed using a statistical modeling package to determine what consisted of routine activity and what was unusual activity.
