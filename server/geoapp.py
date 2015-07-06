@@ -926,7 +926,7 @@ class TaxiViaPostgresRandom(ViaPostgres):
         self.useMilliseconds = True
         self.fieldTable = TaxiFieldTableRand
         self.tableName = 'trips'
-        self.queryBase = 'taxi'
+        self.queryBase = 'taxirandom'
         self.defaultSort = [('rand1', 1), ('rand2', 1)]
 
 
