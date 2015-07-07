@@ -652,7 +652,6 @@ geoapp.Graph = function (arg) {
                 datasetInfo[key] = dataSrc.describe(datakey);
             });
         });
-        console.log(datasets, datasetInfo); //DWM::
         /* Sort datasets so selected items are first and in order, then
          * previously sorted items, then by datasetInfo.sort, then by name. */
         datasets.sort(function (a, b) {

@@ -33,10 +33,10 @@ CREATE TABLE messages (
 
 CREATE INDEX messages_rand_ix ON messages (rand1, rand2);
 CLUSTER messages USING messages_rand_ix;    
-CREATE INDEX messages_id_ix ON messages (_id);
 CREATE INDEX messages_msg_date_ix ON messages (msg_date);
-CREATE INDEX messages_msg_id_ix ON messages (msg_id);
 CREATE INDEX messages_msg_ix ON messages USING gin
     (to_tsvector('english', msg));
--- CREATE INDEX messages_region_ix ON messages (region);
 CREATE INDEX messages_region_rand_ix ON messages (region, rand1, rand2);
+CREATE INDEX messages_id_ix ON messages (_id);
+CREATE INDEX messages_region_ix ON messages (region);
+-- CREATE INDEX messages_msg_id_ix ON messages (msg_id);

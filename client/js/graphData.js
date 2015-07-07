@@ -546,15 +546,15 @@ geoapp.graphData.taximodel = function (arg) {
 
     this.dataItems = {
         model: {
-            name: 'Taxi - Typical Trips',
-            longname: 'Taxi - Typical Trips (statistical analysis)',
+            name: 'NYC - Typical Trips',
+            longname: 'Taxi - NYC - Typical Trips (statistical analysis)',
             description: 'Expected number of taxi trips under ordinary conditions (the seasonal and trend components of the modeled data)',
             units: 'trips/hour',
             format: m_this.unlog2
         },
         remainder: {
-            name: 'Taxi - Unusual',
-            longname: 'Taxi - Unusual Trips (total trips minus typical trips)',
+            name: 'NYC - Unusual Trips',
+            longname: 'Taxi - NYC - Unusual Trips (total trips minus typical trips)',
             description: 'Taxi trips that aren\'t part of regular behavior (the remainder component of the modeled data)',
             units: '% diff',
             column: 'remainder',
@@ -564,8 +564,8 @@ geoapp.graphData.taximodel = function (arg) {
             }
         },
         total: {
-            name: 'Taxi - Total Trips',
-            longname: 'Taxi - Total Trips (for the entire data set)',
+            name: 'NYC - Total Trips',
+            longname: 'Taxi - NYC - Total Trips (for the entire data set)',
             description: 'All taxi trips for the entire city (the raw component of the model)',
             units: 'trips/hour',
             column: 'raw',
@@ -855,11 +855,18 @@ geoapp.graphDataClasses.city = function (arg) {
             description: 'Frequency of all crime records',
             units: 'per hour'
         },
-        transit_events: {
+        transit_total: {
             name: 'Riders',
             longname: 'Weekend Late-Night Riders',
-            description: 'Frequency of all riders entering the system',
+            description: 'Frequency of all riders entering the system on Friday and Saturday nights (10 p.m. to 3 a.m.)',
             units: 'per hour'
+        },
+        vendor_total: {
+            name: 'Vendors',
+            longname: 'Newly Licensed Food Vendors',
+            description: 'Frequency of new food vendors being licensed',
+            period: 'day',
+            units: 'per day'
         }
     };
 
@@ -925,18 +932,18 @@ geoapp.graphDataClasses.city = function (arg) {
     this.data = function (datakey, opts) {
         var binName = 'data-' + opts.bin,
             dataItem = this.dataItems[datakey];
+        var binres = moment.duration(1, dataItem.period || 'hour');
         if (!dataItem[binName]) {
             var data = geoapp.staticData[m_datakey],
                 xcol = data.columns.date,
                 ycol = data.columns[dataItem.column || datakey],
                 lastitem,
-                hoursperbin = (moment.duration(1, opts.bin) /
-                               moment.duration(1, 'hour')),
+                periodsperbin = moment.duration(1, opts.bin) / binres,
                 results = [];
             _.each(data.data, function (d) {
                 var item = {
                         x: 0 + moment.utc(d[xcol]).startOf(opts.bin),
-                        y: parseFloat(d[ycol]) / hoursperbin,
+                        y: (parseFloat(d[ycol]) / periodsperbin).toFixed(3),
                         tally: d[ycol],
                         count: 1
                     };
@@ -944,7 +951,8 @@ geoapp.graphDataClasses.city = function (arg) {
                     lastitem.count += 1;
                     lastitem.tally += item.tally;
                     if (lastitem.tally) {
-                        lastitem.y = lastitem.tally / hoursperbin;
+                        lastitem.y = (lastitem.tally / periodsperbin).toFixed(
+                                      3);
                     }
                 } else {
                     results.push(item);
@@ -1004,6 +1012,14 @@ geoapp.graphData.transitboston = geoapp.graphDataClasses.city({
     type: 'transit',
     type_name: 'Mass Transit',
     name: 'transitboston',
+    region: 'boston',
+    region_name: 'Boston',
+    region_shortname: 'Bos.'
+});
+geoapp.graphData.vendorboston = geoapp.graphDataClasses.city({
+    type: 'vendor',
+    type_name: 'Food Vendors',
+    name: 'vendorboston',
     region: 'boston',
     region_name: 'Boston',
     region_shortname: 'Bos.'
