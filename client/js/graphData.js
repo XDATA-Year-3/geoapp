@@ -546,15 +546,15 @@ geoapp.graphData.taximodel = function (arg) {
 
     this.dataItems = {
         model: {
-            name: 'Taxi - Typical Trips',
-            longname: 'Taxi - Typical Trips (statistical analysis)',
+            name: 'NYC - Typical Trips',
+            longname: 'Taxi - NYC - Typical Trips (statistical analysis)',
             description: 'Expected number of taxi trips under ordinary conditions (the seasonal and trend components of the modeled data)',
             units: 'trips/hour',
             format: m_this.unlog2
         },
         remainder: {
-            name: 'Taxi - Unusual',
-            longname: 'Taxi - Unusual Trips (total trips minus typical trips)',
+            name: 'NYC - Unusual Trips',
+            longname: 'Taxi - NYC - Unusual Trips (total trips minus typical trips)',
             description: 'Taxi trips that aren\'t part of regular behavior (the remainder component of the modeled data)',
             units: '% diff',
             column: 'remainder',
@@ -564,8 +564,8 @@ geoapp.graphData.taximodel = function (arg) {
             }
         },
         total: {
-            name: 'Taxi - Total Trips',
-            longname: 'Taxi - Total Trips (for the entire data set)',
+            name: 'NYC - Total Trips',
+            longname: 'Taxi - NYC - Total Trips (for the entire data set)',
             description: 'All taxi trips for the entire city (the raw component of the model)',
             units: 'trips/hour',
             column: 'raw',
