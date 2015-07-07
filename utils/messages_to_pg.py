@@ -342,7 +342,8 @@ def jsonToItems(fptr, partial=False, firstline=None):
     :yields: items parsed from the file.
     """
     byline = (firstline.strip() == '[')
-    if not byline:
+    bulkline = ('"_index"' in firstline)
+    if not byline and not bulkline:
         records = json.loads(fptr.read())
         if 'data' in records:
             instlist = []
@@ -359,6 +360,8 @@ def jsonToItems(fptr, partial=False, firstline=None):
             if not inst:
                 continue
             inst = json.loads(inst)['_source']
+        elif bulkline:
+            inst = json.loads(inst)
         item = convertInstagramJSONToItem(inst, partial)
         if item is None:
             continue
@@ -521,7 +524,8 @@ def processFilesOpen(filename, filetype='file', subname='', zptr=None,
     elif filename.lower().endswith('.bz2'):
         fptr = bz2.BZ2File(filename)
         filename = filename.rsplit('.', 1)[0]
-    elif filename.lower().endswith('.gz'):
+    elif (filename.lower().endswith('.gz') or
+            filename.lower().endswith('.gz.tmp')):
         fptr = gzip.open(filename)
         filename = filename.rsplit('.', 1)[0]
     else:
@@ -608,7 +612,10 @@ def twitterToItems(fptr, partial=False, matches=None):
     for line in fptr:
         if not len(line.strip()):
             continue
-        tw = json.loads(line.strip())
+        try:
+            tw = json.loads(line.strip())
+        except ValueError:
+            continue
         try:
             if 'gnip' in tw:
                 item = convertGnipToTwitterItem(tw)
@@ -632,6 +639,7 @@ def twitterToItems(fptr, partial=False, matches=None):
 
 
 if __name__ == '__main__':
+    starttime = time.time()
     if len(sys.argv) < 2 or '--help' in sys.argv:
         print """Load instagram and twitter data files to a Postgres table.
 
@@ -671,7 +679,7 @@ compressed file ending with .json or .csv are ingested.
             if filespec.startswith('--region='):
                 region = filespec.split('=', 1)[1]
             continue
-        for filename in glob.iglob(filespec):
+        for filename in sorted(glob.iglob(filespec)):
             if filename.lower().endswith('.zip'):
                 zptr = zipfile.ZipFile(filename)
                 files.extend(
@@ -746,3 +754,4 @@ CREATE INDEX instagram_caption_ix ON instagram USING gin
             fptr = open(arg.split('=', 1)[1], 'wb')
             fptr.write(json.dumps(fileData['mentions']))
             fptr.close()
+    sys.stderr.write('Took %3.1fs\n' % (time.time() - starttime))

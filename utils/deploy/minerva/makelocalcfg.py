@@ -58,7 +58,7 @@ tangelo:
 
 [instagramdata]
 %FULL%postgres: {"order": 1, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
-%FULL%msgjuly: {"order": 0, "name": "July Messages", "class": "RealTimeViaPostgres", "access": "message", "params": {"db": "msgjuly", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%FULL%msgjuly: {"order": 0, "name": "July Messages", "class": "MessageViaPostgres", "access": "message", "params": {"db": "msgjuly", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
 %LIMITED%postgres:
 %LOCAL%postgres: {"order": 0, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "parakon", "user": "taxi", "password": "taxi#1"}}
 

@@ -55,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 1e2b80a08b088f1ced44921c062cb0551761af53 && \
+    git checkout 4153dc3758dbca6677e302e1ab5630d7cf73c192 && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 ENV PATH $PATH:/home/kwuser/.local/bin
@@ -73,7 +73,8 @@ RUN curl https://data.kitware.com/api/v1/file/559a77de8d777f649a9ba2a2/download 
 RUN curl https://data.kitware.com/api/v1/file/559abbbe8d777f649a9ba2ad/download -o client/optional/static/crimeboston.json && \
     curl https://data.kitware.com/api/v1/file/559abbbf8d777f649a9ba2b0/download -o client/optional/static/crimedc.json && \
     curl https://data.kitware.com/api/v1/file/559abbbf8d777f649a9ba2b3/download -o client/optional/static/crimenyc.json && \
-    curl https://data.kitware.com/api/v1/file/559abbbf8d777f649a9ba2b6/download -o client/optional/static/transitboston.json
+    curl https://data.kitware.com/api/v1/file/559abbbf8d777f649a9ba2b6/download -o client/optional/static/transitboston.json && \
+    curl https://data.kitware.com/api/v1/file/559bd8588d777f649a9ba2d0/download -o client/optional/static/vendorboston.json
 RUN curl https://data.kitware.com/api/v1/file/5559f3658d777f082b592fbe/download -o client/optional/static/taximodel.json
 RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
     curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
@@ -88,7 +89,7 @@ ENV KWDEMO_NAME Minerva
 ENV KWDEMO_KEY minerva
 ENV KWDEMO_SRCURL https://github.com/XDATA-Year-3/geoapp
 ENV KWDEMO_DESC Minerva geospatial analysis application
-ENV KWDEMO_IMG /geoapp/built/thumb.jpg
+ENV KWDEMO_IMG /minerva/built/thumb.jpg
 ENV KWDEMO_READY TRUE
 
 CMD ["sh", "-c", "python /home/kwuser/makelocalcfg.py > conf/geoapp.local.cfg && python server/main.py"]
