@@ -23,3 +23,6 @@ div.document ul {
   margin-top: 0;
   margin-bottom: 0;
 }
+video {
+  margin-bottom: 12px;
+}
