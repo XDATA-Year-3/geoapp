@@ -286,6 +286,7 @@ class ViaPostgres():
         self.alwaysUseIdSort = True
         self.defaultSort = [('_id', 1)]
         self.maxId = None
+        self.realtime = False
         self.dbIdleTime = 300
         self.closeThread = threading.Thread(target=self.closeWhenIdle)
         self.closeThread.daemon = True
@@ -428,7 +429,7 @@ class ViaPostgres():
         for retry in xrange(maxretry):
             try:
                 c = self.connect(retry != 0).cursor()
-                if self.queryBase == 'message':
+                if self.queryBase == 'message' and self.realtime:
                     c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
                     row = c.fetchone()
                     # We use this to guarantee that we don't get newer data than
@@ -1012,6 +1013,18 @@ MsgToInstKeyTable = {
 InstToMsgKeyTable = {v: k for k, v in MsgToInstKeyTable.items()}
 
 
+class MessageViaPostgres(ViaPostgres):
+    def __init__(self, db=None, **params):
+        ViaPostgres.__init__(self, db, **params)
+        self.fieldTable = MessageFieldTable
+        self.useMilliseconds = False
+        self.tableName = 'messages'
+        self.alwaysUseIdSort = False
+        self.defaultSort = [('rand1', 1), ('rand2', 1)]
+        self.decoder = HTMLParser.HTMLParser()
+        self.queryBase = 'message'
+
+
 class RealTimeViaPostgres(ViaPostgres):
     def __init__(self, db=None, **params):
         ViaPostgres.__init__(self, db, **params)
@@ -1022,6 +1035,7 @@ class RealTimeViaPostgres(ViaPostgres):
         self.defaultSort = [('rand1', 1), ('rand2', 1)]
         self.decoder = HTMLParser.HTMLParser()
         self.queryBase = 'message'
+        self.realtime = True
 
     def ingestTwitter(self, db, c, data, ingestFrom=None, nodup=False):
         """
