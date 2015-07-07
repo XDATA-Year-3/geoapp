@@ -1018,7 +1018,7 @@ geoapp.graphData.transitboston = geoapp.graphDataClasses.city({
 });
 geoapp.graphData.vendorboston = geoapp.graphDataClasses.city({
     type: 'vendor',
-    type_name: 'Foor Vendors',
+    type_name: 'Food Vendors',
     name: 'vendorboston',
     region: 'boston',
     region_name: 'Boston',
