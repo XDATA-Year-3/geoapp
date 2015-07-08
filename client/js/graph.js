@@ -1098,6 +1098,9 @@ geoapp.views.GraphSettingsWidget = geoapp.View.extend({
             series: series
         })).girderModal(this).on('ready.geoapp.modal', function () {
             $('[title]', view.$el).tooltip(geoapp.defaults.tooltip);
+            $('#ga-dataset-list', view.$el).css(
+                'max-height',
+                ($('#g-dialog-container').height() - 400) + 'px');
             $('#ga-dataset-list', view.$el).sortable({});
         });
         modal.trigger($.Event('ready.geoapp.modal', {relatedTarget: modal}));
