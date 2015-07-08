@@ -301,7 +301,6 @@ geoapp.graphDataClasses.weather = function (arg) {
             name: 'Avg. Temp',
             longname: 'Average Temperature',
             description: 'Mean temperature in degrees F',
-            sort: 1,
             units: '\u00B0F'
         },
         cloudcover: {
@@ -532,44 +531,51 @@ geoapp.graphData.weatherdc = geoapp.graphDataClasses.weather({
 
 /* -------- taxi model graph data -------- */
 
-geoapp.graphData.taximodel = function (arg) {
+geoapp.graphDataClasses.taximodel = function (arg) {
     'use strict';
     var m_datakey = 'taximodel';
 
-    if (!(this instanceof geoapp.graphData[m_datakey])) {
-        return new geoapp.graphData[m_datakey](arg);
+    if (!(this instanceof geoapp.graphDataClasses[m_datakey])) {
+        return new geoapp.graphDataClasses[m_datakey](arg);
     }
     arg = arg || {};
     geoapp.GraphData.call(this, arg);
 
-    var m_this = this;
+    if (arg.name) {
+        m_datakey = arg.name;
+    }
+    var m_options = arg,
+        m_this = this;
 
     this.dataItems = {
         model: {
-            name: 'NYC - Typical Trips',
-            longname: 'Taxi - NYC - Typical Trips (statistical analysis)',
-            description: 'Expected number of taxi trips under ordinary conditions (the seasonal and trend components of the modeled data)',
+            name: m_options.set_shortname + ' Typical Trips',
+            longname: m_options.set_name + ' - Typical Trips (statistical analysis)',
+            description: 'Expected number of trips under ordinary conditions (the seasonal and trend components of the modeled data)' + (m_options.set_tip ? ' [' + m_options.set_tip + ']' : ''),
             units: 'trips/hour',
-            format: m_this.unlog2
+            format: m_this.unlog2,
+            sort: 2
         },
         remainder: {
-            name: 'NYC - Unusual Trips',
-            longname: 'Taxi - NYC - Unusual Trips (total trips minus typical trips)',
-            description: 'Taxi trips that aren\'t part of regular behavior (the remainder component of the modeled data)',
+            name: m_options.set_shortname + ' Unusual Trips',
+            longname: m_options.set_name + ' - Unusual Trips (total trips minus typical trips)',
+            description: 'Trips that aren\'t part of regular behavior (the remainder component of the modeled data)' + (m_options.set_tip ? ' [' + m_options.set_tip + ']' : ''),
             units: '% diff',
             column: 'remainder',
             format: function (d) {
                 /* convert to percent */
                 return (Math.pow(2, d) * 100 - 100).toFixed(1);
-            }
+            },
+            sort: 2
         },
         total: {
-            name: 'NYC - Total Trips',
-            longname: 'Taxi - NYC - Total Trips (for the entire data set)',
-            description: 'All taxi trips for the entire city (the raw component of the model)',
+            name: m_options.set_shortname + ' Total Trips',
+            longname: m_options.set_name + ' - Total Trips (for the entire available time)',
+            description: 'All trips for all times in the database (the raw component of the model)' + (m_options.set_tip ? ' [' + m_options.set_tip + ']' : ''),
             units: 'trips/hour',
             column: 'raw',
-            format: m_this.unlog2
+            format: m_this.unlog2,
+            sort: 2
         }
     };
 
@@ -586,7 +592,7 @@ geoapp.graphData.taximodel = function (arg) {
      */
     this.available = function (datakey) {
         var data = geoapp.staticData ? geoapp.staticData[m_datakey] : null;
-        if (!data) {
+        if (!data || !data.data) {
             return datakey ? false : [];
         }
         var avail = _.keys(this.dataItems);
@@ -715,8 +721,42 @@ geoapp.graphData.taximodel = function (arg) {
     };
 };
 
-inherit(geoapp.graphData.taximodel, geoapp.GraphData);
-geoapp.graphData.taximodel = geoapp.graphData.taximodel();
+inherit(geoapp.graphDataClasses.taximodel, geoapp.GraphData);
+
+geoapp.graphData.taximodel = geoapp.graphDataClasses.taximodel({
+    name: 'taximodel',
+    region: 'nyc',
+    region_name: 'NYC',
+    region_shortname: 'NYC',
+    set_name: 'Taxi - NYC - Manhattan',
+    set_tip: 'Yellow cabs',
+    set_shortname: 'Mnhtn.'
+});
+geoapp.graphData.taximodelgreen = geoapp.graphDataClasses.taximodel({
+    name: 'taximodelgreen',
+    region: 'nyc',
+    region_name: 'NYC',
+    region_shortname: 'NYC',
+    set_name: 'Taxi - NYC - Boroughs',
+    set_tip: 'Green cabs',
+    set_shortname: 'Boros'
+});
+geoapp.graphData.taximodelboston = geoapp.graphDataClasses.taximodel({
+    name: 'taximodelboston',
+    region: 'boston',
+    region_name: 'Boston',
+    region_shortname: 'Bos.',
+    set_name: 'Taxi - Boston',
+    set_shortname: 'Boston'
+});
+geoapp.graphData.taximodeldc = geoapp.graphDataClasses.taximodel({
+    name: 'taximodeldc',
+    region: 'dc',
+    region_name: 'D.C.',
+    region_shortname: 'DC',
+    set_name: 'Bike Share - D.C.',
+    set_shortname: 'D.C.'
+});
 
 /* -------- taxi graph data -------- */
 

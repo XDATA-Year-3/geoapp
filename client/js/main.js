@@ -168,7 +168,10 @@ $(function () {
         crimedc: 'crimedc.json',
         transitboston: 'transitboston.json',
         vendorboston: 'vendorboston.json',
-        taximodel: 'taximodel.json'
+        taximodel: 'taximodel.json',
+        taximodelgreen: 'taximodelgreen.json',
+        taximodelboston: 'taximodelboston.json',
+        taximodeldc: 'taximodeldc.json'
     };
     _.each(staticData, function (url, key) {
         if (url.indexOf('/') < 0) {
