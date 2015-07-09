@@ -23,7 +23,7 @@ import csv
 import datetime
 import dateutil.parser
 import glob
-import gzip
+# import gzip
 import HTMLParser
 import json
 import math
@@ -36,6 +36,13 @@ import tempfile
 import time
 import xml.sax.saxutils
 import zipfile
+try:
+    import ujson
+    # ujson is much faster than the native json, but its dumps command is
+    # buggy, so only use its loads command if available
+    json.loads = ujson.loads
+except ImportError:
+    pass
 
 import fileutil
 
@@ -65,6 +72,8 @@ InstagramMentionPattern = re.compile(
     '@[a-zA-Z0-9_][a-zA-Z0-9_.]{0,28}[a-zA-Z0-9_]?')
 IngestTime = time.time()
 
+DateLookup = {}
+
 
 def adjustItemForStorage(item, format=None, ingestSource=None, service=None,
                          region=None):
@@ -78,9 +87,10 @@ def adjustItemForStorage(item, format=None, ingestSource=None, service=None,
     :param service: the base service ('t' for twitter or 'i' for instagram)
     :param region: a region to associate with the item.
     """
-    if item['url'].startswith('http://instagram.com/p/'):
+    if (item['url'].startswith('http://instagram.com/p/') or
+            item['url'].startswith('https://instagram.com/p/')):
         item['url'] = (
-            'i/' + item['url'].split('http://instagram.com/p/', 1)[1])
+            'i/' + item['url'].split('://instagram.com/p/', 1)[1])
     if format == 'message' or format == 'json':
         item['msg_date'] = int(item['posted_date'])
         item['msg_date_ms'] = int(float(item['posted_date']) * 1000)
@@ -104,21 +114,29 @@ def convertGnipToTwitterItem(gnip):
             'object' not in gnip or 'id' not in gnip['object']):
         return None
     try:
-        date = int(calendar.timegm(dateutil.parser.parse(
-                   gnip['postedTime']).utctimetuple()) * 1000)
+        if gnip['postedTime'] in DateLookup:
+            date = DateLookup[gnip['postedTime']]
+        else:
+            try:
+                date = int(calendar.timegm(time.strptime(
+                    gnip['postedTime'], "%Y-%m-%dT%H:%M:%S.000Z")))
+            except ValueError:
+                date = int(calendar.timegm(dateutil.parser.parse(
+                           gnip['postedTime']).utctimetuple()))
+                try:
+                    date = float(date) + float('.' + gnip['postedTime'].split(
+                        '.')[1].split('Z')[0]) / 1000
+                except ValueError:
+                    pass
+            DateLookup[gnip['postedTime']] = date
     except ValueError:
         return None
-    if '.' in gnip['postedTime']:
-        try:
-            date += float('.' + gnip['postedTime'].split('.')[1].split('Z')[0])
-        except ValueError:
-            pass
     item = {
         'msg_id': gnip['object']['id'].split(':')[-1],
         'user_id': gnip['actor']['id'].split(':')[-1],
         'user_name': gnip['actor']['preferredUsername'],
         'user_fullname': gnip['actor'].get('displayName', None),
-        'posted_date': float(date / 1000),
+        'posted_date': date,
         'caption': xml.sax.saxutils.unescape(gnip['body']),
         'utc_offset': gnip['actor'].get('utcOffset', None),
         'ingest_date': IngestTime,
@@ -223,8 +241,16 @@ def convertTwitterJSONToItem(tw, decoder, line, partial):
     """
     if 'created_at' not in tw:
         return None
-    date = int(calendar.timegm(dateutil.parser.parse(
-        tw['created_at']).utctimetuple()))
+    if tw['created_at'] in DateLookup:
+        date = DateLookup[tw['created_at']]
+    else:
+        try:
+            date = int(calendar.timegm(time.strptime(
+                tw['created_at'][4:], "%b %d %H:%M:%S +0000 %Y")))
+        except ValueError:
+            date = int(calendar.timegm(dateutil.parser.parse(
+                tw['created_at']).utctimetuple()))
+        DateLookup[tw['created_at']] = date
     item = {
         'user_name':       tw['user']['screen_name'],
         'user_fullname':   tw['user']['name'],
@@ -496,7 +522,7 @@ def processFiles(files, items, fileData, format='instagram'):
                 item = ['\\N' if col is None else unicode(col).replace(
                     '\t', ' ').replace('\r', ' ').replace('\n', ' ').replace(
                     '\v', ' ').replace('\f', ' ').replace('\b', ' ').replace(
-                    '\\', '\\\\') for col in item]
+                    '\x00', ' ').replace('\\', '\\\\') for col in item]
                 item = '\t'.join(item)
             dataToFiles(fileData, item)
             itemsStored += 1
@@ -526,7 +552,9 @@ def processFilesOpen(filename, filetype='file', subname='', zptr=None,
         filename = filename.rsplit('.', 1)[0]
     elif (filename.lower().endswith('.gz') or
             filename.lower().endswith('.gz.tmp')):
-        fptr = gzip.open(filename)
+        # fptr = gzip.open(filename)
+        # Using the command line utility lets a second core be used a little
+        fptr = os.popen('gunzip < %s' % filename)
         filename = filename.rsplit('.', 1)[0]
     else:
         fptr = open(filename)
@@ -602,10 +630,26 @@ def twitterToItems(fptr, partial=False, matches=None):
     """
     # I probably need to adjust to match the time zone records of other data
     # sources.
-    dststart = calendar.timegm(dateutil.parser.parse(
-        '2013-03-10 02:00 +0500').utctimetuple())
-    dstend = calendar.timegm(dateutil.parser.parse(
-        '2013-11-03 02:00 +0500').utctimetuple())
+    dststart = [
+        calendar.timegm(dateutil.parser.parse(
+            '2012-03-11 02:00 +0500').utctimetuple()),
+        calendar.timegm(dateutil.parser.parse(
+            '2013-03-10 02:00 +0500').utctimetuple()),
+        calendar.timegm(dateutil.parser.parse(
+            '2014-03-09 02:00 +0500').utctimetuple()),
+        calendar.timegm(dateutil.parser.parse(
+            '2015-03-08 02:00 +0500').utctimetuple()),
+    ]
+    dstend = [
+        calendar.timegm(dateutil.parser.parse(
+            '2012-11-04 02:00 +0500').utctimetuple()),
+        calendar.timegm(dateutil.parser.parse(
+            '2013-11-03 02:00 +0500').utctimetuple()),
+        calendar.timegm(dateutil.parser.parse(
+            '2014-11-02 02:00 +0500').utctimetuple()),
+        calendar.timegm(dateutil.parser.parse(
+            '2015-11-01 02:00 +0500').utctimetuple()),
+    ]
 
     decoder = HTMLParser.HTMLParser()
 
@@ -630,10 +674,13 @@ def twitterToItems(fptr, partial=False, matches=None):
             if matches and not partial and 'matches' in matches:
                 matches['matches'][item['user_id']] = item['hash']
         date = item['posted_date']
-        if date < dststart or date > dstend:
-            date -= 18000
-        else:
+        if ((date >= dststart[0] and date <= dstend[0]) or
+                (date >= dststart[1] and date <= dstend[1]) or
+                (date >= dststart[2] and date <= dstend[2]) or
+                (date >= dststart[3] and date <= dstend[3])):
             date -= 14400
+        else:
+            date -= 18000
         item['posted_date'] = date
         yield item
 
