@@ -22,7 +22,7 @@ geoapp.Graph = function (arg) {
     arg = arg || {};
 
     var m_this = this,
-        m_maxScale = 365,
+        m_maxScale = 365 + 365 + 181,
         m_view,
         m_updateGraphTimer = null,
         m_cycleDateRangeTime = 0,
@@ -162,6 +162,9 @@ geoapp.Graph = function (arg) {
         m_maxScale = ((moment.utc(geoapp.defaults.endDate) -
                        moment.utc(geoapp.defaults.startDate)) /
                       moment.duration(1, 'day'));
+        if (m_maxScale > 750) { // work around a c3 / d3 issue
+            m_maxScale = 750;
+        }
         $.extend(view.events, {
             'click .ga-add-graph': _.bind(this.addGraph, this),
             'click .ga-graph-settings': _.bind(this.graphSettings, this),
@@ -957,6 +960,10 @@ geoapp.Graph = function (arg) {
             graphOpts.opts.bin), minmax[0]);
         end = Math.min(0 + moment(date).endOf('day').endOf(
             graphOpts.opts.bin).add(1, 'ms'), minmax[1]);
+        // work around a c3 scale issue
+        if ((end - start) * m_maxScale < minmax[1] - minmax[0]) {
+            end = start + (minmax[1] - minmax[0]) / m_maxScale;
+        }
         this.handleGraphZoom(undefined, [start, end]);
     };
 
