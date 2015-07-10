@@ -10,7 +10,11 @@ header[0] = 'date'
 header = header[:5]
 list = []
 allKeys = {}
-baseTime = calendar.timegm(time.struct_time((2013, 1, 1, 0, 0, 0, 0, 0, 0)))
+if len(sys.argv) >= 3:
+    baseTime = calendar.timegm(time.strptime(sys.argv[2], '%Y-%m-%d %H:%M'))
+else:
+    baseTime = calendar.timegm(time.struct_time(
+        (2013, 1, 1, 0, 0, 0, 0, 0, 0)))
 for line in sptr:
     info = {}
     for col in xrange(len(header)):

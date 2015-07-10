@@ -55,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout 4153dc3758dbca6677e302e1ab5630d7cf73c192 && \
+    git checkout 099540fd49dece1e468079f0c58d65a1eb72651a && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 ENV PATH $PATH:/home/kwuser/.local/bin
@@ -75,7 +75,10 @@ RUN curl https://data.kitware.com/api/v1/file/559abbbe8d777f649a9ba2ad/download 
     curl https://data.kitware.com/api/v1/file/559abbbf8d777f649a9ba2b3/download -o client/optional/static/crimenyc.json && \
     curl https://data.kitware.com/api/v1/file/559abbbf8d777f649a9ba2b6/download -o client/optional/static/transitboston.json && \
     curl https://data.kitware.com/api/v1/file/559bd8588d777f649a9ba2d0/download -o client/optional/static/vendorboston.json
-RUN curl https://data.kitware.com/api/v1/file/5559f3658d777f082b592fbe/download -o client/optional/static/taximodel.json
+RUN curl https://data.kitware.com/api/v1/file/5559f3658d777f082b592fbe/download -o client/optional/static/taximodel.json && \
+    curl https://data.kitware.com/api/v1/file/559d4c2f8d777f649a9ba2f3/download -o client/optional/static/taximodelgreen.json && \
+    curl https://data.kitware.com/api/v1/file/559d4c288d777f649a9ba2ed/download -o client/optional/static/taximodelboston.json && \
+    curl https://data.kitware.com/api/v1/file/559d4c2d8d777f649a9ba2f0/download -o client/optional/static/taximodeldc.json
 RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
     curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
