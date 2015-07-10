@@ -35,13 +35,13 @@ Message Data
 
 * **Instagram Messages**
     This is a subset of Instagram messages that were sent in the greater New
-    York, Washington D.C., and Boston areas.  There are around 7.5 million
-    messages from NYC, 1.0 million from D.C., and 0.5 million from Boston.
+    York, Washington D.C., and Boston areas.  There are around 9.7 million
+    messages from NYC, 3.0 million from D.C., and 1.5 million from Boston.
 
 * **Twitter Messages**
     This is a subset of Twitter messages that were sent in the greater New York
-    York, Washington D.C., and Boston areas.  There are around 31 million
-    messages from NYC, 2.5 million from D.C., and 4.5 million from Boston.
+    York, Washington D.C., and Boston areas.  There are around 34.8 million
+    messages from NYC, 5.8 million from D.C., and 5.4 million from Boston.
 
 Graph Data
 ==========

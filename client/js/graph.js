@@ -22,7 +22,7 @@ geoapp.Graph = function (arg) {
     arg = arg || {};
 
     var m_this = this,
-        m_maxScale = 365,
+        m_maxScale = 365 + 365 + 181,
         m_view,
         m_updateGraphTimer = null,
         m_cycleDateRangeTime = 0,
