@@ -116,7 +116,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
         .geoOn(geo.event.feature.mouseout, function (evt) {
             m_this.highlightPoint(evt.index, evt, false);
         });
-        m_geoPoints.layer().geoOff(geo.event.pan)
+        m_geoPoints.layer().geoOff(geo.event.pan, m_this.panLayer)
         .geoOn(geo.event.pan, m_this.panLayer);
         $(this.map.getMap().node()).off('.instagram-map-layer').on(
             'mousedown.instagram-map-layer click.instagram-map-layer',

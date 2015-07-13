@@ -160,3 +160,18 @@ geoapp.throttleCallback = function (name, callback, minDelay, initDelay) {
         delete geoapp.ThrottledCallbacks[name];
     }
 };
+
+/* Get a valid random GUID.  See http://stackoverflow.com/questions/105034
+ *
+ * @returns: a random UUID that conforms to the official spec.
+ */
+geoapp.getRandomUUID = function () {
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+        /[xy]/g, function (c) {
+            /* jshint bitwise: false */
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            /* jshint bitwise: true */
+            return v.toString(16);
+        });
+    return uuid;
+};

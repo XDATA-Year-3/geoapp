@@ -334,6 +334,7 @@ geoapp.dataHandlers.taxi = function (arg) {
         geoapp.cancelRestRequests('taxidata');
         this.loadingAnimation('#ga-taxi-loading', false,
                               !options.params.offset);
+        options.params.clientid = geoapp.clientID;
         var xhr = geoapp.restRequest({
             path: 'geoapp/taxi', type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
@@ -454,6 +455,7 @@ geoapp.dataHandlers.instagram = function (arg) {
             this.loadingAnimation('#ga-instagram-loading', false,
                                   !options.params.offset);
         }
+        options.params.clientid = geoapp.clientID;
         var xhr = geoapp.restRequest({
             path: 'geoapp/' + options.access, type: 'GET', data: options.params
         }).done(_.bind(function (resp) {
