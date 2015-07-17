@@ -19,6 +19,7 @@
 
 # This file exposes endpoints to get taxi and other geoapp data.
 
+import binascii
 import calendar
 import cherrypy
 import collections
@@ -27,6 +28,7 @@ import dateutil.parser
 import HTMLParser
 import json
 import psycopg2
+import psycopg2.errorcodes
 import pymongo
 import re
 import time
@@ -39,6 +41,14 @@ from girder.api import access
 from girder.constants import AccessType
 from girder.api.describe import Description
 from girder.api.rest import RestException
+
+
+# Per distinct database.  Should be less than 90% of available connections to
+# postgres based on its config between all instances of the app that are
+# running.  10 is conservative for two databases with a few variations of the
+# app hitting the same databases.
+PostgresPoolSize = 10
+
 
 GeoappUser = {
     'login': 'geoapp',
@@ -276,8 +286,8 @@ class ViaPostgres():
         self.dbname = db
         self.dbparams = params.copy()
         self.dbLock = threading.RLock()
-        self.db = None
-        self.dbLastUsed = 0
+        self.dbpool = []
+        self.maxPoolSize = PostgresPoolSize
         if db is not None:
             self.dbparams['database'] = db
         if not self.dbparams['database'] and not self.dbparams['dsn']:
@@ -288,6 +298,7 @@ class ViaPostgres():
         self.maxId = None
         self.realtime = False
         self.dbIdleTime = 300
+        self.dbAbandonTime = self.dbIdleTime * 5
         self.closeThread = threading.Thread(target=self.closeWhenIdle)
         self.closeThread.daemon = True
         self.closeThread.start()
@@ -316,29 +327,58 @@ class ViaPostgres():
                 newfields.append(field)
         return newfields
 
-    def connect(self, alwaysNew=False):
+    def connect(self, reconnect=False, client=None):
         """
         Connect to the database.
 
-        :param alwaysNew: if False, reuse the last connection.  If True,
-                          close the last connection and open a new one.  If
-                          'fresh', create a new connection that the caller is
-                          responsible for closing.
+        :param reconnect: if False, allow an open connection to be returned.
+                          If 'fresh', create a new connection that the caller
+                          is responsible for closing that isn't part of the
+                          pool.  The client is ignored in this case.  If True,
+                          close any existing connections that aren't in use or
+                          are for this client, and return a new connection.
+        :param client: if None, use the next connection in the pool.  If
+                       specified, if this client is currently marked in use,
+                       cancel the client's existing query and return a
+                       connection from the pool for the client to use.
         :return: a database object.
         """
-        if alwaysNew == 'fresh':
+        if reconnect == 'fresh':
             return psycopg2.connect(**self.dbparams)
-        if getattr(self, 'db', None) and alwaysNew:
-            try:
-                self.db.close()
-            except Exception:
-                pass
-            self.db = None
+        db = None
         with self.dbLock:
-            db = self.db
-            if db is None:
-                self.db = db = psycopg2.connect(**self.dbparams)
-            self.dbLastUsed = time.time()
+            if client:
+                for pos in range(len(self.dbpool) - 1, -1, -1):
+                    if self.dbpool[pos].get('client', None) == client:
+                        self.dbpool[pos]['db'].cancel()
+                        if reconnect:
+                            self.dbpool[pos:pos + 1] = []
+                        else:
+                            self.dbpool[pos]['used'] = False
+                            self.dbpool[pos]['client'] = None
+            if reconnect:
+                if len(self.dbpool) >= self.maxPoolSize:
+                    for pos in range(len(self.dbpool)):
+                        if not self.dbpool[pos]['used']:
+                            self.dbpool[pos]['db'].close()
+                            self.dbpool[pos:pos + 1] = []
+                            break
+            if not reconnect:
+                for pos in range(len(self.dbpool)):
+                    if not self.dbpool[pos]['used']:
+                        db = self.dbpool[pos]['db']
+                        self.dbpool[pos]['used'] = True
+                        self.dbpool[pos]['client'] = client
+                        self.dbpool[pos]['time'] = time.time()
+                        break
+            if not db:
+                db = psycopg2.connect(**self.dbparams)
+                self.dbpool.append({
+                    'db': db,
+                    'used': True,
+                    'client': client,
+                    'time': time.time()
+                })
         return db
 
     def closeWhenIdle(self):
@@ -349,19 +389,27 @@ class ViaPostgres():
         """
         while True:
             with self.dbLock:
-                if self.db and time.time() - self.dbLastUsed > self.dbIdleTime:
-                    # The old db connection will close when no process is
-                    # using it
-                    self.db = None
+                curtime = time.time()
+                for pos in range(len(self.dbpool) - 1, -1, -1):
+                    delta = curtime - self.dbpool[pos]['time']
+                    if ((not self.dbpool[pos]['used'] and
+                            delta > self.dbIdleTime) or
+                            delta > self.dbAbandonTime):
+                        # The old db connection will close when no process is
+                        # using it
+                        self.dbpool[pos:pos + 1] = []
             time.sleep(30)
 
-    def checkMaxId(self):
+    def checkMaxId(self, client=None):
         """
         Check the max ID for this table.  This can be reported with the results
         to aid in determining what percentage of the total data was retreived.
+
+        :param client: the clientid to use for the database connection.
         """
         if self.maxId is None and self.queryBase in ('instagram', 'taxi'):
-            c = self.connect().cursor()
+            db = self.connect(client=client)
+            c = db.cursor()
             try:
                 c.execute('SELECT max(_id) FROM %s' % self.tableName)
                 row = c.fetchone()
@@ -369,6 +417,24 @@ class ViaPostgres():
             except (psycopg2.Error, ValueError):
                 self.maxId = 0
             c.close()
+            self.disconnect(db, client)
+
+    def disconnect(self, db, client=None):
+        """
+        Mark that a client has finished with a database connection and it can
+        be closed or returned to the pool.
+
+        :param db: the database connection to mark as finished.
+        :param client: the client that owned this connection.
+        """
+        with self.dbLock:
+            for pos in range(len(self.dbpool)):
+                if self.dbpool[pos]['db'] == db:
+                    self.dbpool[pos]['used'] = False
+                    self.dbpool[pos]['client'] = None
+                    if len(self.dbpool) > self.maxPoolSize:
+                        self.dbpool[pos:pos + 1] = []
+                    break
 
     def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
              **kwargs):
@@ -392,8 +458,11 @@ class ViaPostgres():
                              any other where clauses.
         :returns: a dictionary of results.
         """
+        client = params.get('clientid', '').strip()
+        if not client:
+            client = None
         starttime = time.time()
-        self.checkMaxId()
+        self.checkMaxId(client)
         if sort is None or self.alwaysUseIdSort:
             # shuffled order
             sort = self.defaultSort
@@ -425,10 +494,45 @@ class ViaPostgres():
         }
         if self.maxId:
             result['maxid'] = self.maxId
+        db, c = self.findQuery(result, params, sql, sqlval, client)
+        if not db:
+            return
+        execTime = time.time()
+        try:
+            result['data'] = data = c.fetchmany()
+            while data:
+                data = c.fetchmany()
+                if data:
+                    result['data'].extend(data)
+            c.close()
+        except psycopg2.Error as exc:
+            code = psycopg2.errorcodes.lookup(exc.pgcode)
+            logger.info('Database error %s - %s', str(exc).strip(), code)
+        self.disconnect(db, client)
+        curtime = time.time()
+        logger.info(
+            'Query time: %5.3fs for query, %5.3fs total, %d row%s',
+            execTime - starttime, curtime - starttime, len(result['data']),
+            's' if len(result['data']) != 1 else '')
+        return result
+
+    def findQuery(self, result, params, sql, sqlval, client=None):
+        """
+        Perform the find query with a retry loop.
+
+        :param result: dictionary with some result information.
+        :param params: rest query parameters.
+        :param sql: sql to execute.
+        :param sqlval: values to pass to sql execute.
+        :param client: client for database access.
+        :returns: the database connection and the database cursor with the
+                  query results.
+        """
         maxretry = 3
         for retry in xrange(maxretry):
             try:
-                c = self.connect(retry != 0).cursor()
+                db = self.connect(retry != 0, client)
+                c = db.cursor()
                 if self.queryBase == 'message' and self.realtime:
                     c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
                     row = c.fetchone()
@@ -445,23 +549,13 @@ class ViaPostgres():
                 c.execute(sql, sqlval)
                 break
             except psycopg2.Error as exc:
-                logger.info('Database error %s', str(exc))
-                if retry + 1 == maxretry:
+                self.disconnect(db, client)
+                code = psycopg2.errorcodes.lookup(exc.pgcode)
+                logger.info('Database error %s - %s', str(exc).strip(), code)
+                if retry + 1 == maxretry or code == 'QUERY_CANCELED':
                     cherrypy.response.status = 500
-                    return
-        execTime = time.time()
-        result['data'] = data = c.fetchmany()
-        while data:
-            data = c.fetchmany()
-            if data:
-                result['data'].extend(data)
-        c.close()
-        curtime = time.time()
-        logger.info(
-            'Query time: %5.3fs for query, %5.3fs total, %d row%s',
-            execTime - starttime, curtime - starttime, len(result['data']),
-            's' if len(result['data']) != 1 else '')
-        return result
+                    return None, None
+        return db, c
 
     def findModifiers(self, sort, limit, offset, sql, queryToDbKeys={}):
         """
@@ -1126,6 +1220,9 @@ def findGeneralDescription(desc, sortKey, fieldTable, defaultDbKey):
                '(default is all fields).', required=False)
         .param('format', 'The format to return the data (default is '
                'list).', required=False, enum=['list', 'dict'])
+        .param('clientid', 'A string to use for a client id.  If specified '
+               'there is an extant query to this end point from the same '
+               'clientid, the extant query will be cancelled.', required=False)
         .param('wait', 'Maximum duration in seconds to wait for data '
                '(default=0).', required=False, dataType='float',
                default=0)
@@ -1169,6 +1266,8 @@ class GeoAppResource(girder.api.rest.Resource):
         self.route('GET', ('taxi', ), self.findTaxi)
         self.route('GET', ('tiles', 'blank', ':wc1', ':wc2', ':wc3'),
                    self.blankTiles)
+        self.route('GET', ('tiles', 'grid', ':wc1', ':wc2', ':wc3'),
+                   self.gridTiles)
         config = girder.utility.config.getConfig()
         for attrKey, confKey in [
             ('taxiAccess', 'taxidata'),
@@ -1202,9 +1301,7 @@ class GeoAppResource(girder.api.rest.Resource):
         limit, offset, sort = self.getPagingParameters(params, sortKey)
         if sort is None and sortKey:
             sort = sortKey
-        fields = None
-        if 'fields' in params:
-            fields = params['fields'].replace(',', ' ').strip().split()
+        fields = params.get('fields', '').replace(',', ' ').strip().split()
         if not fields or not len(fields):
             fields = fieldTable.keys()
         accessObj = accessList[params.get('source', defaultDbKey)]
@@ -1229,6 +1326,9 @@ class GeoAppResource(girder.api.rest.Resource):
             while True:
                 result = accessObj.find(
                     params, limit, offset, sort, fields, **kwargs)
+                if result is None:
+                    cherrypy.response.status = 500
+                    raise StopIteration
                 result['datacount'] = len(result.get('data', []))
                 curtime = time.time()
                 if (not wait or result['datacount'] or
@@ -1466,6 +1566,26 @@ class GeoAppResource(girder.api.rest.Resource):
         return resultFunc
     blankTiles.description = (
         Description('Always send a transparent 1x1 pixel PNG.')
+        .param('wc1', 'Ignored', paramType='path', required=True)
+        .param('wc2', 'Ignored', paramType='path', required=True)
+        .param('wc3', 'Ignored', paramType='path', required=True))
+
+    @access.public
+    def gridTiles(self, wc1, wc2, wc3, params):
+        def resultFunc():
+            yield binascii.a2b_base64(
+                'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEABAMAAACuXLVVAAAAD1BMVEUAAABAQ'
+                'ECAgIDAwMD///8E6R8uAAAA0ElEQVR42u3cuQ2AQAwEQPM0wFMB0AGUQP81EU'
+                'PABQ6czGYny9JIm1oXUZ3xfuf6vI/GfE3uAwAAAAAAAAAAAAAAAAAAxHD+Z2/'
+                'Ml+S+CgAAAAAAAAAAAAAAAAAA6gH9lsuc3FcBAAAAAAAAAAAAAAAAAID7ARUA'
+                'AAAAAAAAAAAAAAAAANQDuqk2KgAAAAAAAAAAAAAAAAAAcD+gAgAAAAAAAAAAA'
+                'AAAAAAA/w+oAAAAAAAAAAAAAAAAAADA/YAKAAAAAAAAAAAAAAAAAADKAQ8My5'
+                'exgH1vAAAAAABJRU5ErkJggg==')
+
+        cherrypy.response.headers['Content-Type'] = 'image/png'
+        return resultFunc
+    gridTiles.description = (
+        Description('Send a precise 256x256 grid tile PNG.')
         .param('wc1', 'Ignored', paramType='path', required=True)
         .param('wc2', 'Ignored', paramType='path', required=True)
         .param('wc3', 'Ignored', paramType='path', required=True))

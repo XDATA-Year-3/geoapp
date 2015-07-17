@@ -34,7 +34,8 @@ geoapp.TileSets = {
         url: 'http://tile.stamen.com/terrain/',
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
-    blank: {url: 'api/v1/geoapp/tiles/blank/'}
+    blank: {url: 'api/v1/geoapp/tiles/blank/'},
+    grid: {url: 'api/v1/geoapp/tiles/grid/'}
 };
 geoapp.TileSets.default = geoapp.TileSets.mqsat;
 
@@ -168,8 +169,7 @@ geoapp.Map = function (arg) {
 
     /* Scale the map to include the specified bounds.  The bounds object can
      * contain either x0, y0, x1, y1 with the upper left and lower right
-     * longitudes and latitudes, OR x, y, and zoom with the center longitude,
-     * latitude, and zoom level, OR a default value will be used.
+     * longitudes and latitudes, OR a default value will be used.
      *
      * @param bounds: an object as discussed above.
      * @param duration: duration in ms to transition to the location specified.
@@ -180,8 +180,6 @@ geoapp.Map = function (arg) {
     this.fitBounds = function (bounds, duration, sendMoveEvent) {
         bounds = bounds || {};
         var view = this;
-        var curBounds = m_geoMap.bounds(),
-            curZoom = m_geoMap.zoom();
         var params = {
             interp: d3.interpolateZoom,
             duration: parseInt(duration || 0),
@@ -194,36 +192,27 @@ geoapp.Map = function (arg) {
         };
         if (bounds.x0 !== undefined && bounds.y0 !== undefined &&
                 bounds.x1 !== undefined && bounds.y1 !== undefined) {
-            bounds.x0 = parseFloat(bounds.x0);
-            bounds.y0 = parseFloat(bounds.y0);
-            bounds.x1 = parseFloat(bounds.x1);
-            bounds.y1 = parseFloat(bounds.y1);
-            /* We want to view the entire rectangle that is specified, so
-             * calculate the appropriate zoom. */
-            params.center = {
-                x: (bounds.x0 + bounds.x1) / 2,
-                y: (bounds.y0 + bounds.y1) / 2
-            };
-            var scale = 1,
-                scalex = Math.abs((bounds.x1 - bounds.x0) /
-                    (curBounds.lowerRight.x - curBounds.upperLeft.x)),
-                scaley = Math.abs((bounds.y1 - bounds.y0) /
-                    (curBounds.lowerRight.y - curBounds.upperLeft.y));
-            if (scalex && (!scaley || (scalex > scaley))) {
-                scale = scalex;
-            } else if (scaley) {
-                scale = scaley;
-            }
-            params.zoom = curZoom - Math.log(scale) / Math.log(2);
-        } else if (bounds.x !== undefined && bounds.y !== undefined && bounds.zoom !== undefined) {
-            params.center = {x: parseFloat(bounds.x), y: parseFloat(bounds.y)};
-            params.zoom = parseFloat(bounds.zoom);
+            var nav = m_geoMap.zoomAndCenterFromBounds({
+                lowerLeft: {x: parseFloat(bounds.x0),
+                            y: parseFloat(bounds.y1)},
+                upperRight: {x: parseFloat(bounds.x1),
+                             y: parseFloat(bounds.y0)}});
+            params.center = nav.center;
+            params.zoom = nav.zoom;
         } else {
             params.center = m_defaultCenter;
             params.zoom = m_defaultZoom;
         }
-        m_panIgnore = true;
-        m_geoMap.transition(params);
+        if (duration) {
+            m_panIgnore = true;
+            m_geoMap.transition(params);
+        } else {
+            m_geoMap.center(params.center);
+            m_geoMap.zoom(params.zoom);
+            if (sendMoveEvent) {
+                view.mapMovedEvent(null, true);
+            }
+        }
     };
 
     /* Update parameters that affect how a map is displayed but not what data
