@@ -25,7 +25,6 @@ geoapp.version = '0.1.4';
 geoapp.App = geoapp.View.extend({
     initialize: function () {
         geoapp.clientID = geoapp.getRandomUUID();
-        console.log('clientID', geoapp.clientID); //DWM::
         geoapp.restRequest({
             path: 'user/me'
         }).done(_.bind(function () {
