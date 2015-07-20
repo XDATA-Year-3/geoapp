@@ -497,23 +497,26 @@ class ViaPostgres():
         db, c = self.findQuery(result, params, sql, sqlval, client)
         if not db:
             return
-        execTime = time.time()
-        try:
-            result['data'] = data = c.fetchmany()
-            while data:
-                data = c.fetchmany()
-                if data:
-                    result['data'].extend(data)
-            c.close()
-        except psycopg2.Error as exc:
-            code = psycopg2.errorcodes.lookup(exc.pgcode)
-            logger.info('Database error %s - %s', str(exc).strip(), code)
+        execTime = None
+        if c:
+            execTime = time.time()
+            try:
+                result['data'] = data = c.fetchmany()
+                while data:
+                    data = c.fetchmany()
+                    if data:
+                        result['data'].extend(data)
+                c.close()
+            except psycopg2.Error as exc:
+                code = psycopg2.errorcodes.lookup(exc.pgcode)
+                logger.info('Database error %s - %s', str(exc).strip(), code)
         self.disconnect(db, client)
-        curtime = time.time()
-        logger.info(
-            'Query time: %5.3fs for query, %5.3fs total, %d row%s',
-            execTime - starttime, curtime - starttime, len(result['data']),
-            's' if len(result['data']) != 1 else '')
+        if execTime:
+            curtime = time.time()
+            logger.info(
+                'Query time: %5.3fs for query, %5.3fs total, %d row%s',
+                execTime - starttime, curtime - starttime, len(result['data']),
+                's' if len(result['data']) != 1 else '')
         return result
 
     def findQuery(self, result, params, sql, sqlval, client=None):
@@ -542,7 +545,7 @@ class ViaPostgres():
                     if str(result['nextId']) == params.get('_id_min'):
                         result['data'] = []
                         c.close()
-                        return result
+                        return db, None
                     sql = sql.replace(' WHERE true', ' WHERE _id<%s' % str(
                         result['nextId']))
                 logger.info('Query: %s', c.mogrify(sql, sqlval))
