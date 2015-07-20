@@ -57,7 +57,7 @@ MessageKeyList = [
     'latitude', 'longitude', 'location_id', 'location_name',
 
     'source', 'msg_date_ms', 'utc_offset', 'ingest_date', 'ingest_source',
-    'user_fullname', 'region', 'service',
+    'user_fullname', 'region', 'service', 'msg_id'
 ]
 JSONKeyList = [
     'user_name', 'user_id', 'msg_date', 'url', 'image_url', 'msg',
@@ -202,6 +202,7 @@ def convertInstagramJSONToItem(inst, partial):
         'like_count':    inst['likes']['count'],
         'likes':         '',
         'scraped_date':  int(inst['created_time']),
+        'msg_id':        inst['link'].rsplit('/', 1)[-1]
     }
     if inst['caption']:
         item['caption'] = inst['caption']['text']
@@ -239,7 +240,7 @@ def convertTwitterJSONToItem(tw, decoder, line, partial):
     :param partial: if True, partial data is allowed.
     :return: the converted item or None for failure.
     """
-    if 'created_at' not in tw:
+    if 'created_at' not in tw or tw.get('coordinates', None) is None:
         return None
     if tw['created_at'] in DateLookup:
         date = DateLookup[tw['created_at']]
@@ -258,6 +259,7 @@ def convertTwitterJSONToItem(tw, decoder, line, partial):
         'posted_date':     date,
         'caption':         decoder.unescape(tw['text']),
         'url':             't/' + tw['user']['id_str'] + '/' + tw['id_str'],
+        'msg_id':          tw['id_str'],
         # 'comment_count': inst['comments']['count'],
         # 'comments':      '',
         'like_count':      tw.get('retweet_count', None),
@@ -321,6 +323,8 @@ def csvToItems(fptr, partial=False):
         if 'image_url' in item and 'url' not in item:
             item['url'] = item['image_url']
             del item['image_url']
+        if 'url' in item:
+            item['msg_id'] = item['url'].rsplit('/', 1)[-1]
         yield item
 
 
@@ -691,7 +695,8 @@ if __name__ == '__main__':
         print """Load instagram and twitter data files to a Postgres table.
 
 Syntax: messages_to_pg.py [--noclear] [--message|--json] [--match=(file)]
-                          [--mentions=(file) [--likes]] (files) > (data.pg)
+        [--mentions=(file) [--likes]] [--table=(table name)] (files)
+        > (data.pg)
 
 Files must not start with a dash.  Files can be json or csv, either plain or
 stored in zip, bzip2, or gzip files.  Zip, bzip2, and gzip files must end with
@@ -705,11 +710,13 @@ compressed file ending with .json or .csv are ingested.
 --message outputs data that can be added to the real-time message table rather
     than to the original instagram message table.  It always implies --noclear.
 --noclear doesn't drop or create the postgres table.
+--table specifies the output table name.
 """
         sys.exit()
 
     format = ('message' if '--message' in sys.argv[1:] else
               ('json' if '--json' in sys.argv[1:] else 'instagram'))
+    table = 'instagram' if format != 'message' else 'messages'
     # Parse input files and store results in temporary files
     fileData = {}
     for arg in sys.argv[1:]:
@@ -719,6 +726,8 @@ compressed file ending with .json or .csv are ingested.
             fileData['mentions'] = {}
             if '--likes' in sys.argv[1:]:
                 fileData['likes'] = True
+        elif arg.startswith('--table='):
+            table = arg.split('=', 1)[1]
     files = []
     region = None
     for filespec in sys.argv[1:]:
@@ -746,9 +755,9 @@ compressed file ending with .json or .csv are ingested.
     # Output the results
     dptr = sys.stdout
     if '--noclear' not in sys.argv[1:] and format == 'instagram':
-        dptr.write("""DROP TABLE instagram;
+        dptr.write("""DROP TABLE %s;
 
-CREATE TABLE instagram (
+CREATE TABLE %s (
     user_name text,
     user_id text,
     posted_date int,
@@ -766,15 +775,15 @@ CREATE TABLE instagram (
     scraped_date int,
     _id serial
 );
-""")
+""" % (table, table))
 
     if format == 'instagram':
         dptr.write("""
-COPY instagram (_id,""")
+COPY %s (_id,""" % table)
         dptr.write(','.join(KeyList))
     elif format == 'message':
         dptr.write("""
-COPY messages (""")
+COPY %s (""" % table)
         dptr.write(','.join(MessageKeyList))
     if format != 'json':
         dptr.write(""") FROM stdin;
@@ -785,11 +794,11 @@ COPY messages (""")
 """)
     if format == 'instagram':
         dptr.write("""
-CREATE INDEX instagram_id_ix ON instagram (_id);
-CREATE INDEX instagram_posted_date_ix ON instagram (posted_date);
-CREATE INDEX instagram_caption_ix ON instagram USING gin
+CREATE INDEX instagram_id_ix ON %s (_id);
+CREATE INDEX instagram_posted_date_ix ON %s (posted_date);
+CREATE INDEX instagram_caption_ix ON %s USING gin
     (to_tsvector('english', caption));
-""")
+""" % (table, table, table))
     sys.stderr.write('\n%d of %d\n' % (lenItems, processed))
     for arg in sys.argv[1:]:
         if arg.startswith('--match='):

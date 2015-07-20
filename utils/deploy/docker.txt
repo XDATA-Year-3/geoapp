@@ -1,0 +1,26 @@
+# To build a docker image:
+
+# ~/geoapp/utils/deploy/geoapp is the directory with the Dockerfile
+cd ~/geoapp/utils/deploy
+docker build --force-rm -t kitware/geoapp geoapp
+# or
+docker build --force-rm -t kitware/geoapp ~/geoapp/utils/deploy/geoapp
+
+# To run the docker image (use an appropriate date as part of the name so you
+# can keep track of what you are doing):
+docker run -d --restart=always --name=geoapp-150610a kitware/geoapp
+
+# To run with an interactive terminal
+docker run -i -t --name=geoapp-150610a kitware/geoapp /bin/bash
+
+# To see which docker containers are running:
+docker ps -a
+
+# To stop and remove a container:
+docker stop (container hash or name) && docker rm (container hash or name)
+
+# To see the stdout and stderr of a container:
+docker logs --tail=10 -f (container hash)
+
+# To see a file in the running docker container (you need to be root or sudo):
+tail -F /var/lib/docker/aufs/mnt/(full container hash)/(path in container)
