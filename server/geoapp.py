@@ -497,6 +497,7 @@ class ViaPostgres():
         db, c = self.findQuery(result, params, sql, sqlval, client)
         if not db:
             return
+        execTime = None
         if c:
             execTime = time.time()
             try:
@@ -510,11 +511,12 @@ class ViaPostgres():
                 code = psycopg2.errorcodes.lookup(exc.pgcode)
                 logger.info('Database error %s - %s', str(exc).strip(), code)
         self.disconnect(db, client)
-        curtime = time.time()
-        logger.info(
-            'Query time: %5.3fs for query, %5.3fs total, %d row%s',
-            execTime - starttime, curtime - starttime, len(result['data']),
-            's' if len(result['data']) != 1 else '')
+        if execTime:
+            curtime = time.time()
+            logger.info(
+                'Query time: %5.3fs for query, %5.3fs total, %d row%s',
+                execTime - starttime, curtime - starttime, len(result['data']),
+                's' if len(result['data']) != 1 else '')
         return result
 
     def findQuery(self, result, params, sql, sqlval, client=None):
