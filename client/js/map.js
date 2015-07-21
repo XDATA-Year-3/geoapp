@@ -34,8 +34,7 @@ geoapp.TileSets = {
         url: 'http://tile.stamen.com/terrain/',
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
-    blank: {url: 'api/v1/geoapp/tiles/blank/'},
-    grid: {url: 'api/v1/geoapp/tiles/grid/'}
+    blank: {url: 'api/v1/geoapp/tiles/blank/'}
 };
 geoapp.TileSets.default = geoapp.TileSets.mqsat;
 
@@ -245,6 +244,10 @@ geoapp.Map = function (arg) {
         } else if (params['display-tile-set'] &&
                 params['display-tile-set'].substr(0, 4) === 'http') {
             results.baseUrl = params['display-tile-set'];
+            results.baseUrlCredit = '';
+        } else {
+            results.baseUrl = 'api/v1/geoapp/tiles/' +
+                params['display-tile-set'] + '/';
             results.baseUrlCredit = '';
         }
         m_mapParams = params;

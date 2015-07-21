@@ -102,7 +102,8 @@ module.exports = function (grunt) {
                 cwd: 'client/optional/static',
                 src: [
                     '**/*.js',
-                    '**/*.json'
+                    '**/*.json',
+                    '**/*.png'
                 ],
                 dest: 'built'
             }
