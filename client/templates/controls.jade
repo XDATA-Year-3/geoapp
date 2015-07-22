@@ -170,6 +170,12 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
       .ga-legend-item.legend-messages.hidden
         i.icon-circle
         | Messages
+      .ga-legend-item.legend-messages-new.hidden
+        i.icon-circle
+        | Recent Messages
+      .ga-legend-item.legend-messages-old.hidden
+        i.icon-circle
+        | Older Messages
     .form-group#ga-place-group
       //- The place buttons are taken from the ini settings or defaults
         based on this template

@@ -688,9 +688,14 @@ geoapp.dataHandlers.instagram = function (arg) {
                 dataIndices = m_sortedIndices.slice(current, current + page);
                 break;
             default:
-                for (i = current; i < data.data.length && i < current + page;
-                        i += 1) {
-                    dataIndices.push(i);
+                if (data.sortedIndices) {
+                    dataIndices = data.sortedIndices.slice(current,
+                                                           current + page);
+                } else {
+                    for (i = current; i < data.data.length && i < current + page;
+                            i += 1) {
+                        dataIndices.push(i);
+                    }
                 }
                 break;
         }
