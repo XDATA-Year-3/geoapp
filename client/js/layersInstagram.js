@@ -37,8 +37,10 @@ geoapp.mapLayers.instagram = function (map, arg) {
         m_lastPanEvent,
 
         m_defaultOpacity = 0.1,
-        m_pointColor = geo.util.convertColor('#FF0000'),
-        m_strokeColor = geo.util.convertColor('#E69F00'),
+        m_pointColorStr = '#FF0000',
+        m_pointColor = geo.util.convertColor(m_pointColorStr),
+        m_strokeColorStr = '#E69F00',
+        m_strokeColor = geo.util.convertColor(m_strokeColorStr),
 
         /* If both recentPointCount and recentPointTime are falsy, no recent
          * poinr highlighting is performed.  Otherwise, recentPointCount is
@@ -72,6 +74,12 @@ geoapp.mapLayers.instagram = function (map, arg) {
         m_oldPointColorStr = (recentMsg.oldPointColor !== undefined ?
             recentMsg.oldPointColor : m_oldPointColorStr);
         m_oldPointColor = geo.util.convertColor(m_oldPointColorStr);
+        m_pointColorStr = (recentMsg.pointColor !== undefined ?
+            recentMsg.pointColor : m_pointColorStr);
+        m_pointColor = geo.util.convertColor(m_pointColorStr);
+        m_strokeColorStr = (recentMsg.strokeColor !== undefined ?
+            recentMsg.strokeColor : m_strokeColorStr);
+        m_strokeColor = geo.util.convertColor(m_strokeColorStr);
     }
 
     geoLayer = map.getMap().createLayer('feature', {
@@ -117,12 +125,17 @@ geoapp.mapLayers.instagram = function (map, arg) {
         $('.ga-legend-item.legend-messages-old,' +
                 '.ga-legend-item.legend-messages-new').toggleClass(
             'hidden', !visible || !recent);
-        if (recent && visible) {
-            $('.ga-legend-item.legend-messages-old i').css(
-                'color', m_oldPointColorStr);
-        }
         if (!visible) {
             return;
+        }
+        if (recent) {
+            $('.ga-legend-item.legend-messages-old i').css(
+                'color', m_oldPointColorStr);
+            $('.ga-legend-item.legend-messages-new i').css(
+                'color', m_pointColorStr);
+        } else {
+            $('.ga-legend-item.legend-messages i').css(
+                'color', m_pointColorStr);
         }
         if (params['data-opacity'] > 0) {
             params['inst-opacity'] = params['data-opacity'];
