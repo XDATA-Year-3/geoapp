@@ -19,7 +19,6 @@
 
 # This file exposes endpoints to get taxi and other geoapp data.
 
-import binascii
 import calendar
 import cherrypy
 import collections
@@ -533,6 +532,7 @@ class ViaPostgres():
         """
         maxretry = 3
         for retry in xrange(maxretry):
+            db = None
             try:
                 db = self.connect(retry != 0, client)
                 c = db.cursor()
@@ -552,7 +552,8 @@ class ViaPostgres():
                 c.execute(sql, sqlval)
                 break
             except psycopg2.Error as exc:
-                self.disconnect(db, client)
+                if db:
+                    self.disconnect(db, client)
                 code = psycopg2.errorcodes.lookup(exc.pgcode)
                 logger.info('Database error %s - %s', str(exc).strip(), code)
                 if retry + 1 == maxretry or code == 'QUERY_CANCELED':
@@ -1269,7 +1270,7 @@ class GeoAppResource(girder.api.rest.Resource):
         self.route('GET', ('taxi', ), self.findTaxi)
         self.route('GET', ('tiles', 'blank', ':wc1', ':wc2', ':wc3'),
                    self.blankTiles)
-        self.route('GET', ('tiles', 'grid', ':wc1', ':wc2', ':wc3'),
+        self.route('GET', ('tiles', ':tilename', ':wc1', ':wc2', ':wc3'),
                    self.gridTiles)
         config = girder.utility.config.getConfig()
         for attrKey, confKey in [
@@ -1574,21 +1575,12 @@ class GeoAppResource(girder.api.rest.Resource):
         .param('wc3', 'Ignored', paramType='path', required=True))
 
     @access.public
-    def gridTiles(self, wc1, wc2, wc3, params):
-        def resultFunc():
-            yield binascii.a2b_base64(
-                'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEABAMAAACuXLVVAAAAD1BMVEUAAABAQ'
-                'ECAgIDAwMD///8E6R8uAAAA0ElEQVR42u3cuQ2AQAwEQPM0wFMB0AGUQP81EU'
-                'PABQ6czGYny9JIm1oXUZ3xfuf6vI/GfE3uAwAAAAAAAAAAAAAAAAAAxHD+Z2/'
-                'Ml+S+CgAAAAAAAAAAAAAAAAAA6gH9lsuc3FcBAAAAAAAAAAAAAAAAAID7ARUA'
-                'AAAAAAAAAAAAAAAAANQDuqk2KgAAAAAAAAAAAAAAAAAAcD+gAgAAAAAAAAAAA'
-                'AAAAAAA/w+oAAAAAAAAAAAAAAAAAADA/YAKAAAAAAAAAAAAAAAAAADKAQ8My5'
-                'exgH1vAAAAAABJRU5ErkJggg==')
-
-        cherrypy.response.headers['Content-Type'] = 'image/png'
-        return resultFunc
+    def gridTiles(self, tilename, wc1, wc2, wc3, params):
+        raise cherrypy.HTTPRedirect('/built/tile%s.png' % tilename)
     gridTiles.description = (
         Description('Send a precise 256x256 grid tile PNG.')
+        .param('tilename', 'Root of tile image name.  This serves '
+               'built/tile(tilename).png.', paramType='path', required=True)
         .param('wc1', 'Ignored', paramType='path', required=True)
         .param('wc2', 'Ignored', paramType='path', required=True)
         .param('wc3', 'Ignored', paramType='path', required=True))
