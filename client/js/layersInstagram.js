@@ -50,6 +50,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
          * points are transitioned to oldPointColor across the either the
          * lessRecentPointCount or lessRecentPointTime as appropriate. */
         m_recentOpacityBoost = 4,
+        m_recentRadius = 7,
         m_recentPointCount = 0,
         m_lessRecentPointCount = 0,
         m_recentPointTime = 0,
@@ -63,6 +64,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
     if (recentMsg) {
         m_recentOpacityBoost = (recentMsg.recentOpacityBoost !== undefined ?
             recentMsg.recentOpacityBoost : m_recentOpacityBoost);
+        m_recentRadius = (recentMsg.recentRadius !== undefined ?
+            recentMsg.recentRadius : m_recentRadius);
         m_recentPointCount = (recentMsg.recentPointCount !== undefined ?
             recentMsg.recentPointCount : m_recentPointCount);
         m_lessRecentPointCount = (recentMsg.lessRecentPointCount !== undefined ?
@@ -148,12 +151,14 @@ geoapp.mapLayers.instagram = function (map, arg) {
             pointData = data.data.slice(0, this.maximumMapPoints);
         }
         var color = m_pointColor,
-            opacity = params['inst-opacity'] || m_defaultOpacity;
+            opacity = params['inst-opacity'] || m_defaultOpacity,
+            radius = 5;
         if (m_recentPointCount || m_recentPointTime) {
-            var recentData = this.adjustRecentPoints(pointData, color,
-                                                     opacity, data.columns);
+            var recentData = this.adjustRecentPoints(
+                pointData, data.columns, color, opacity, radius);
             color = recentData.color;
             opacity = recentData.opacity;
+            radius = recentData.radius;
         }
         m_geoPoints.data(pointData)
         .style({
@@ -165,7 +170,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
             stroke: function (d) {
                 return d._selected;
             },
-            radius: 5
+            radius: radius
         })
         .position(function (d) {
             return {
@@ -221,14 +226,16 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * colored and differently opaque.
      *
      * @param data: the data array of points.
+     * @param columns: the columns record used to determine what date to use.
      * @param color: the color for recent points.
      * @param opacity: the base opacity for points.
-     * @param columns: the columns record used to determine what date to use.
-     * @returns: the new color and opacity, which may be functions.
+     * @param radius: the base radius for points.
+     * @returns: the new color, opacity, and radius which may be functions.
      */
-    this.adjustRecentPoints = function (data, color, opacity, columns) {
+    this.adjustRecentPoints = function (data, columns, color, opacity,
+            radius) {
         var len = data.length, diff = 0,
-            res = {color: m_oldPointColor, opacity: opacity};
+            res = {color: m_oldPointColor, opacity: opacity, radius: radius};
         if (!len || !columns || !columns.posted_date) {
             res.color = color;
             return res;
@@ -266,31 +273,47 @@ geoapp.mapLayers.instagram = function (map, arg) {
             });
         }
         if (diff) {
-            res.color = function (d) {
-                var val = d.recent;
-                if (!val) {
-                    return m_oldPointColor;
-                }
-                if (val === 1) {
-                    return color;
-                }
-                var invval = 1 - val;
-                return {
-                    r: m_pointColor.r * val + m_oldPointColor.r * invval,
-                    g: m_pointColor.g * val + m_oldPointColor.g * invval,
-                    b: m_pointColor.b * val + m_oldPointColor.b * invval
+            if (color !== m_oldPointColor) {
+                res.color = function (d) {
+                    var val = d.recent;
+                    if (!val) {
+                        return m_oldPointColor;
+                    }
+                    if (val === 1) {
+                        return color;
+                    }
+                    var invval = 1 - val;
+                    return {
+                        r: m_pointColor.r * val + m_oldPointColor.r * invval,
+                        g: m_pointColor.g * val + m_oldPointColor.g * invval,
+                        b: m_pointColor.b * val + m_oldPointColor.b * invval
+                    };
                 };
-            };
-            var boost = (1 - Math.pow(1 - opacity, m_recentOpacityBoost) -
-                         opacity);
-            res.opacity = function (d) {
-                var val = d.recent, opac;
-                if (!val) {
-                    return opacity;
-                }
-                opac = opacity + boost * val;
-                return opac;
-            };
+            }
+            if (m_recentOpacityBoost > 1) {
+                var boost = (1 - Math.pow(1 - opacity, m_recentOpacityBoost) -
+                             opacity);
+                res.opacity = function (d) {
+                    var val = d.recent, opac;
+                    if (!val) {
+                        return opacity;
+                    }
+                    opac = opacity + boost * val;
+                    return opac;
+                };
+            }
+            if (radius !== m_recentRadius) {
+                res.radius = function (d) {
+                    var val = d.recent;
+                    if (!val) {
+                        return radius;
+                    }
+                    if (val === 1) {
+                        return m_recentRadius;
+                    }
+                    return (1 - val) * radius + val * m_recentRadius;
+                };
+            }
         }
         return res;
     };
