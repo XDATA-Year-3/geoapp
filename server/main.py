@@ -64,8 +64,11 @@ class GeoAppRoot(object):
             if key in config:
                 iniList[sectionList[key]] = json.dumps(config[key])
         for key in iniList:
+            val = iniList[key]
+            if not isinstance(val, basestring):
+                val = json.dumps(val)
             vars['iniSettings'] += '%s=\'%s\' ' % (
-                key, xml.sax.saxutils.escape(iniList[key]))
+                key, xml.sax.saxutils.escape(val))
         data = {}
         for dbtype in ('taxidata', 'instagramdata'):
             datalist = []

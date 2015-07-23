@@ -89,6 +89,8 @@ geoapp.Map = function (arg) {
             m_geoMap = geo.map({
                 node: '#ga-main-map',
                 center: m_defaultCenter,
+                parallelProjection: true,
+                discreteZoom: true,
                 zoom: m_defaultZoom
             });
             /* jscs:disable requireBlocksOnNewline */

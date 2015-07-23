@@ -114,6 +114,7 @@ def convertGnipToTwitterItem(gnip):
         'msg_id': gnip['object']['id'].split(':')[-1],
         'user_id': gnip['actor']['id'].split(':')[-1],
         'user_name': gnip['actor']['preferredUsername'],
+        'user_fullname': gnip['actor'].get('displayName', None),
         'msg_date': int(date / 1000),
         'msg_date_ms': date,
         'msg': gnip['body'],

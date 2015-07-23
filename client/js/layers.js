@@ -48,6 +48,8 @@ geoapp.MapLayer = function (map, datakey, arg) {
      *      set or present, the date restriction is not used.
      *   dateMin: the minimum (inclusive) date for the data.
      *   dateMax: the maximum (exclusive) date for the data.
+     *   maxPoints: only maintain this many points, if set.
+     *   sortByDate: if truthy, sort the resulting points by date.
      *
      * @param data: if present, set the layer's data to this, otherwise return
      *              the current data.  If === true or === false, use this as
@@ -84,6 +86,30 @@ geoapp.MapLayer = function (map, datakey, arg) {
                 data.data = _.filter(data.data, function (d) {
                     return ((!vis.dateMin || d[col] >= vis.dateMin) &&
                         (!vis.dateMax || d[col] < vis.dateMax));
+                });
+            }
+            if (vis && vis.maxPoints) {
+                if (data === m_data) {
+                    data = _.clone(data);
+                }
+                data.data = data.data.slice(0, vis.maxPoints);
+            }
+            if (vis && vis.sortByDate && vis.dateColumn && data.columns &&
+                    data.columns[vis.dateColumn] !== undefined) {
+                if (data === m_data) {
+                    data = _.clone(data);
+                }
+                col = data.columns[vis.dateColumn];
+                _.each(data.data, function (d, idx) {
+                    d.origOrder = idx;
+                });
+                data.data = _.sortBy(data.data, function (d) {
+                    return d[col];
+                });
+                data.sortedIndices = [];
+                _.each(data.data, function (d, idx) {
+                    data.sortedIndices[d.origOrder] = idx;
+                    delete d.origOrder;
                 });
             }
             m_dataVisible = data;

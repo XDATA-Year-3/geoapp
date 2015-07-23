@@ -37,10 +37,53 @@ geoapp.mapLayers.instagram = function (map, arg) {
         m_lastPanEvent,
 
         m_defaultOpacity = 0.1,
-        m_pointColor = geo.util.convertColor('#FF0000'),
-        m_strokeColor = geo.util.convertColor('#E69F00');
+        m_pointColorStr = '#FF0000',
+        m_pointColor = geo.util.convertColor(m_pointColorStr),
+        m_strokeColorStr = '#E69F00',
+        m_strokeColor = geo.util.convertColor(m_strokeColorStr),
+
+        /* If both recentPointCount and recentPointTime are falsy, no recent
+         * poinr highlighting is performed.  Otherwise, recentPointCount is
+         * used in preference to recentPointTime.  When used, points are drawn
+         * in pointColor and with the opacity multiplied by recentOpacityBoost
+         * for the number of recent points or duration of the recent time.  The
+         * points are transitioned to oldPointColor across the either the
+         * lessRecentPointCount or lessRecentPointTime as appropriate. */
+        m_recentOpacityBoost = 4,
+        m_recentRadius = 7,
+        m_recentPointCount = 0,
+        m_lessRecentPointCount = 0,
+        m_recentPointTime = 0,
+        m_lessRecentPointTime = 0,
+        m_oldPointColorStr = '#800000',
+        m_oldPointColor = geo.util.convertColor(m_oldPointColorStr);
 
     var geoLayer;
+
+    var recentMsg = geoapp.parseJSON($('body').attr('recentmessages'));
+    if (recentMsg) {
+        m_recentOpacityBoost = (recentMsg.recentOpacityBoost !== undefined ?
+            recentMsg.recentOpacityBoost : m_recentOpacityBoost);
+        m_recentRadius = (recentMsg.recentRadius !== undefined ?
+            recentMsg.recentRadius : m_recentRadius);
+        m_recentPointCount = (recentMsg.recentPointCount !== undefined ?
+            recentMsg.recentPointCount : m_recentPointCount);
+        m_lessRecentPointCount = (recentMsg.lessRecentPointCount !== undefined ?
+            recentMsg.lessRecentPointCount : m_lessRecentPointCount);
+        m_recentPointTime = (recentMsg.recentPointTime !== undefined ?
+            recentMsg.recentPointTime : m_recentPointTime);
+        m_lessRecentPointTime = (recentMsg.lessRecentPointTime !== undefined ?
+            recentMsg.lessRecentPointTime : m_lessRecentPointTime);
+        m_oldPointColorStr = (recentMsg.oldPointColor !== undefined ?
+            recentMsg.oldPointColor : m_oldPointColorStr);
+        m_oldPointColor = geo.util.convertColor(m_oldPointColorStr);
+        m_pointColorStr = (recentMsg.pointColor !== undefined ?
+            recentMsg.pointColor : m_pointColorStr);
+        m_pointColor = geo.util.convertColor(m_pointColorStr);
+        m_strokeColorStr = (recentMsg.strokeColor !== undefined ?
+            recentMsg.strokeColor : m_strokeColorStr);
+        m_strokeColor = geo.util.convertColor(m_strokeColorStr);
+    }
 
     geoLayer = map.getMap().createLayer('feature', {
         renderer: 'vgl'
@@ -63,22 +106,39 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param params: the new map parameters.
      */
     this.updateMapParams = function (params) {
+        if (params['display-max-points'] > 0) {
+            this.maximumMapPoints = params['display-max-points'];
+        }
         var visParam = {
                 dateMin: params['display-date_min'] ?
                     0 + moment.utc(params['display-date_min']) : null,
                 dateMax: params['display-date_max'] ?
                     0 + moment.utc(params['display-date_max']) : null,
-                dateColumn: 'posted_date'
+                dateColumn: 'posted_date',
+                maxPoints: m_recentPointCount || m_recentPointTime ?
+                    this.maximumMapPoints : null,
+                sortByDate: m_recentPointCount || m_recentPointTime
             },
             data = m_this.data(true, visParam),
             visible = (params['show-instagram-data'] !== false && data);
         m_geoPoints.visible(visible);
-        $('.ga-legend-item.legend-messages').toggleClass('hidden', !visible);
+        var recent = m_recentPointCount || m_recentPointTime ? true : false;
+        $('.ga-legend-item.legend-messages').toggleClass(
+            'hidden', !visible || recent);
+        $('.ga-legend-item.legend-messages-old,' +
+                '.ga-legend-item.legend-messages-new').toggleClass(
+            'hidden', !visible || !recent);
         if (!visible) {
             return;
         }
-        if (params['display-max-points'] > 0) {
-            this.maximumMapPoints = params['display-max-points'];
+        if (recent) {
+            $('.ga-legend-item.legend-messages-old i').css(
+                'color', m_oldPointColorStr);
+            $('.ga-legend-item.legend-messages-new i').css(
+                'color', m_pointColorStr);
+        } else {
+            $('.ga-legend-item.legend-messages i').css(
+                'color', m_pointColorStr);
         }
         if (params['data-opacity'] > 0) {
             params['inst-opacity'] = params['data-opacity'];
@@ -90,17 +150,27 @@ geoapp.mapLayers.instagram = function (map, arg) {
         if (pointData.length > this.maximumMapPoints) {
             pointData = data.data.slice(0, this.maximumMapPoints);
         }
+        var color = m_pointColor,
+            opacity = params['inst-opacity'] || m_defaultOpacity,
+            radius = 5;
+        if (m_recentPointCount || m_recentPointTime) {
+            var recentData = this.adjustRecentPoints(
+                pointData, data.columns, color, opacity, radius);
+            color = recentData.color;
+            opacity = recentData.opacity;
+            radius = recentData.radius;
+        }
         m_geoPoints.data(pointData)
         .style({
-            fillColor: m_pointColor,
-            fillOpacity: params['inst-opacity'] || m_defaultOpacity,
+            fillColor: color,
+            fillOpacity: opacity,
             strokeColor: m_strokeColor,
             strokeOpacity: 1,
             strokeWidth: 5,
             stroke: function (d) {
                 return d._selected;
             },
-            radius: 5
+            radius: radius
         })
         .position(function (d) {
             return {
@@ -150,6 +220,102 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 }
             }
         }
+    };
+
+    /* Determine which points are recent and make sure they are differently
+     * colored and differently opaque.
+     *
+     * @param data: the data array of points.
+     * @param columns: the columns record used to determine what date to use.
+     * @param color: the color for recent points.
+     * @param opacity: the base opacity for points.
+     * @param radius: the base radius for points.
+     * @returns: the new color, opacity, and radius which may be functions.
+     */
+    this.adjustRecentPoints = function (data, columns, color, opacity,
+            radius) {
+        var len = data.length, diff = 0,
+            res = {color: m_oldPointColor, opacity: opacity, radius: radius};
+        if (!len || !columns || !columns.posted_date) {
+            res.color = color;
+            return res;
+        }
+        if (m_recentPointCount) {
+            var deltapos = m_lessRecentPointCount || 0,
+                newpos = len - m_recentPointCount,
+                oldpos = newpos - deltapos;
+            diff = true;
+            _.each(data, function (d, idx) {
+                if (idx <= oldpos) {
+                    delete d.recent;
+                } else if (idx >= newpos) {
+                    d.recent = 1;
+                } else {
+                    d.recent = (idx - oldpos) / deltapos;
+                }
+            });
+        } else {
+            var curtime = new Date().getTime(),
+                deltaval = (m_lessRecentPointTime || 0) * 1000,
+                newval = curtime - m_recentPointTime * 1000,
+                oldval = newval - deltaval,
+                col = columns.posted_date;
+            _.each(data, function (d) {
+                if (d[col] <= oldval) {
+                    delete d.recent;
+                } else if (d[col] >= newval) {
+                    d.recent = 1;
+                    diff += 1;
+                } else {
+                    d.recent = (d[col] - oldval) / deltaval;
+                    diff += 1;
+                }
+            });
+        }
+        if (diff) {
+            if (color !== m_oldPointColor) {
+                res.color = function (d) {
+                    var val = d.recent;
+                    if (!val) {
+                        return m_oldPointColor;
+                    }
+                    if (val === 1) {
+                        return color;
+                    }
+                    var invval = 1 - val;
+                    return {
+                        r: m_pointColor.r * val + m_oldPointColor.r * invval,
+                        g: m_pointColor.g * val + m_oldPointColor.g * invval,
+                        b: m_pointColor.b * val + m_oldPointColor.b * invval
+                    };
+                };
+            }
+            if (m_recentOpacityBoost > 1) {
+                var boost = (1 - Math.pow(1 - opacity, m_recentOpacityBoost) -
+                             opacity);
+                res.opacity = function (d) {
+                    var val = d.recent, opac;
+                    if (!val) {
+                        return opacity;
+                    }
+                    opac = opacity + boost * val;
+                    return opac;
+                };
+            }
+            if (radius !== m_recentRadius) {
+                res.radius = function (d) {
+                    var val = d.recent;
+                    if (!val) {
+                        return radius;
+                    }
+                    if (val === 1) {
+                        return m_recentRadius;
+                    }
+                    return (1 - val) * radius + val * m_recentRadius;
+                };
+            }
+        }
+        return res;
     };
 
     /* Return the index of the date column for this data.
