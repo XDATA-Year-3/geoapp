@@ -40,13 +40,13 @@ static_root: "girder/static"
 # (name shown to the user), "class": (internal database class, such as
 # TaxiViaPostgres), "params": (database specific parameters)}
 [taxidata]
-%FULL%taxijuly: {"order": 0, "name": "Combined July Data", "class": "TaxiViaPostgresRandom", "params": {"db": "taxijuly", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}, "access": "taxirandom"}
-%FULL%postgresfullg: {"order": 1, "name": "Postgres Full w/ Green", "class": "TaxiViaPostgresSeconds", "params": {"db": "taxifullg", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%FULL%taxijuly: {"order": 0, "name": "Combined July Data", "class": "TaxiViaPostgresRandom", "params": {"db": "taxijuly", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}, "access": "taxirandom"}
+%FULL%postgresfullg: {"order": 1, "name": "Postgres Full w/ Green", "class": "TaxiViaPostgresSeconds", "params": {"db": "taxifullg", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}}
 %LIMITED%postgresfullg:
-%LOCAL%postgresfullg: {"order": 0, "name": "Postgres Full w/ Green", "class": "TaxiViaPostgresSeconds", "params": {"db": "taxifullg", "host": "parakon", "user": "taxi", "password": "taxi#1"}}
+%LOCAL%postgresfullg: {"order": 0, "name": "Postgres Full w/ Green", "class": "TaxiViaPostgresSeconds", "params": {"db": "taxifullg", "host": "parakon", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}}
 
 %FULL%postgres12:
-%LIMITED%postgres12: {"order": 2, "name": "Postgres 1/12 Shuffled", "class": "TaxiViaPostgres", "params": {"db": "taxi12r", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%LIMITED%postgres12: {"order": 2, "name": "Postgres 1/12 Shuffled", "class": "TaxiViaPostgres", "params": {"db": "taxi12r", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}}
 %LOCAL%postgres12:
 
 postgresfull:
@@ -57,10 +57,10 @@ mongo:
 tangelo:
 
 [instagramdata]
-%FULL%postgres: {"order": 1, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
-%FULL%msgjuly: {"order": 0, "name": "July Messages", "class": "MessageViaPostgres", "access": "message", "params": {"db": "msgjuly", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1"}}
+%FULL%postgres: {"order": 1, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}}
+%FULL%msgjuly: {"order": 0, "name": "July Messages", "class": "MessageViaPostgres", "access": "message", "params": {"db": "msgjuly", "host": "%HOSTIP%", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}}
 %LIMITED%postgres:
-%LOCAL%postgres: {"order": 0, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "parakon", "user": "taxi", "password": "taxi#1"}}
+%LOCAL%postgres: {"order": 0, "name": "Instagram and Twitter", "class": "InstagramViaPostgres", "params": {"db": "instatwitter", "host": "parakon", "user": "taxi", "password": "taxi#1", "options": "-c statement_timeout=150000"}}
 
 [regions]
 nyc: {"name": "New York City", "region": "nyc"}
