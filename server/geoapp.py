@@ -24,6 +24,7 @@ import cherrypy
 import collections
 import datetime
 import dateutil.parser
+import elasticsearch
 import HTMLParser
 import json
 import psycopg2
@@ -42,13 +43,6 @@ from girder.api.describe import Description
 from girder.api.rest import RestException
 
 
-# Per distinct database.  Should be less than 90% of available connections to
-# postgres based on its config between all instances of the app that are
-# running.  10 is conservative for two databases with a few variations of the
-# app hitting the same databases.
-PostgresPoolSize = 10
-
-
 GeoappUser = {
     'login': 'geoapp',
     'password': 'geoapp#1',
@@ -57,6 +51,15 @@ GeoappUser = {
     'email': 'noemail@noemail.com',
     'admin': False
 }
+
+
+# -------- Postgres specific classes and code --------
+
+# Per distinct database.  Should be less than 90% of available connections to
+# postgres based on its config between all instances of the app that are
+# running.  10 is conservative for two databases with a few variations of the
+# app hitting the same databases.
+PostgresPoolSize = 10
 
 
 def insertItemIntoPostgres(db, c, item, nodup=True):
@@ -518,49 +521,6 @@ class ViaPostgres():
                 's' if len(result['data']) != 1 else '')
         return result
 
-    def findQuery(self, result, params, sql, sqlval, client=None):
-        """
-        Perform the find query with a retry loop.
-
-        :param result: dictionary with some result information.
-        :param params: rest query parameters.
-        :param sql: sql to execute.
-        :param sqlval: values to pass to sql execute.
-        :param client: client for database access.
-        :returns: the database connection and the database cursor with the
-                  query results.
-        """
-        maxretry = 3
-        for retry in xrange(maxretry):
-            db = None
-            try:
-                db = self.connect(retry != 0, client)
-                c = db.cursor()
-                if self.queryBase == 'message' and self.realtime:
-                    c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
-                    row = c.fetchone()
-                    # We use this to guarantee that we don't get newer data than
-                    # what we first saw.
-                    result['nextId'] = row[0] if row[0] else 0
-                    if str(result['nextId']) == params.get('_id_min'):
-                        result['data'] = []
-                        c.close()
-                        return db, None
-                    sql = sql.replace(' WHERE true', ' WHERE _id<%s' % str(
-                        result['nextId']))
-                logger.info('Query: %s', c.mogrify(sql, sqlval))
-                c.execute(sql, sqlval)
-                break
-            except psycopg2.Error as exc:
-                if db:
-                    self.disconnect(db, client)
-                code = psycopg2.errorcodes.lookup(exc.pgcode)
-                logger.info('Database error %s - %s', str(exc).strip(), code)
-                if retry + 1 == maxretry or code == 'QUERY_CANCELED':
-                    cherrypy.response.status = 500
-                    return None, None
-        return db, c
-
     def findModifiers(self, sort, limit, offset, sql, queryToDbKeys={}):
         """
         Add sort, limit, and offsets to the sql query.
@@ -596,6 +556,51 @@ class ViaPostgres():
             sql.append('LIMIT %d' % limit)
         if offset:
             sql.append('OFFSET %d' % offset)
+
+    def findQuery(self, result, params, sql, sqlval, client=None):
+        """
+        Perform the find query with a retry loop.
+
+        :param result: dictionary with some result information.
+        :param params: rest query parameters.
+        :param sql: sql to execute.
+        :param sqlval: values to pass to sql execute.
+        :param client: client for database access.
+        :returns: the database connection and the database cursor with the
+                  query results.
+        """
+        maxretry = 3
+        for retry in xrange(maxretry):
+            db = None
+            try:
+                db = self.connect(retry != 0, client)
+                c = db.cursor()
+                if params.get('_id_max', None):
+                    result['nextId'] = params['_id_max']
+                elif self.queryBase == 'message' and self.realtime:
+                    c.execute('SELECT max(_id) + 1 FROM %s' % self.tableName)
+                    row = c.fetchone()
+                    # We use this to guarantee that we don't get newer data than
+                    # what we first saw.
+                    result['nextId'] = row[0] if row[0] else 0
+                    if str(result['nextId']) == params.get('_id_min', None):
+                        result['data'] = []
+                        c.close()
+                        return db, None
+                    sql = sql.replace(' WHERE true', ' WHERE _id<%s' % str(
+                        result['nextId']))
+                logger.info('Query: %s', c.mogrify(sql, sqlval))
+                c.execute(sql, sqlval)
+                break
+            except psycopg2.Error as exc:
+                if db:
+                    self.disconnect(db, client)
+                code = psycopg2.errorcodes.lookup(exc.pgcode)
+                logger.info('Database error %s - %s', str(exc).strip(), code)
+                if retry + 1 == maxretry or code == 'QUERY_CANCELED':
+                    cherrypy.response.status = 500
+                    return None, None
+        return db, c
 
     def getKeyTables(self, queryBase):
         """
@@ -662,6 +667,201 @@ class ViaPostgres():
                     value = str(value)
                     sql.append('AND ' + field + comp + '%s')
                     sqlval.append(value)
+
+
+# -------- Elasticsearch specific classes and code --------
+
+class ViaElasticsearch():
+
+    epoch = datetime.datetime.utcfromtimestamp(0)
+
+    def __init__(self, db=None, **params):
+        self.params = params.copy()
+        self.dbparams = {key: params[key] for key in params if key in ['hosts']}
+        self.db = None
+        # This list is not complete
+        self.fieldName = {
+            'rand1': '_score',
+            'rand2': '_score',
+            'msg_date': 'created_time',
+            'msg': 'caption.text',
+            'url': 'link',
+            'latitude': 'location.latitude',
+            'longitude': 'location.longitude',
+        }
+
+    def connect(self):
+        """
+        Connect to the database.
+
+        :return: a database object.
+        """
+        if not self.db:
+            self.db = elasticsearch.Elasticsearch(**self.dbparams)
+        return self.db
+
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
+             **kwargs):
+        """
+        Get data from an elasticsearch database.
+
+        :param params: a dictionary of query restrictions.  See the field
+                       table(s).  For values that aren't of type 'text' or
+                       'search', we also support (field)_min and (field)_max
+                       parameters, which are inclusive and exclusive
+                       respectively.  'search' adds a (field)_search parameter
+                       which will perform a tsquery search.
+        :param limit: default limit for the data.
+        :param offset: default offset for the data.
+        :param sort: a list of tuples of the form (key, direction).
+        :param fields: a list of fields to return, or None for all fields.
+        :returns: a dictionary of results.
+        """
+        db = self.connect()
+        starttime = time.time()
+        filters = [{'exists': {'field': 'location.longitude'}}]
+        if 'filters' in self.params:
+            filters.extend(self.params['filters'])
+        queries = []
+        query = {
+            'size': limit,
+            'from': offset,
+            'query': {}
+        }
+        query['query']['function_score'] = {
+            'random_score': {'seed': 1},
+        }
+        if not fields:
+            fields = [field[0] for field in self.fieldTable]
+        query['_source'] = {
+            'include': [self.fieldName[field] for field in fields
+                        if field in self.fieldName]
+        }
+        query['_source']['include'] = list(set(
+            query['_source']['include'] +
+            ['user.username', 'user.full_name', 'user.id', 'created_time',
+             'link', 'location.latitude', 'location.longitude',
+             'caption.text']))
+        self.findFilters(filters, queries, params)
+        if len(filters):
+            query['query']['function_score']['filter'] = {
+                'bool': {'must': filters}
+            }
+        if len(queries):
+            query['query']['function_score']['query'] = {
+                'bool': {'must': queries}
+            }
+        # The realtime options need to be implemented.  I don't currently know
+        # how to sort Elasticsearch data on ingest order.  Elasticsearch has an
+        # _id field of the form (integer)_(integer).  I think the leading
+        # integer is monotonic (I could be wrong) and related to ingest order,
+        # but I don't know how to sort on the numeric value of this.
+        logger.info('Query: %s', json.dumps(query))
+        res = db.search(body=json.dumps(query))
+        columns = {fields[col]: col for col in xrange(len(fields))}
+        result = {
+            'format': 'list',
+            'fields': fields,
+            'columns': columns,
+            'count': res['hits']['total'],
+        }
+        execTime = time.time()
+        result['data'] = self.instagramToData(fields, res['hits']['hits'])
+        curtime = time.time()
+        logger.info(
+            'Query time: %5.3fs for query, %5.3fs total, %d row%s',
+            execTime - starttime, curtime - starttime, len(result['data']),
+            's' if len(result['data']) != 1 else '')
+        return result
+
+    def findFilters(self, filters, queries, params):
+        """
+        Convert rest query parameters into Elasticsearch filters and queries.
+        In general, we would rather have a filter than a query for ES, as they
+        claim it is more efficient.  Some things much be queries, however (such
+        as text search).
+
+        :param filters: an array to store new ES filters in.
+        :param queries: an array to store new ES queries in.
+        :param params: the Rest query parameters.
+        """
+        for field in self.fieldTable:
+            for suffix in ['', '_min', '_max', '_search']:
+                if field + suffix not in params:
+                    continue
+                value = params[field + suffix]
+                dtype = self.fieldTable[field][0]
+                fieldName = self.fieldName.get(field, field)
+                if suffix == '_search':
+                    if dtype != 'search':
+                        continue
+                    if isinstance(value, (int, float, long)):
+                        value = str(value)
+                    # This depends on having text analysis turned on.  Instead,
+                    # we could ask for a search of the plain field and the
+                    # analyzed field, which would at least return some results
+                    # if the analysis wasn't enabled.  Also, I haven't looked
+                    # into logical operations (grouping, or, negation, etc.).
+                    fieldName += '.english'
+                    queries.append({
+                        'match': {
+                            fieldName: {'query': value, 'operator': 'and'}
+                        }
+                    })
+                else:
+                    if dtype == 'date':
+                        value = int((dateutil.parser.parse(value) - self.epoch)
+                                    .total_seconds())
+                        # Elasticsearch is expecting epoch seconds in a string
+                        value = str(value)
+                    elif dtype in ('int', 'bigint'):
+                        value = int(value)
+                    elif dtype == 'float':
+                        value = float(value)
+                    else:
+                        value = str(value)
+                    if suffix == '_min':
+                        filters.append({'range': {fieldName: {'gte': value}}})
+                    elif suffix == '_max':
+                        if (not len(filters) or not filters[-1].get(
+                                'range', None) or not filters[-1][
+                                'range'].get(fieldName, None)):
+                            filters.append({'range': {fieldName: {}}})
+                        filters[-1]['range'][fieldName]['lt'] = value
+                    else:
+                        filters.append({'term': {fieldName: value}})
+
+    def instagramToData(self, fields, results):
+        """
+        Convert elasticsearch instagram results into our data list format.
+
+        :param fields: the fields we want to keep (the columns for our data).
+        :param results: the ['hits']['hits'] part of the elasticsearch result.
+        :return: a list of the data in our format.
+        """
+        data = []
+        if not len(results):
+            return data
+        for res in results:
+            inst = res['_source']
+            item = {
+                'user_name':     inst.get('user', {}).get('username', None),
+                'user_fullname': inst.get('user', {}).get('full_name', None),
+                'user_id':       inst.get('user', {}).get('id', None),
+                'msg_date':      float(inst['created_time']) * 1000,
+                'url':           inst['link'],
+                'latitude':      inst['location']['latitude'],
+                'longitude':     inst['location']['longitude'],
+                'rand1':         int((1 - res['_score']) * 1e9),
+                'rand2':         int((1 - res['_score']) * 1e18) % 1000000000,
+                '_id':           res['_id'],
+            }
+            if inst.get('caption', None):
+                item['msg'] = inst['caption']['text']
+            item['msg_id'] = item['url'].strip('/').rsplit('/', 1)[-1]
+            item['url'] = 'i/%s' % (item['msg_id'])
+            data.append([item.get(field, None) for field in fields])
+        return data
 
 
 # -------- TAXI specific classes and code --------
@@ -1193,6 +1393,13 @@ class RealTimeViaPostgres(ViaPostgres):
         if ingestFrom:
             item['ingest_source'] = ingestFrom
         return insertItemIntoPostgres(db, c, item, nodup)
+
+
+class MessageViaElasticsearch(ViaElasticsearch):
+    def __init__(self, db=None, **params):
+        ViaElasticsearch.__init__(self, db, **params)
+        self.fieldTable = MessageFieldTable
+        self.realtime = False
 
 
 # -------- General classes and code --------
