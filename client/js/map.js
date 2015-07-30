@@ -31,7 +31,7 @@ geoapp.TileSets = {
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
     stamenterrain: {
-        url: 'http://tile.stamen.com/terrain/',
+        url: 'http://tile.stamen.com/terrain',
         credit: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
     },
     blank: {url: 'api/v1/geoapp/tiles/blank/'}
@@ -60,7 +60,7 @@ geoapp.Map = function (arg) {
         m_defaultCenter = {x: -73.978165, y: 40.757977},
         m_defaultGoodZone = 5, /* in degrees of latitude and longitude */
         m_goodExtents,
-        m_defaultZoom = 10,
+        m_defaultZoom = 13,
 
         m_cycleDateRange,
         m_cycleDateRangeData = {},
@@ -90,7 +90,7 @@ geoapp.Map = function (arg) {
                 node: '#ga-main-map',
                 center: m_defaultCenter,
                 parallelProjection: true,
-                discreteZoom: true,
+                /* discreteZoom: true, */
                 zoom: m_defaultZoom
             });
             /* jscs:disable requireBlocksOnNewline */
