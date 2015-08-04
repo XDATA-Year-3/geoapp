@@ -185,18 +185,37 @@ class ViaElasticsearch():
                         continue
                     if isinstance(value, (int, float, long)):
                         value = str(value)
+                    # Using a 'query_string' query rather than a 'match' query
+                    # allows a lot of expression parsing.
+                    # 'simple_query_string' is much like 'query_string' but
+                    # closer to what I did for Postgres.  Weirdly,
+                    # 'query_string' misses some words, and turning on the
+                    # English analyzer does worse in the expected behavior than
+                    # I would expect (for instance "coffee" doesn't match a
+                    # string which contains "coffee.").  There are probably
+                    # other options that would help.  Hashes are ignored, too.
+                    queries.append({
+                        'simple_query_string': {
+                            'fields': [fieldName],
+                            'query': value,
+                            'default_operator': 'AND',
+                            # 'analyzer': 'english',
+                            # Only in query_string:
+                            # 'allow_leading_wildcard': True,
+                        }
+                    })
                     # This is improved by having text analysis turned on.  We
                     # need to do more to generate logical processing, as
                     # presently it is a strick and process.
-                    fieldNameEng = fieldName + '.english'
-                    clause = {'query': value, 'operator': 'and'}
-                    queries.append({
-                        'bool': {'should': [{
-                            'match': {fieldName: clause}
-                        }, {
-                            'match': {fieldNameEng: clause}
-                        }]}
-                    })
+                    # fieldNameEng = fieldName + '.english'
+                    # clause = {'query': value, 'operator': 'and'}
+                    # queries.append({
+                    #     'bool': {'should': [{
+                    #         'match': {fieldName: clause}
+                    #     }, {
+                    #         'match': {fieldNameEng: clause}
+                    #     }]}
+                    # })
                 elif fieldName == '_score' and suffix == '_max':
                     value = 1.0 - float(value) / 1000000000
                     mainQuery['query']['function_score']['min_score'] = value
