@@ -24,6 +24,7 @@ import datetime
 import dateutil.parser
 import elasticsearch
 import json
+import threading
 import time
 
 from girder import logger
@@ -52,6 +53,7 @@ class ViaElasticsearch():
         self.params = params.copy()
         self.dbparams = {key: params[key] for key in params if key in ['hosts']}
         self.db = None
+        # This is an instagram-specific dictionary, and should be abstracted.
         # This list is not complete
         self.fieldName = {
             'rand1': '_score',
@@ -61,6 +63,15 @@ class ViaElasticsearch():
             'url': 'link',
             'latitude': 'location.latitude',
             'longitude': 'location.longitude',
+            'user_id': 'user.id',
+            'user_name': 'user.username',
+            'user_fullname': 'user.full_name',
+        }
+        self.realtimeData = {
+            'clients': {},
+            'data': {},
+            'id': 1,
+            'lock': threading.RLock(),
         }
 
     def connect(self):
@@ -92,6 +103,14 @@ class ViaElasticsearch():
         """
         db = self.connect()
         starttime = time.time()
+        if not fields:
+            fields = [field[0] for field in self.fieldTable]
+        columns = {fields[col]: col for col in xrange(len(fields))}
+        result = {
+            'format': 'list',
+            'fields': fields,
+            'columns': columns,
+        }
         filters = [{'exists': {'field': 'location.longitude'}}]
         if 'filters' in self.params:
             filters.extend(self.params['filters'])
@@ -104,18 +123,15 @@ class ViaElasticsearch():
         query['query']['function_score'] = {
             'random_score': {'seed': 1},
         }
-        if not fields:
-            fields = [field[0] for field in self.fieldTable]
         query['_source'] = {
             'include': [self.fieldName[field] for field in fields
                         if field in self.fieldName]
         }
         query['_source']['include'] = list(set(
-            query['_source']['include'] +
-            ['user.username', 'user.full_name', 'user.id', 'created_time',
-             'link', 'location.latitude', 'location.longitude',
-             'caption.text']))
-        self.findFilters(filters, queries, params)
+            query['_source']['include'] + self.fieldName.values()))
+        if not self.realTimeResultsInitialize(params, result, filters):
+            return
+        self.findFilters(filters, queries, params, query)
         if len(filters):
             query['query']['function_score']['filter'] = {
                 'bool': {'must': filters}
@@ -124,23 +140,18 @@ class ViaElasticsearch():
             query['query']['function_score']['query'] = {
                 'bool': {'must': queries}
             }
-        # The realtime options need to be implemented.  I don't currently know
-        # how to sort Elasticsearch data on ingest order.  Elasticsearch has an
-        # _id field of the form (integer)_(integer).  I think the leading
-        # integer is monotonic (I could be wrong) and related to ingest order,
-        # but I don't know how to sort on the numeric value of this.  Also, I
-        # need to add a 'distinct' clause to only get each message once.
+        # The realtime option would be better implemented if the _timestamp
+        # mapping is enabled with store: true in Elasticsearch.
+        # It would be nice if we could have a 'distinct' clause for
+        # elasticsearch, but this requires options that are not enabled.
         logger.info('Query: %s', json.dumps(query))
         res = db.search(body=json.dumps(query))
-        columns = {fields[col]: col for col in xrange(len(fields))}
-        result = {
-            'format': 'list',
-            'fields': fields,
-            'columns': columns,
-            'count': res['hits']['total'],
-        }
+        if not self.realtime:
+            result['count'] = res['hits']['total'],
         execTime = time.time()
+        # This is an instagram-specific line, and should be abstracted
         result['data'] = self.instagramToData(fields, res['hits']['hits'])
+        self.realTimeResultsFinalize(params, result)
         curtime = time.time()
         logger.info(
             'Query time: %5.3fs for query, %5.3fs total, %d row%s',
@@ -148,7 +159,7 @@ class ViaElasticsearch():
             's' if len(result['data']) != 1 else '')
         return result
 
-    def findFilters(self, filters, queries, params):
+    def findFilters(self, filters, queries, params, mainQuery):
         """
         Convert rest query parameters into Elasticsearch filters and queries.
         In general, we would rather have a filter than a query for ES, as they
@@ -158,8 +169,11 @@ class ViaElasticsearch():
         :param filters: an array to store new ES filters in.
         :param queries: an array to store new ES queries in.
         :param params: the Rest query parameters.
+        :param mainQuery: the main ES query.
         """
         for field in self.fieldTable:
+            if self.realtime and field == '_id':
+                continue
             for suffix in ['', '_min', '_max', '_search']:
                 if field + suffix not in params:
                     continue
@@ -183,6 +197,9 @@ class ViaElasticsearch():
                             'match': {fieldNameEng: clause}
                         }]}
                     })
+                elif fieldName == '_score' and suffix == '_max':
+                    value = 1.0 - float(value) / 1000000000
+                    mainQuery['query']['function_score']['min_score'] = value
                 else:
                     if dtype == 'date':
                         value = int((dateutil.parser.parse(value) - self.epoch)
@@ -198,11 +215,7 @@ class ViaElasticsearch():
                     if suffix == '_min':
                         filters.append({'range': {fieldName: {'gte': value}}})
                     elif suffix == '_max':
-                        if (not len(filters) or not filters[-1].get(
-                                'range', None) or not filters[-1][
-                                'range'].get(fieldName, None)):
-                            filters.append({'range': {fieldName: {}}})
-                        filters[-1]['range'][fieldName]['lt'] = value
+                        filters.append({'range': {fieldName: {'lt': value}}})
                     else:
                         filters.append({'term': {fieldName: value}})
 
@@ -229,7 +242,8 @@ class ViaElasticsearch():
                 'longitude':     inst['location']['longitude'],
                 'rand1':         int((1 - res['_score']) * 1e9),
                 'rand2':         int((1 - res['_score']) * 1e18) % 1000000000,
-                '_id':           res['_id'],
+                # We don't need the _id.
+                # '_id':           res['_id'],
             }
             if inst.get('caption', None):
                 item['msg'] = inst['caption']['text']
@@ -237,3 +251,127 @@ class ViaElasticsearch():
             item['url'] = 'i/%s' % (item['msg_id'])
             data.append([item.get(field, None) for field in fields])
         return data
+
+    def realTimeResultsFinalize(self, params, result):
+        """
+        Record the message ids that we have seen related to a realtime data
+        query where we cannot specify only recent messages.  This also discards
+        results from clients that appear to have been abandoned.
+
+        :param result: the results from the database.  Modified if this is a
+                       polling query.
+        """
+        if not self.realtime or 'nextId' not in result:
+            return
+        try:
+            dataid = int(result['nextId'])
+        except ValueError:
+            return
+        curtime = time.time()
+        col = result['columns']['url']
+        if '_id_min' not in params:
+            with self.realtimeData['lock']:
+                if dataid not in self.realtimeData['data']:
+                    self.realtimeData['data'][dataid] = {
+                        'urls': {}
+                    }
+                record = self.realtimeData['data'][dataid]
+                urls = record['urls']
+            for row in result['data']:
+                urls[hash(row[col])] = True
+            with self.realtimeData['lock']:
+                record['update'] = curtime
+                record['fullupdate'] = curtime
+                record['fullcount'] = len(urls)
+        else:
+            updatefull = self.realtimeData['data'][dataid].get(
+                'fullquery', False)
+            with self.realtimeData['lock']:
+                record = self.realtimeData['data'].get(dataid, None)
+                if not record:
+                    return
+                urls = record['urls']
+                if updatefull:
+                    newurls = {}
+                    record['fullupdate'] = curtime
+                else:
+                    newurls = urls
+            for i in xrange(len(result['data']) - 1, -1, -1):
+                row = result['data'][i]
+                hval = hash(row[col])
+                if hval in urls:
+                    del result['data'][i]
+                newurls[hval] = True
+            with self.realtimeData['lock']:
+                record['urls'] = newurls
+                if updatefull:
+                    record['fullcount'] = len(urls)
+                record['update'] = curtime
+        # Discard old records so that clients that have disconnected don't
+        # consume memory.  This means that if you have a computer that goes to
+        # sleep, you'll need to re-filter the results to make them live again.
+        tracktime = float(self.params.get('tracktime', 3600))
+        with self.realtimeData['lock']:
+            for key in self.realtimeData['data'].keys():
+                record = self.realtimeData['data'][key]
+                if curtime - record['update'] > tracktime:
+                    del self.realtimeData['data'][key]
+
+    def realTimeResultsInitialize(self, params, result, filters):
+        """
+        If this is a realtime query, make sure we can simulating polling for
+        new data.
+
+        :param params: rest query parameters.
+        :param result: result dictionary.  Possibly modified.
+        :param filters: a list of filters which can be added to as needed.
+        :returns: True to process request, False to send back nothing.
+        """
+        # This can be greatly simplified if we have a precise way of
+        # identifying new data
+        if not self.realtime:
+            return True
+        clientid = params.get('clientid', None)
+        if params.get('_id_max', None):
+            result['nextId'] = params['_id_max']
+            return True
+        if '_id_min' not in params:
+            with self.realtimeData['lock']:
+                nextid = result['nextId'] = self.realtimeData['id']
+                self.realtimeData['id'] += 1
+                if clientid:
+                    if clientid in self.realtimeData['clients']:
+                        oldid = self.realtimeData['clients'][clientid]
+                        if oldid in self.realtimeData['data']:
+                            del self.realtimeData['data'][oldid]
+                    self.realtimeData['clients'][clientid] = nextid
+        else:
+            try:
+                lastid = int(params['_id_min'])
+            except ValueError:
+                return False
+            with self.realtimeData['lock']:
+                if lastid not in self.realtimeData['data']:
+                    return False
+                nextid = result['nextId'] = self.realtimeData['id']
+                self.realtimeData['id'] += 1
+                if clientid:
+                    if (clientid not in self.realtimeData['clients'] or
+                            self.realtimeData['clients'][clientid] != lastid):
+                        return False
+                    self.realtimeData['clients'][clientid] = nextid
+                self.realtimeData['data'][nextid] = self.realtimeData['data'][
+                    lastid]
+                del self.realtimeData['data'][lastid]
+                record = self.realtimeData['data'][nextid]
+                curtime = time.time()
+                livetime = self.params.get('livetime', 1800)
+                datefield = self.params.get('datefield', 'msg_date')
+                record['fullquery'] = (
+                    curtime - record['fullupdate'] > livetime or
+                    len(record['urls']) > record['fullcount'] * 3)
+                if not record['fullquery']:
+                    filters.append({'range': {datefield: {
+                        'gte': str(int(curtime - livetime))
+                    }}})
+        return True
