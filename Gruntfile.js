@@ -257,7 +257,9 @@ module.exports = function (grunt) {
                         'built/geoapplib-version.js',
                         /* Sortable */
                         'node_modules/sortablejs/Sortable.js',
-                        'node_modules/sortablejs/jquery.binding.js'
+                        'node_modules/sortablejs/jquery.binding.js',
+                        /* hammerjs */
+                        'node_modules/hammerjs/hammer.js'
                     ],
                     'built/optional.min.js': [
                         /* optional libraries */

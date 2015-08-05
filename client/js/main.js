@@ -147,8 +147,26 @@ geoapp.parseJSON = function (jsonValue) {
     }
 };
 
+/* Ensure that the viewport on a mobile device is a minimum size.  This will
+ * only shrink the scale, never expand it, so rotating on a narrow device can
+ * end with very small controls.
+ */
+geoapp.viewportMinimumSize = function () {
+    var w = window.innerWidth, h = window.innerHeight, scale, neww,
+        elem = $('#metaviewport'),
+        minw = parseInt(elem.attr('ga_minwidth')),
+        minh = parseInt(elem.attr('ga_minheight'));
+    if ((w < minw || h < minh) && w && h && minw && minh) {
+        scale = Math.max(minw / w, minh / h);
+        neww = parseInt(Math.ceil(w * scale));
+        elem.attr('content', 'user-scalable=no, width=' + neww);
+    }
+};
+
 /* Run this when everything else is loaded */
 $(function () {
+    geoapp.viewportMinimumSize();
+    $(window).on('resize orientationchange', geoapp.viewportMinimumSize);
     girder.apiRoot = 'api/v1';
     geoapp.map = geoapp.Map();
     geoapp.defaults = {
