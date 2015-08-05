@@ -37,18 +37,30 @@ class ViaElasticsearch():
     def __init__(self, db=None, **params):
         """
         Create a connection to an Elasticsearch database that will return
-        results for our standard find command.  A sample 'hosts' record is
-        [{'host': '10.1.93.172', 'port': 80, 'url_prefix':
-        '/es94-103/instagram_remap', 'timeout': 150}].  A sample 'filters'
-        parameter is [{'term': {'_type': 'baltimore'}}].
+        results for our standard find command.  params may contain the
+        following values (only 'hosts' is required):
+          hosts: a list of elasticsearch connections.  Example: [{'host':
+        '10.1.93.172', 'port': 80, 'url_prefix': '/es94-103/instagram_remap',
+        'timeout': 150}].  The timeout value can be a float or a
+        urllib3.Timeout object, e.g., 'timeout': urllib3.Timeout(read=150,
+        connect=10).  If the elasticsearch server is unreachable, it can take
+        up to four times the connect timeout to actually timeout.
+          filters: a list of additional filter terms to add to all searches.
+        Example: [{'term': {'_type': 'baltimore'}}].
+          livetime: the maximum duration in seconds to search from the present
+        for new live data.  Any new data that is date stamped longer ago than
+        this duration from the current time may be missed for up to this
+        duration.
+          datefield: the name of the field to use for restricting polling
+        queries to recent data.
+          tracktime: the maximum age in seconds of a client's polling
+        information.  If a client fails to poll for live data for longer than
+        this duration, a subsequent poll will fail and the client will need to
+        requery for the whole data.
 
         :param db: the config-file name of the database.  Ignored, but could be
                    used for better logging.
-        :param params: a dictionary of database parameters.  'hosts' contains
-                       the elastic search connection information.  'filters'
-                       contains a list additional filter clauses to add to all
-                       queries.  Both of these must be lists if present.  See
-                       above.
+        :param params: a dictionary of database parameters.  See above.
         """
         self.params = params.copy()
         self.dbparams = {key: params[key] for key in params if key in ['hosts']}
@@ -122,6 +134,7 @@ class ViaElasticsearch():
         }
         query['query']['function_score'] = {
             'random_score': {'seed': 1},
+            'boost_mode': 'replace',
         }
         query['_source'] = {
             'include': [self.fieldName[field] for field in fields
@@ -145,7 +158,11 @@ class ViaElasticsearch():
         # It would be nice if we could have a 'distinct' clause for
         # elasticsearch, but this requires options that are not enabled.
         logger.info('Query: %s', json.dumps(query))
-        res = db.search(body=json.dumps(query))
+        try:
+            res = db.search(body=json.dumps(query))
+        except elasticsearch.ConnectionError as exc:
+            logger.info('Database error %s', str(exc).strip())
+            return None
         if not self.realtime:
             result['count'] = res['hits']['total'],
         execTime = time.time()
@@ -303,12 +320,11 @@ class ViaElasticsearch():
                 record['fullupdate'] = curtime
                 record['fullcount'] = len(urls)
         else:
-            updatefull = self.realtimeData['data'][dataid].get(
-                'fullquery', False)
             with self.realtimeData['lock']:
                 record = self.realtimeData['data'].get(dataid, None)
                 if not record:
                     return
+                updatefull = record.get('fullquery', False)
                 urls = record['urls']
                 if updatefull:
                     newurls = {}

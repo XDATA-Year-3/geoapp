@@ -119,7 +119,8 @@ geoapp.DataHandler = function (arg) {
      *                  always true.
      */
     this.processRequestData = function (options, resp, showfunc, loadfunc) {
-        if (!options.data) {
+        if (!options.data || (options.updateFromPoll &&
+                options.updateFromPoll !== true)) {
             options.data = resp;
         } else if (options.updateFromPoll) {
             if (!this.mergeFromPoll(options, resp)) {
@@ -186,17 +187,24 @@ geoapp.DataHandler = function (arg) {
 
     /* Set or clear the loading animation.
      *
+     * @param mode: 'first' for first batch of data, 'second' for subsequent
+     *              batches of data, 'poll' for live-polling, 'delayed' for
+     *              interrupted polling, anything else to hide the animation.
      * @param elem: a jquery selector for the element containing the loading
-     *              animation.
+     *              animation.  If not specified, use this.loadingElement.
      * @param hidden: true to hide the animation, false to show it.
      * @param first: true if this is the first batch of data, false if not.
      */
-    this.loadingAnimation = function (elem, hidden, first) {
-        elem = $(elem);
+    this.loadingAnimation = function (mode, elem) {
+        elem = $(elem || this.loadingElement);
+        var hidden = ($.inArray(mode, ['first', 'second', 'poll', 'delayed']) <
+                      0);
         elem.toggleClass('hidden', !!hidden);
         if (!hidden) {
-            elem.toggleClass('first-load', !!first);
-            elem.toggleClass('second-load', !first);
+            elem.toggleClass('first-load', mode === 'first');
+            elem.toggleClass('second-load', mode === 'second');
+            elem.toggleClass('poll-load', mode === 'poll');
+            elem.toggleClass('delayed-load', mode === 'delayed');
             /* Restart the animation */
             $('i', elem).removeClass('animate-spin');
             window.setTimeout(function () {
@@ -309,6 +317,7 @@ geoapp.dataHandlers.taxi = function (arg) {
     geoapp.DataHandler.call(this, arg);
 
     this.datakey = m_datakey;
+    this.loadingElement = '#ga-taxi-loading';
 
     /* Replace or add to the taxi data used for the current map.
      *
@@ -332,8 +341,7 @@ geoapp.dataHandlers.taxi = function (arg) {
                 'dropoff_datetime,dropoff_longitude,dropoff_latitude';
         }
         geoapp.cancelRestRequests('taxidata');
-        this.loadingAnimation('#ga-taxi-loading', false,
-                              !options.params.offset);
+        this.loadingAnimation(!options.params.offset ? 'first' : 'second');
         options.params.clientid = geoapp.clientID;
         var xhr = geoapp.restRequest({
             path: 'geoapp/taxi', type: 'GET', data: options.params
@@ -342,7 +350,7 @@ geoapp.dataHandlers.taxi = function (arg) {
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
             if (xhr.statusText !== 'abort') {
-                this.loadingAnimation('#ga-taxi-loading', true);
+                this.loadingAnimation(null);
                 this.loadedMessage('#ga-points-loaded', undefined, false, false,
                                    'trip', 'trips');
             }
@@ -376,7 +384,7 @@ geoapp.dataHandlers.taxi = function (arg) {
         if (callNext) {
             this.dataLoad(options);
         } else {
-            this.loadingAnimation('#ga-taxi-loading', true);
+            this.loadingAnimation(null);
         }
     };
 };
@@ -404,6 +412,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         m_lastInstagramTableCallNumber;
 
     this.datakey = m_datakey;
+    this.loadingElement = '#ga-instagram-loading';
     this.equalKeys = {
         msg: 'caption',
         msg_date: 'posted_date',
@@ -450,10 +459,17 @@ geoapp.dataHandlers.instagram = function (arg) {
                     'posted_date,caption,url,image_url,latitude,longitude';
             }
         }
+        if (this.restartPollTimer) {
+            /* Cancel a poll-restart timer */
+            window.clearTimeout(this.restartPollTimer);
+            delete this.restartPollTimer;
+        }
         geoapp.cancelRestRequests('instagramdata');
         if (!options.updateFromPoll) {
-            this.loadingAnimation('#ga-instagram-loading', false,
-                                  !options.params.offset);
+            this.loadingAnimation(!options.params.offset ? 'first' : 'second');
+        } else {
+            this.loadingAnimation(
+                options.updateFromPoll === true ? 'poll' : 'delayed');
         }
         options.params.clientid = geoapp.clientID;
         var xhr = geoapp.restRequest({
@@ -475,9 +491,14 @@ geoapp.dataHandlers.instagram = function (arg) {
                                     this.dataLoaded);
         }, this)).error(_.bind(function () {
             if (xhr.statusText !== 'abort') {
-                this.loadingAnimation('#ga-instagram-loading', true);
-                this.loadedMessage('#ga-inst-points-loaded', undefined, false,
-                                   false, 'message', 'messages');
+                if (!options.updateFromPoll) {
+                    this.loadingAnimation(null);
+                    this.loadedMessage('#ga-inst-points-loaded', undefined,
+                                       false, false, 'message', 'messages');
+                } else {
+                    /* If polling and we had an error, try to restart it. */
+                    this.pollRestart(options);
+                }
             }
         }, this));
         xhr.girder = {instagramdata: true};
@@ -521,11 +542,10 @@ geoapp.dataHandlers.instagram = function (arg) {
                            options.data.loadFactor);
         if (callNext) {
             this.dataLoad(options);
+        } else if (options.poll && parseFloat(options.poll) > 0) {
+            this.pollMoreData(options, moreData);
         } else {
-            this.loadingAnimation('#ga-instagram-loading', true);
-            if (options.poll && parseFloat(options.poll) > 0) {
-                this.pollMoreData(options, moreData);
-            }
+            this.loadingAnimation(null);
         }
     };
 
@@ -557,6 +577,32 @@ geoapp.dataHandlers.instagram = function (arg) {
         options.params.wait = 60;
         options.updateFromPoll = true;
         this.dataLoad(options);
+    };
+
+    /* If we had an error polling for more data, wait successively longer and
+     * longer times.  Each time try to requery the whole data.  Just reupdating
+     * won't always work (for instance, if the server bounced and was
+     * maintaining state).
+     *
+     * @param options: the request options. */
+    this.pollRestart = function (options) {
+        this.loadingAnimation('delayed');
+        if (options.updateFromPoll === true) {
+            options.updateFromPoll = Math.max(parseFloat(options.poll), 10);
+        } else {
+            options.updateFromPoll = Math.ceil(Math.min(
+                options.updateFromPoll * 1.25, 900));
+        }
+        // wait the determined time, then requery
+        delete options.params._id_min;
+        delete options.params.poll;
+        delete options.params.initwait;
+        delete options.params.wait;
+        console.log('Failed to poll database.  Waiting ' +
+            options.updateFromPoll + ' seconds and trying again.');
+        this.restartPollTimer = window.setTimeout(function () {
+            m_this.dataLoad(options);
+        }, options.updateFromPoll * 1000);
     };
 
     /* Merge data from a polling cycle into the main data.  This adjusts the
