@@ -106,8 +106,74 @@ geoapp.Map = function (arg) {
             $('#ga-main-map').append('<div id="ga-map-credit-box">' +
                 '<div id="ga-map-credit"/></div>');
             $('#ga-map-credit').html(displayInfo.baseUrlCredit || '');
+            /* Set up pan and pinch touch events */
+            var hammer = new Hammer($('#ga-main-map')[0], {
+                preset: [
+                    [Hammer.PinchRecognizer],
+                    [Hammer.PanRecognizer, {
+                        direction: Hammer.DIRECTION_ALL
+                    }]
+                ]
+            });
+            hammer.get('pinch').set({enable: true});
+            hammer.on('panstart panmove panend pancancel', this.panEvent);
+            hammer.on('pinchstart pinchmove pinchend', this.pinchEvent);
         }
         this.updateMapParams(datakey, params, 'always');
+    };
+
+    /* Handle a hammer pan event and convert it into a map pan event.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.panEvent = function (evt) {
+        if (evt.type === 'pancancel') {
+            m_this.lastPanDeltaX = m_this.lastPanDeltaY = undefined;
+            return;
+        }
+        if (evt.type === 'panstart') {
+            /* Record that we just started, since hammer gives the total delta
+             * for the whole pan action on each event call. */
+            m_this.lastPanDeltaX = m_this.lastPanDeltaY = 0;
+        }
+        if (m_this.lastPanDeltaX !== undefined && (evt.deltaX !==
+                m_this.lastPanDeltaX || evt.deltaY !== m_this.lastPanDeltaY)) {
+            m_geoMap.pan({
+                x: evt.deltaX - m_this.lastPanDeltaX,
+                y: evt.deltaY - m_this.lastPanDeltaY
+            });
+            m_this.lastPanDeltaX = evt.deltaX;
+            m_this.lastPanDeltaY = evt.deltaY;
+        }
+        if (evt.type === 'panend') {
+            m_this.lastPanDeltaX = m_this.lastPanDeltaY = undefined;
+        }
+    };
+
+    /* Handle a hammer pinch event and convert it into a map zoom event.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    this.pinchEvent = function (evt) {
+        if (evt.pointers.length !== 2) {
+            return;
+        }
+        var dist = Math.sqrt(Math.pow(evt.pointers[0].pageX -
+            evt.pointers[1].pageX, 2) + Math.pow(evt.pointers[0].pageY -
+            evt.pointers[1].pageY, 2));
+        if (evt.type === 'pinchstart') {
+            /* Record that we just started. */
+            m_this.lastPinchDistance = dist;
+        }
+        if (dist !== m_this.lastPinchDistance) {
+            var zoomFactor = (dist - m_this.lastPinchDistance) / 256,
+                cx = evt.center.x, cy = evt.center.y,
+                oldpos = m_geoMap.displayToGcs({x: cx, y: cy});
+            m_geoMap.zoom(m_geoMap.zoom() + zoomFactor);
+            m_this.lastPinchDistance = dist;
+            var newpos = m_geoMap.gcsToDisplay({x: oldpos.x, y: oldpos.y});
+            m_geoMap.pan({x: cx - newpos.x, y: cy - newpos.y});
+        }
     };
 
     /* Perform any action necessary after a zoom or pan event.  This updates

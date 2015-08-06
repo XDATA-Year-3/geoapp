@@ -123,6 +123,7 @@
         "alert",
         "marked",
         "d3",
-        "c3"
+        "c3",
+        "Hammer"
     ]
 }
