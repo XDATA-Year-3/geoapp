@@ -664,6 +664,8 @@ class GeoAppResource(girder.api.rest.Resource):
                 result = accessObj.find(
                     params, limit, offset, sort, fields, **kwargs)
                 if result is None:
+                    # This error code may not get to the client because we are
+                    # using a generator function
                     cherrypy.response.status = 500
                     raise StopIteration
                 result['datacount'] = len(result.get('data', []))
