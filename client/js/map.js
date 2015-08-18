@@ -97,6 +97,7 @@ geoapp.Map = function (arg) {
             m_mapLayer = m_geoMap.createLayer('osm', {
                 baseUrl: displayInfo.baseUrl,
                 renderer: 'vgl',
+                attribution: null,
                 mapOpacity: displayInfo.opacity || 1
             })
             .geoOn(geo.event.pan, function (e) { view.mapMovedEvent(e); })
