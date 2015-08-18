@@ -95,8 +95,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
     });
 
     this.paramChangedKeys = [
-        'data-opacity', 'display-date_min', 'display-date_max',
-        'show-instagram-data'
+        'inst-opacity', 'display-date_min', 'display-date_max',
+        'show-instagram-data', 'display-max-msg-points'
     ];
 
     /* Update the instagram map based on the map parameters.  Values that are
@@ -106,8 +106,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
      * @param params: the new map parameters.
      */
     this.updateMapParams = function (params) {
-        if (params['display-max-points'] > 0) {
-            this.maximumMapPoints = params['display-max-points'];
+        if (params['display-max-msg-points'] > 0) {
+            this.maximumMapPoints = params['display-max-msg-points'];
         }
         var visParam = {
                 dateMin: params['display-date_min'] ?
@@ -139,9 +139,6 @@ geoapp.mapLayers.instagram = function (map, arg) {
         } else {
             $('.ga-legend-item.legend-messages i').css(
                 'color', m_pointColorStr);
-        }
-        if (params['data-opacity'] > 0) {
-            params['inst-opacity'] = params['data-opacity'];
         }
         data.numPoints = Math.min(data.data.length, this.maximumMapPoints);
         data.x_column = data.columns.longitude;
@@ -375,8 +372,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
             dataBin = options.layers[this.datakey].dataBin,
             i, j, v, opac, vis, vpf;
 
-        if (mapParams['data-opacity']) {
-            visOpac = Math.min(mapParams['data-opacity'] * 1.5, 1);
+        if (mapParams['inst-opacity']) {
+            visOpac = Math.min(mapParams['inst-opacity'] * 1.5, 1);
         }
         vpf = m_geoPoints.verticesPerFeature();
         opac = m_geoPoints.actors()[0].mapper().getSourceBuffer('fillOpacity');
