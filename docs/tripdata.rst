@@ -1,20 +1,25 @@
-Displaying Data
----------------
+Trip Data
+---------
 
-.. image:: display.jpg
+.. image:: tripdata.png
     :align: right
 
-Background Map
-++++++++++++++
+Taxi and Bike Share Data
+++++++++++++++++++++++++
 
-The base map can be changed using the **Map Source** option in the **Display** panel.  It can be made more or less visible with the **Opacity** slider next to the Map Source Option.
+If you select the **Filter** button, taxi and bike share trip information is loaded from the database.  By default, a limited sample of data is loaded, distributed across the selected date range and region.
 
-A specific area of the map can be centered by selecting one of the location buttons (**Manhattan**, **Midtown**, or **Times Sq.**).
+The **Max Trips** slider can be used to load more data, which will result in more accurate graphs and binned data, but take longer and use more local resources.
 
-The map can be panned and zoomed with the mouse.
+Trips can be selected based on **Trip Distance** and number of **Passengers**.  Not all data sets have this information (for instance, it isn't set in the Bike Share data).
 
-Taxi Data
-+++++++++
+Trip data is plotted on the map using black points for each trip, or shown using blue and yellow points, lines, or squares, depending on the display settings.
+
+
+Data Display
+++++++++++++
+
+**Show Trips** can be used to hide all trip information from the map.
 
 The taxi data contains pickup and dropoff locations and times for each trip.  If **Processing** is set to 'Individual Trips', each trip that was filtered will be shown as a single dot.  If the **Display Type** is 'Pickup Locations', the points are drawn in black and show where taxis picked up fares.  'Dropoff Locations' show black points where the fares were discharged.  'Pickup - Dropoff Locations' show pickups in *blue* and dropoffs in *yellow*.
 
@@ -24,7 +29,4 @@ If **Display Type** is 'Pickup - Dropoff Vectors' a straight line connects each 
 
 If **Processing** is set to 'Binned Heatmap', all of the filtered taxi trips are used to produce a a grid of squares whose opacity is proportional to whichever square had the most taxi trips.  If the **Display Type** is 'Pickup - Dropoff Locations', the squares are blue when there are more pickups than dropoffs, and yellow when there are more dropoffs than pickups.  The number of bins across the map can be changed.  The data is rebinned whenever the map is panned or zoomed.
 
-Instagram and Twitter Data
-++++++++++++++++++++++++++
-
-Instagram and Twitter data is always shown as red points.  The **Max Points** and **Opacity** controls affect how it is displayed.
+A legend is shown based on the current display settings.
