@@ -28,6 +28,13 @@ geoapp.getQuerySection = function (settings, section) {
     if (geoapp.defaultControlsQuery === undefined) {
         geoapp.defaultControlsQuery = geoapp.parseJSON($('body').attr(
             'defaultControls'));
+        /* If this is the first time we see this, possible remove some controls
+         * from the UI. */
+        var removectls = geoapp.getQuerySection(settings, 'remove');
+        _.each(removectls, function (remove, id) {
+            remove = (remove && remove !== 'false');
+            $('#' + id).remove();
+        });
     }
     var results = geoapp.parseQueryString(settings[section] || '');
     if (geoapp.defaultControlsQuery[section]) {
@@ -172,6 +179,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'general-filter': '.ga-filter-controls[ga-section-name="general"] #',
         'taxi-filter': '.ga-filter-controls[ga-section-name="taxi"] #',
         'instagram-filter': '.ga-filter-controls[ga-section-name="instagram"] #',
+        'general-display': '.ga-display-controls[ga-section-name="general"] #',
         'taxi-display': '.ga-display-controls[ga-section-name="taxi"] #',
         'instagram-display': '.ga-display-controls[ga-section-name="instagram"] #',
         anim: '.ga-anim-controls #'
@@ -186,7 +194,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
         this.firstRender = true;
-        /* Load the list of place buttons */
+        /* Load the list of place buttons. */
         if (geoapp.defaultControlsQuery === undefined) {
             var places = geoapp.parseJSON($('body').attr('placeControls'));
             if (_.size(places) > 0) {
@@ -209,7 +217,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         this.finalizeInit(settings, 0);
     },
 
-    /* Finish initializing or reinitializting the view.
+    /* Finish initializing or reinitializing the view.
      *
      * @param settings: the initial settings.  This can include defaults for
      *                  the different control groups.
@@ -245,7 +253,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
     reinitialize: function (settings) {
         var view = this, update = {};
         _.each(view.controlSections, function (baseSelector, section) {
-            var current = view.updateSection(section, false, true);
+            var current = view.updateSection(section, false, true)[section];
+            if (!current) {
+                return;
+            }
             var params = geoapp.getQuerySection(settings, section);
             _.each(current, function (value, id) {
                 if (value !== (params[id] || '')) {
@@ -269,7 +280,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         value = '' + value;
         try {
             if (elem.is('[type=checkbox]')) {
-                elem.prop('checked', value === 'true');
+                if (value !== '') {
+                    elem.prop('checked', value === 'true');
+                }
                 return;
             }
             elem.val(value);
@@ -278,6 +291,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 elem.append($('<option/>').attr({value: value})
                     .text(value));
                 elem.val(value);
+            } else if (elem.is('select') && value === '' &&
+                    elem.val() === null) {
+                elem.val($('option:first', elem).val());
             }
         } catch (err) {
             console.log('Failed to set control value.  Caught a ' + err.name +
@@ -632,7 +648,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 results['instagram-filter'])) {
             results.display = this.updateSection('display', false);
         }
-        if (results['taxi-filter']) {
+        if (results['taxi-filter'] && $('#ga-taxi-filter').length > 0) {
             params = $.extend({}, results['taxi-filter'],
                               results['general-filter']);
             _.each(['', '_min', '_max'], function (keySuffix) {
@@ -648,7 +664,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 display: results.display
             });
         }
-        if (results['instagram-filter']) {
+        if (results['instagram-filter'] &&
+                $('#ga-instagram-filter').length > 0) {
             params = $.extend({}, results['instagram-filter'],
                               results['general-filter']);
             _.each(['', '_min', '_max'], function (keySuffix) {
