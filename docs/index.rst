@@ -18,8 +18,9 @@ Help Topics
    :maxdepth: 2
 
    dataSources
-   filters
-   display
+   location
+   tripdata
+   messagedata
    messages
    graphs
    animation

@@ -40,8 +40,8 @@ geoapp.getQuerySection = function (settings, section) {
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
         'click #ga-taxi-filter,#ga-instagram-filter': function (evt) {
-            var filter = $(evt.target).closest('[ga-filter-name]').attr(
-                'ga-filter-name');
+            var filter = $(evt.target).closest('[ga-section-name]').attr(
+                'ga-section-name');
             $('#ga-' + filter + '-filter').removeClass('btn-primary');
             this.updateView(true, filter + '-filter');
         },
@@ -52,15 +52,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             this.updateView(true, 'anim');
         },
-        'change #ga-display-settings select,#ga-display-settings input[type="text"],#ga-display-settings input[type="checkbox"]': function (evt) {
-            $('#ga-display-update').removeClass('btn-primary');
+        'change .ga-display-controls select,.ga-display-controls input[type="text"],.ga-display-controls input[type="checkbox"]': function (evt) {
             var combineNav = $(evt.target).is('.ga-slider-ctl');
             this.updateView(combineNav ? 'combine' : true, 'display');
-        },
-        'click #ga-display-update': function () {
-            $('#ga-display-update').removeClass('btn-primary');
-            geoapp.map.updateMapParams(
-                'all', this.updateSection('display', false), 'always');
         },
         'click .ga-place': function (evt) {
             var place = $(evt.currentTarget).attr('data-place');
@@ -97,46 +91,44 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change #ga-taxi-filter-settings input[type="text"]:visible,#ga-taxi-filter-settings select:visible,#ga-data-trips,#ga-general-filter-settings select:visible': function () {
+        'change .ga-filter-controls[ga-section-name="taxi"] input[type="text"]:visible,.ga-filter-controls[ga-section-name="taxi"] select:visible,#ga-data-trips,.ga-filter-controls[ga-section-name="general"] select:visible': function () {
             $('#ga-taxi-filter').addClass('btn-primary');
         },
-        'change #ga-taxi-filter-settings #ga-pickup-date': function () {
-            if ($('#ga-use-taxi-dates').is(':checked')) {
-                $('#ga-instagram-filter').addClass('btn-primary');
-            }
-        },
-        'change #ga-instagram-filter-settings input[type="text"]:visible,#ga-instagram-filter-settings select:visible,#ga-inst-data-grams,#ga-instagram-filter-settings input[type="checkbox"],#ga-general-filter-settings select:visible': function () {
+        'change #ga-date-range': function () {
+            $('#ga-taxi-filter').addClass('btn-primary');
             $('#ga-instagram-filter').addClass('btn-primary');
         },
-        'change #ga-anim-settings input[type="text"]:visible,#ga-anim-settings select:visible': function () {
+        'change .ga-filter-controls[ga-section-name="instagram"] input[type="text"]:visible,.ga-filter-controls[ga-section-name="instagram"] select:visible,#ga-inst-data-grams,.ga-filter-controls[ga-section-name="instagram"] input[type="checkbox"],.ga-filter-controls[ga-section-name="general"] select:visible': function () {
+            $('#ga-instagram-filter').addClass('btn-primary');
+        },
+        'change .ga-anim-controls input[type="text"]:visible,.ga-anim-controls select:visible': function () {
             $('#ga-anim-update').addClass('btn-primary');
         },
         'click #ga-instagram-results-sort': function () {
             geoapp.dataLoaders.instagram.sortOrder('toggle');
         },
-        'keydown #ga-taxi-filter-settings input[type="text"],#ga-instagram-filter-settings input[type="text"]': function (evt) {
+        'keydown .ga-filter-controls input[type="text"]': function (evt) {
             if (evt.which === 13) {
-                var filter = $(evt.target).closest('[ga-filter-name]').attr(
-                    'ga-filter-name');
-                $('#ga-' + filter + '-filter-settings .ga-date-range'
-                    ).data('daterangepicker').hide();
+                var filter = $(evt.target).closest('[ga-section-name]').attr(
+                    'ga-section-name');
+                $('.ga-filter-controls .ga-date-range').data(
+                    'daterangepicker').hide();
                 geoapp.waitForRepaint(function () {
-                    $('#ga-' + filter + '-filter').click();
-                    if ($('#ga-use-taxi-dates').is(':checked') &&
-                            $(evt.target).is('#ga-pickup-date')) {
+                    if (filter !== 'general') {
+                        $('#ga-' + filter + '-filter').click();
+                    } else {
+                        $('#ga-taxi-filter').click();
                         $('#ga-instagram-filter').click();
                     }
                 });
             }
         },
-        'keydown #ga-display-settings input[type="text"]': function (evt) {
+        'keydown .ga-display-controls input[type="text"]': function (evt) {
             if (evt.which === 13) {
-                geoapp.waitForRepaint(function () {
-                    $('#ga-display-update').click();
-                });
+                geoapp.waitForRepaint(this.displayUpdate);
             }
         },
-        'keydown #ga-anim-settings input[type="text"]': function (evt) {
+        'keydown .ga-anim-controls input[type="text"]': function (evt) {
             if (evt.which === 13) {
                 geoapp.waitForRepaint(function () {
                     $('#ga-anim-update').click();
@@ -158,15 +150,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.updateNavigation('mapview', 'panels', panel, true,
                                     true);
         },
-        'apply.daterangepicker #ga-taxi-filter-settings .ga-date-range,#ga-instagram-filter-settings .ga-date-range':  function (evt) {
-            var filter = $(evt.target).closest('[ga-filter-name]').attr(
-                'ga-filter-name');
-            $('#ga-' + filter + '-filter').addClass('btn-primary');
+        'apply.daterangepicker .ga-filter-controls .ga-date-range':  function (evt) {
             var val = this.getDateRange(evt.target, {}, 'date', true);
             $(evt.target).val(val);
-            if (filter === 'taxi' && $('#ga-use-taxi-dates').is(':checked')) {
-                $('#ga-instagram-filter').addClass('btn-primary');
-            }
+            $('#ga-taxi-filter').addClass('btn-primary');
+            $('#ga-instagram-filter').addClass('btn-primary');
             $('#ga-taxi-filter').trigger('click');
             $('#ga-instagram-filter').trigger('click');
         },
@@ -181,11 +169,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* This is a dictionary of control sections used in routing. */
     controlSections: {
-        'general-filter': '#ga-general-filter-settings #',
-        'taxi-filter': '#ga-taxi-filter-settings #',
-        'instagram-filter': '#ga-instagram-filter-settings #',
-        display: '#ga-display-settings #',
-        anim: '#ga-anim-settings #'
+        'general-filter': '.ga-filter-controls[ga-section-name="general"] #',
+        'taxi-filter': '.ga-filter-controls[ga-section-name="taxi"] #',
+        'instagram-filter': '.ga-filter-controls[ga-section-name="instagram"] #',
+        'taxi-display': '.ga-display-controls[ga-section-name="taxi"] #',
+        'instagram-display': '.ga-display-controls[ga-section-name="instagram"] #',
+        anim: '.ga-anim-controls #'
     },
 
     /* Initialize the view.
@@ -612,7 +601,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                   is the same as the last changed.
      * @param updateSection: falsy to update all sections, a string to update
      *                       just one section, or an object with the keys which
-     *                       have thuthy values are the sections to update.
+     *                       have truthy values are the sections to update.
      */
     updateView: function (updateNav, updateSection) {
         var results = {}, params;
@@ -646,31 +635,30 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (results['taxi-filter']) {
             params = $.extend({}, results['taxi-filter'],
                               results['general-filter']);
+            _.each(['', '_min', '_max'], function (keySuffix) {
+                delete params['pickup_datetime' + keySuffix];
+                if (results['general-filter'][
+                        'date' + keySuffix]) {
+                    params['pickup_datetime' + keySuffix] = results[
+                        'general-filter']['date' + keySuffix];
+                }
+            });
             geoapp.dataLoaders.taxi.dataLoad({
                 params: params,
                 display: results.display
             });
         }
         if (results['instagram-filter']) {
-            /* If 'use_taxi_dates' is checked, pull it from the taxi controls.
-             */
             params = $.extend({}, results['instagram-filter'],
                               results['general-filter']);
-            if ('' + params.use_taxi_dates === 'true') {
-                if (!results['taxi-filter']) {
-                    results['taxi-filter'] = this.updateSection(
-                        'taxi-filter', false);
+            _.each(['', '_min', '_max'], function (keySuffix) {
+                delete params['posted_date' + keySuffix];
+                if (results['general-filter'][
+                        'date' + keySuffix]) {
+                    params['posted_date' + keySuffix] = results[
+                        'general-filter']['date' + keySuffix];
                 }
-                _.each(['', '_min', '_max'], function (keySuffix) {
-                    delete params['posted_date' + keySuffix];
-                    if (results['taxi-filter'][
-                            'pickup_datetime' + keySuffix]) {
-                        params['posted_date' + keySuffix] = results[
-                            'taxi-filter']['pickup_datetime' + keySuffix];
-                    }
-                });
-            }
-            delete params.use_taxi_dates;
+            });
             params.source = params.msgsource;
             delete params.msgsource;
             geoapp.dataLoaders.instagram.dataLoad({
@@ -689,8 +677,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* Update values associated with a section of the controls.
      *
-     * @param section: the name of the section to update.  One of
-     *                 'taxi-filter', 'instagram-filter', 'anim', or 'display'.
+     * @param section: the name of the section to update.  This is of the
+     *                 form [(dataset)-](section), where (dataset) is one of
+     *                 the datasets ('taxi', 'instagram', 'general'), and
+     *                 (section) is one of 'filter', 'display', 'anim'.
      * @param updateNav: true to update the navigation route.  'combine' to
      *                   combine updates to the navigation route if the section
      *                   is the same as the last changed.
@@ -700,20 +690,40 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *          fields.
      */
     updateSection: function (section, updateNav, returnNav) {
-        var view = this;
-        var selector = 'ga-' + section + '-settings';
+        var view = this, selector, navSection;
+        if (section.indexOf('-') >= 0) {
+            var parts = section.split('-');
+            selector = '.ga-' + parts[1] + '-controls[ga-section-name="' +
+                parts[0] + '"]';
+            section = parts[1];
+        } else {
+            selector = '.ga-' + section + '-controls';
+        }
         var params = {};
         var navFields = {};
-        $('#' + selector + ' [taxifield]').each(function () {
+        $(selector + ' [taxifield]').each(function () {
             var elem = $(this);
             var value = view.getTaxiValue(elem, params);
-            if (value !== '' || returnNav) {
-                navFields[elem.attr('id')] = value;
+            if (value !== '' || returnNav || elem.is('select')) {
+                navSection = $(elem).closest(
+                    '.ga-' + section + '-controls').attr('ga-section-name');
+                if (!navSection) {
+                    navSection = section;
+                }
+                if (navSection !== section) {
+                    navSection += '-' + section;
+                }
+                if (!navFields[navSection]) {
+                    navFields[navSection] = {};
+                }
+                navFields[navSection][elem.attr('id')] = value;
             }
         });
         if (updateNav) {
-            geoapp.updateNavigation('mapview', section, navFields, undefined,
-                                    updateNav === 'combine');
+            _.each(navFields, function (navSecFields, navSection) {
+                geoapp.updateNavigation('mapview', navSection, navSecFields,
+                                        undefined, updateNav === 'combine');
+            });
         }
         if (returnNav) {
             return navFields;
@@ -754,6 +764,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-display-max-lines-group').toggleClass('hidden',
             values.display['display-process'] === 'binned' ||
             values.display['display-type'] !== 'vector');
+        $('#ga-data-opacity-group').toggleClass('hidden',
+            values.display['display-process'] === 'binned');
         $('#ga-display-num-bins-group').toggleClass('hidden',
             values.display['display-process'] !== 'binned');
         $('#ga-cycle-group option[value="day"]').toggleClass('hidden',
@@ -878,17 +890,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
             'mapview', 'anim', {'ga-play': playState}, true);
     },
 
+    /* Update the display based on all display settings. */
+    displayUpdate: function () {
+        geoapp.map.updateMapParams(
+            'all', this.updateSection('display', false), 'always');
+    },
+
     /* When the map is moved, check if we need to mark that the display can be
      * updated. */
     mapMoved: function () {
         var display  = this.updateSection('display', false);
         if (display['display-process'] === 'binned') {
-            $('#ga-display-update').addClass('btn-primary');
-            geoapp.throttleCallback('updatebin', _.bind(function () {
-                $('#ga-display-update').removeClass('btn-primary');
-                geoapp.map.updateMapParams(
-                    'all', this.updateSection('display', false), 'always');
-            }, this), 0, 300);
+            geoapp.throttleCallback(
+                'updatebin', _.bind(this.displayUpdate, this), 0, 300);
         }
     },
 
