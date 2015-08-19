@@ -253,7 +253,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
     reinitialize: function (settings) {
         var view = this, update = {};
         _.each(view.controlSections, function (baseSelector, section) {
-            var current = view.updateSection(section, false, true);
+            var current = view.updateSection(section, false, true)[section];
+            if (!current) {
+                return;
+            }
             var params = geoapp.getQuerySection(settings, section);
             _.each(current, function (value, id) {
                 if (value !== (params[id] || '')) {
@@ -277,7 +280,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         value = '' + value;
         try {
             if (elem.is('[type=checkbox]')) {
-                elem.prop('checked', value === 'true');
+                if (value !== '') {
+                    elem.prop('checked', value === 'true');
+                }
                 return;
             }
             elem.val(value);
@@ -286,6 +291,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 elem.append($('<option/>').attr({value: value})
                     .text(value));
                 elem.val(value);
+            } else if (elem.is('select') && value === '' &&
+                    elem.val() === null) {
+                elem.val($('option:first', elem).val());
             }
         } catch (err) {
             console.log('Failed to set control value.  Caught a ' + err.name +
