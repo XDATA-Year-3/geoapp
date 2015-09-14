@@ -1,4 +1,4 @@
-Minvera Taxi
+Minerva Taxi
 ============
 
 This is a girder (https://github.com/girder/girder) and geojs
