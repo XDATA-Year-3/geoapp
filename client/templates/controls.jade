@@ -73,7 +73,7 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
   +standardPanel('ga-anim-settings-panel', 'ga-anim-settings', 'Animation',
       "After changing animation parameters, select Update to use the new values.",
       'animation')
-    .ga-anim-controls(ga-section-name="animation")
+    .ga-anim-controls(ga-section-name="anim")
       .form-group
         label(for="ga-cycle") Cycle
         select#ga-cycle.form-control.input-sm(title="Animation cycle (for example, selecting Day means that all days are combined together so you can see what happens on the average day)",
