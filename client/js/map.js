@@ -302,8 +302,8 @@ geoapp.Map = function (arg) {
         params.opacity = params.opacity || 0.05;
         var origParams = m_mapParams || {};
         var results = {
-            baseUrl: geoapp.TileSets['default'].url,
-            baseUrlCredit: geoapp.TileSets['default'].credit,
+            baseUrl: geoapp.TileSets.default.url,
+            baseUrlCredit: geoapp.TileSets.default.credit,
             opacity: params['display-tile-opacity'] || 1
         };
         if (geoapp.TileSets[params['display-tile-set']] !== undefined) {
