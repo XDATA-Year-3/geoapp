@@ -792,7 +792,8 @@ geoapp.graphData.taxi = function (arg) {
             axisunits: null
         },
         scaledpickups: {
-            name: 'Trip Scaled Pickups',
+            name: 'Pickups',
+            longname: 'Trip Scaled Pickups',
             description: 'Filtered trip pickups scaled to full data range',
             column: 'pickup_datetime',
             scaled: true,
@@ -800,7 +801,8 @@ geoapp.graphData.taxi = function (arg) {
             format: m_this.unlog2
         },
         scaleddropoffs: {
-            name: 'Trip Scaled Dropoffs',
+            name: 'Dropoffs',
+            longname: 'Trip Scaled Dropoffs',
             description: 'Filtered trip dropoffs scaled to full data range',
             column: 'dropoff_datetime',
             scaled: true,
