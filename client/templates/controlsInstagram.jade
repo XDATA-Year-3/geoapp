@@ -13,6 +13,16 @@
         type="text", placeholder="Caption substring search",
         title="Use quotes to specify exact required phrases, hashtags for exact hashtag matches, () to group clauses, | for or, and ! or - to exclude phrases.  For example, searching for 'hospital -\"hospitality\" finds hospitals but not warm welcomes.",
         taxifield="caption_search", taxitype="text")
+    .form-group.hidden
+      label(for="ga-user-name") User Name
+      input#ga-user-name.form-control.input-sm(
+        type="text", placeholder="Screen name", title="Screen name",
+        taxifield="user_name")
+    .form-group.hidden
+      label(for="ga-user-id") User ID
+      input#ga-user-id.form-control.input-sm(
+        type="text", placeholder="User ID", title="User ID",
+        taxifield="user_id")
     .form-group
       button#ga-instagram-filter.btn.btn-default.btn-sm(
           title="Load message information from the database")
