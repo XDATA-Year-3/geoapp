@@ -224,7 +224,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * @param speed: the number of milliseconds to take to pan the map.
      */
     finalizeInit: function (settings, speed) {
-        geoapp.map.fitBounds(geoapp.getQuerySection(settings, 'map'), speed);
+        var bounds = geoapp.getQuerySection(settings, 'map');
+        if (!$.isEmptyObject(bounds)) {
+            geoapp.map.fitBounds(bounds, speed);
+        }
         geoapp.dataLoaders.instagram.routeSettings(
             geoapp.getQuerySection(settings, 'results'));
         geoapp.graph.graphsFromNavigation(
@@ -258,6 +261,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 return;
             }
             var params = geoapp.getQuerySection(settings, section);
+            if ($.isEmptyObject(params)) {
+                return;
+            }
             _.each(current, function (value, id) {
                 if (value !== (params[id] || '')) {
                     view.setControlValue(baseSelector + id, params[id] || '');
@@ -328,6 +334,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 view.usedInitialSettings = true;
                 _.each(view.controlSections, function (baseSelector, section) {
                     var params = geoapp.getQuerySection(settings, section);
+                    if ($.isEmptyObject(params)) {
+                        return;
+                    }
                     _.each(params, function (value, id) {
                         if (value !== '' && value !== undefined) {
                             view.setControlValue(baseSelector + id, value);
