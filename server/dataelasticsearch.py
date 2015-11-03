@@ -20,14 +20,19 @@
 # This file contains classes and code specific to accessing Elasticsearch
 # databases.
 
+import calendar
 import datetime
 import dateutil.parser
 import elasticsearch
 import json
 import threading
 import time
+import urllib3
+import xml.sax.saxutils
 
 from girder import logger
+
+urllib3.disable_warnings()
 
 
 class ViaElasticsearch():
@@ -53,6 +58,7 @@ class ViaElasticsearch():
         duration.
           datefield: the name of the field to use for restricting polling
         queries to recent data.
+          format: "instagram" (default) or "gnip".  The format in the database.
           tracktime: the maximum age in seconds of a client's polling
         information.  If a client fails to poll for live data for longer than
         this duration, a subsequent poll will fail and the client will need to
@@ -63,7 +69,8 @@ class ViaElasticsearch():
         :param params: a dictionary of database parameters.  See above.
         """
         self.params = params.copy()
-        self.dbparams = {key: params[key] for key in params if key in ['hosts']}
+        self.dbparams = {key: params[key] for key in params if key in [
+            'hosts', 'timeout']}
         self.db = None
         # This is an instagram-specific dictionary, and should be abstracted.
         # This list is not complete
@@ -79,6 +86,30 @@ class ViaElasticsearch():
             'user_name': 'user.username',
             'user_fullname': 'user.full_name',
         }
+        self.fieldConversions = {}
+        if self.params.get('format') == 'gnip':
+            self.fieldName = {
+                'rand1': '_score',
+                'rand2': '_score',
+                'msg_date': 'postedTime',
+                'msg': 'body',
+                'url': 'link',
+                'latitude': 'geo.coordinates',
+                'longitude': 'geo.coordinates',
+                'user_id': 'actor.id',
+                'user_name': 'actor.preferredUsername',
+                'user_fullname': 'actor.displayName',
+                'image_url': 'twitter_entities.media.media_url_https',
+            }
+            self.fieldConversions = {
+                'msg_date': lambda value: time.strftime(
+                    '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
+                'postedTime': lambda value: time.strftime(
+                    '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
+                'user_id': lambda value: 'id:twitter.com:' + str(value),
+            }
+        if 'datefield' not in self.params and 'msg_date' in self.fieldName:
+            self.params['datefield'] = self.fieldName['msg_date']
         self.realtimeData = {
             'clients': {},
             'data': {},
@@ -123,7 +154,10 @@ class ViaElasticsearch():
             'fields': fields,
             'columns': columns,
         }
-        filters = [{'exists': {'field': 'location.longitude'}}]
+        if self.params.get('format') == 'gnip':
+            filters = [{'exists': {'field': 'geo.coordinates'}}]
+        else:
+            filters = [{'exists': {'field': 'location.longitude'}}]
         if 'filters' in self.params:
             filters.extend(self.params['filters'])
         queries = []
@@ -167,7 +201,10 @@ class ViaElasticsearch():
             result['count'] = res['hits']['total'],
         execTime = time.time()
         # This is an instagram-specific line, and should be abstracted
-        result['data'] = self.instagramToData(fields, res['hits']['hits'])
+        if self.params.get('format') == 'gnip':
+            result['data'] = self.gnipToData(fields, res['hits']['hits'])
+        else:
+            result['data'] = self.instagramToData(fields, res['hits']['hits'])
         self.realTimeResultsFinalize(params, result)
         curtime = time.time()
         logger.info(
@@ -237,23 +274,84 @@ class ViaElasticsearch():
                     value = 1.0 - float(value) / 1000000000
                     mainQuery['query']['function_score']['min_score'] = value
                 else:
-                    if dtype == 'date':
-                        value = int((dateutil.parser.parse(value) - self.epoch)
-                                    .total_seconds())
-                        # Elasticsearch is expecting epoch seconds in a string
-                        value = str(value)
-                    elif dtype in ('int', 'bigint'):
-                        value = int(value)
-                    elif dtype == 'float':
-                        value = float(value)
-                    else:
-                        value = str(value)
-                    if suffix == '_min':
-                        filters.append({'range': {fieldName: {'gte': value}}})
-                    elif suffix == '_max':
-                        filters.append({'range': {fieldName: {'lt': value}}})
-                    else:
-                        filters.append({'term': {fieldName: value}})
+                    self.findFiltersGeneral(
+                        filters, value, dtype, field, fieldName, suffix)
+
+    def findFiltersGeneral(self, filters, value, dtype, field, fieldName,
+                           suffix):
+        """
+        Generate a filter for a general data type (not search, score, or max).
+
+        :param filters: an array to store new ES filters in.
+        :param value: the value to use for the filter.
+        :param dtype: the data type of the filter.
+        :param field: the Messages (or format) field name.
+        :param fieldName: the elasticsearch field name.
+        :param suffix: _min or _max for ranges.  Anything else for exact.
+        """
+        if dtype == 'date':
+            value = int((dateutil.parser.parse(value) - self.epoch)
+                        .total_seconds())
+            # Elasticsearch is expecting epoch seconds in a string
+            value = str(value)
+        elif dtype in ('int', 'bigint'):
+            value = int(value)
+        elif dtype == 'float':
+            value = float(value)
+        else:
+            value = str(value)
+        if field in self.fieldConversions:
+            value = self.fieldConversions[field](value)
+        if suffix == '_min':
+            filters.append({'range': {fieldName: {'gte': value}}})
+        elif suffix == '_max':
+            filters.append({'range': {fieldName: {'lt': value}}})
+        else:
+            filters.append({'term': {fieldName: value}})
+
+    def gnipToData(self, fields, results):
+        """
+        Convert elasticsearch gnip results into our data list format.
+
+        :param fields: the fields we want to keep (the columns for our data).
+        :param results: the ['hits']['hits'] part of the elasticsearch result.
+        :return: a list of the data in our format.
+        """
+        data = []
+        if not len(results):
+            return data
+        for res in results:
+            gnip = res['_source']
+            date = float(calendar.timegm(time.strptime(
+                gnip['postedTime'], '%Y-%m-%dT%H:%M:%S.000Z')))
+            item = {
+                'user_name':     gnip.get('actor', {}).get(
+                    'preferredUsername', None),
+                'user_fullname': gnip.get('actor', {}).get('displayName', None),
+                'user_id':       gnip.get('actor', {}).get('id', None).split(
+                    ':')[-1],
+                'msg_date':      date * 1000,
+                'url':           gnip['link'],
+                'rand1':         int((1 - res['_score']) * 1e9),
+                'rand2':         int((1 - res['_score']) * 1e18) % 1000000000,
+            }
+            if gnip.get('body', None):
+                item['msg'] = xml.sax.saxutils.unescape(gnip['body'])
+            item['msg_id'] = item['url'].strip('/').rsplit('/', 1)[-1]
+            item['url'] = 't/%s/%s' % (item['user_id'], item['msg_id'])
+            if 'geo' in gnip and 'coordinates' in gnip['geo']:
+                item['latitude'] = gnip['geo']['coordinates'][0]
+                item['longitude'] = gnip['geo']['coordinates'][1]
+            else:
+                item['latitude'] = item['longitude'] = 0
+            if ('twitter_entities' in gnip and
+                    'media' in gnip['twitter_entities'] and
+                    len(gnip['twitter_entities']['media']) > 0 and
+                    'media_url_https' in gnip['twitter_entities']['media'][0]):
+                item['image_url'] = gnip['twitter_entities']['media'][0][
+                    'media_url_https']
+            data.append([item.get(field, None) for field in fields])
+        return data
 
     def instagramToData(self, fields, results):
         """
@@ -406,7 +504,10 @@ class ViaElasticsearch():
                     curtime - record['fullupdate'] > livetime or
                     len(record['urls']) > record['fullcount'] * 3)
                 if not record['fullquery']:
+                    value = int(curtime - livetime)
+                    if datefield in self.fieldConversions:
+                        value = self.fieldConversions[datefield](value)
                     filters.append({'range': {datefield: {
-                        'gte': str(int(curtime - livetime))
+                        'gte': str(value)
                     }}})
         return True
