@@ -70,6 +70,10 @@ geoapp.infiniteScroll = function (selector, loadFunc, context) {
 geoapp.formatLatLon = function (pos, useMinutes) {
     var result = '', lon = Math.abs(pos.x), lat = Math.abs(pos.y);
 
+    /* Treat 0, 0 as an invalid value and return an empty string. */
+    if (!lat && !lon) {
+        return result;
+    }
     if (useMinutes) {
         result += sprintf('%d\xB0 %d\' %4.2f"', Math.floor(lon),
             Math.floor(lon * 60) % 60, (lon * 60 - Math.floor(lon * 60)) * 60);

@@ -154,10 +154,12 @@ class ViaElasticsearch():
             'fields': fields,
             'columns': columns,
         }
+        filters = []
         if self.params.get('format') == 'gnip':
-            filters = [{'exists': {'field': 'geo.coordinates'}}]
+            if self.params.get('georequired', True):
+                filters.extend([{'exists': {'field': 'geo.coordinates'}}])
         else:
-            filters = [{'exists': {'field': 'location.longitude'}}]
+            filters.extend([{'exists': {'field': 'location.longitude'}}])
         if 'filters' in self.params:
             filters.extend(self.params['filters'])
         queries = []
