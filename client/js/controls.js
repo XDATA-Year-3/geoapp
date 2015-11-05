@@ -170,6 +170,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
         },
         'show.daterangepicker': function (evt) {
             var val = this.getDateRange(evt.target, {}, 'date', true);
+            if ($(evt.target).attr('has-relative-date') === 'true') {
+                $(evt.target).data('daterangepicker').hide();
+                return false;
+            }
             $(evt.target).val(val);
         }
     },
@@ -302,7 +306,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 elem.val($('option:first', elem).val());
             }
         } catch (err) {
-            console.log('Failed to set control value.  Caught a ' + err.name +
+            console.log('Failed to set control value.  Caught ' + err.name +
                         ' exception:', err.message, err.stack, err);
         }
     },
@@ -453,6 +457,44 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
     },
 
+    /* Parse a string into a UTC moment.  The string can be:
+     *   (a) any string momentjs can handle
+     *   (b) (+|-)(float) - a number of seconds from now, where negative values
+     * are in the past.
+     *   (c) (float) (units) ('ago'|'from now') - an offset from now, where
+     * 'ago' is in the past and 'from now' is in the future.
+     *   (d) 'now' - the current time.
+     *
+     * @param val: the value to parse.
+     * @param selector: a jquery selector to mark if the date is a relative
+     *                  value.
+     * @return: a parsed moment.
+     */
+    parseMomentUTC: function (val, selector) {
+        val = val.trim();
+        var parts;
+
+        if (val === 'now') {
+            val = undefined;
+            $(selector).attr('has-relative-date', 'true');
+        } else if (val.indexOf('ago') === val.length - 3 && val.length > 3) {
+            parts = val.split(' ');
+            val = moment.utc() - moment.duration(
+                parseFloat(parts[0]), parts[1]);
+            $(selector).attr('has-relative-date', 'true');
+        } else if (val.indexOf('from now') === val.length - 8 &&
+                val.length > 8) {
+            parts = val.split(' ');
+            val = moment.utc() + moment.duration(
+                parseFloat(parts[0]), parts[1]);
+            $(selector).attr('has-relative-date', 'true');
+        } else if (val.indexOf('-') === 0 || val.indexOf('+') === 0) {
+            val = moment.utc() + parseFloat(val) * 1000;
+            $(selector).attr('has-relative-date', 'true');
+        }
+        return moment.utc(val);
+    },
+
     /* Get a range from a date range control.  The ranges are of the form
      * YYYY-MM-DD hh:mm:ss - YYYY-MM-DD hh:mm:ss .  Everything is optional.
      * The ranges must be separated by the string ' - '.
@@ -474,6 +516,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             dbForm = 'YYYY-MM-DD HH:mm:ss',
             defaultYear = parseInt($('body').attr('defaultyear') || 2013);
 
+        $(selector).attr('has-relative-date', 'false');
         if (val === '') {
             return null;
         }
@@ -488,7 +531,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         }
         if (parts.length === 1) {
-            onlyval = moment.utc(val.trim());
+            onlyval = this.parseMomentUTC(val, selector);
             if (!onlyval.isValid()) {
                 onlyval = null;
             } else {
@@ -499,7 +542,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
         } else {
             if (parts[0].trim() !== '') {
-                minval = moment.utc(parts[0].trim());
+                minval = this.parseMomentUTC(parts[0], selector);
                 if (!minval.isValid()) {
                     minval = null;
                 } else {
@@ -510,7 +553,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }
             }
             if (parts[1].trim() !== '') {
-                maxval = moment.utc(parts[1].trim());
+                maxval = this.parseMomentUTC(parts[1], selector);
                 if (!maxval.isValid()) {
                     maxval = null;
                 } else {
@@ -638,11 +681,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
         results['general-filter'] = this.updateSection(
             'general-filter',
             updateNav || (!updateSection || updateSection['general-filter']));
-        if (!updateSection || updateSection['taxi-filter']) {
+        if (!updateSection || updateSection['taxi-filter'] ||
+                updateSection['general-filter']) {
             results['taxi-filter'] = this.updateSection(
                 'taxi-filter', updateNav);
         }
-        if (!updateSection || updateSection['instagram-filter']) {
+        if (!updateSection || updateSection['instagram-filter'] ||
+                updateSection['general-filter']) {
             results['instagram-filter'] = this.updateSection(
                 'instagram-filter', updateNav);
         }
