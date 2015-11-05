@@ -300,6 +300,14 @@ class ViaElasticsearch():
             value = int(value)
         elif dtype == 'float':
             value = float(value)
+        elif dtype == 'commalist' and ',' in str(value) and not suffix:
+            value = str(value).split(',')
+            if field in self.fieldConversions:
+                value = [self.fieldConversions[field](part) for part in value]
+            filters.append({'bool': {'should': [
+                {'term': {fieldName: part}} for part in value
+            ]}})
+            return
         else:
             value = str(value)
         if field in self.fieldConversions:

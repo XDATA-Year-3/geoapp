@@ -706,6 +706,11 @@ class ViaPostgres():
                 elif dtype == 'float':
                     value = float(value)
                     sql.append('AND ' + field + comp + '%f' % value)
+                elif dtype == 'commalist' and ',' in str(value) and not suffix:
+                    value = str(value).split(',')
+                    sql.append('AND ' + field + ' IN (%s' +
+                               ',%s' * (len(value) - 1) + ')')
+                    sqlval.extend(value)
                 else:
                     value = str(value)
                     sql.append('AND ' + field + comp + '%s')
