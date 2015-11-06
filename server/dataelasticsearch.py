@@ -94,8 +94,9 @@ class ViaElasticsearch():
                 'msg_date': 'postedTime',
                 'msg': 'body',
                 'url': 'link',
+                # we rarely include one without the other, and we can use both
                 'latitude': 'geo.coordinates',
-                'longitude': 'geo.coordinates',
+                'longitude': 'location.geo.coordinates',
                 'user_id': 'actor.id',
                 'user_name': 'actor.preferredUsername',
                 'user_fullname': 'actor.displayName',
@@ -157,7 +158,13 @@ class ViaElasticsearch():
         filters = []
         if self.params.get('format') == 'gnip':
             if self.params.get('georequired', True):
-                filters.extend([{'exists': {'field': 'geo.coordinates'}}])
+                if self.params.get('geoapproximate', False):
+                    filters.extend([{'bool': {'should': [
+                        {'exists': {'field': 'geo.coordinates'}},
+                        {'exists': {'field': 'location.geo.coordinates'}},
+                    ]}}])
+                else:
+                    filters.extend([{'exists': {'field': 'geo.coordinates'}}])
         else:
             filters.extend([{'exists': {'field': 'location.longitude'}}])
         if 'filters' in self.params:
@@ -349,11 +356,19 @@ class ViaElasticsearch():
                 item['msg'] = xml.sax.saxutils.unescape(gnip['body'])
             item['msg_id'] = item['url'].strip('/').rsplit('/', 1)[-1]
             item['url'] = 't/%s/%s' % (item['user_id'], item['msg_id'])
-            if 'geo' in gnip and 'coordinates' in gnip['geo']:
-                item['latitude'] = gnip['geo']['coordinates'][0]
-                item['longitude'] = gnip['geo']['coordinates'][1]
-            else:
-                item['latitude'] = item['longitude'] = 0
+            item['latitude'] = item['longitude'] = 0
+            try:
+                if 'geo' in gnip and 'coordinates' in gnip['geo']:
+                    item['latitude'] = gnip['geo']['coordinates'][0]
+                    item['longitude'] = gnip['geo']['coordinates'][1]
+                elif (self.params.get('geoapproximate', False) and
+                        'location' in gnip and 'geo' in gnip['location'] and
+                        'coordinates' in gnip['location']['geo']):
+                    coord = gnip['location']['geo']['coordinates'][0]
+                    item['latitude'] = sum([pt[1] for pt in coord])/len(coord)
+                    item['longitude'] = sum([pt[0] for pt in coord])/len(coord)
+            except Exception:
+                pass
             if ('twitter_entities' in gnip and
                     'media' in gnip['twitter_entities'] and
                     len(gnip['twitter_entities']['media']) > 0 and
