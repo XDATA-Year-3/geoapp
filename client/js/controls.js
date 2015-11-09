@@ -195,6 +195,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                  the different control groups.
      */
     initialize: function (settings) {
+        geoapp.map.parentView = this;
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
         this.firstRender = true;

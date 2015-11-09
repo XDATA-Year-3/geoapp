@@ -314,10 +314,11 @@
       width 1.2em
       :hover
         text-shadow 1px 1px 1px white,-1px 1px 1px white,-1px -1px 1px white,1px -1px 1px white
-    .ga-instagram-overlay-goto
+    .ga-instagram-overlay-goto,.ga-instagram-overlay-external
       padding 3px
       line-height 1em
       font-weight bold
+      margin-right 20px
 
 .panel-heading
   .toggle-icon
@@ -338,3 +339,30 @@
   font-size 20px
   button
     padding 0
+
+#ga-intents-menu
+  width initial
+  margin 0
+.ga-intents-dialog
+  visibility hidden
+  background white
+  border 1px solid #555
+  border-radius 5px
+  position absolute
+  color #555
+  font-size 13px
+  box-shadow rgba(0,0,0,0.3) 0 1px 4px
+  .ga-intents-header
+    font-weight bold
+    margin 5px 20px
+  ul.ga-intents-list
+    color #333
+    list-style-image none
+    list-style-position outside
+    list-style-type none
+    padding-left 0
+    li
+      margin 5px 15px
+
+#g-dialog-container.fade
+    transition-duration 0.05s

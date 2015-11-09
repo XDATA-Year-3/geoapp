@@ -453,7 +453,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         if (!options.params.fields) {
             if (options.access === 'message') {
                 options.params.fields = 'rand1,rand2,' +
-                    'msg_date,msg,url,image_url,latitude,longitude';
+                    'msg_date,msg,url,image_url,latitude,longitude,user_name';
             } else {
                 options.params.fields = '_id,' +
                     'posted_date,caption,url,image_url,latitude,longitude';
