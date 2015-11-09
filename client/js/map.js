@@ -260,6 +260,8 @@ geoapp.Map = function (arg) {
         };
         if (bounds.x0 !== undefined && bounds.y0 !== undefined &&
                 bounds.x1 !== undefined && bounds.y1 !== undefined) {
+            /* Geojs doesn't zoomAndCenterFromBounds properly due to projection
+             * details.  As such, instead of the simple code:
             var nav = m_geoMap.zoomAndCenterFromBounds({
                 lowerLeft: {x: parseFloat(bounds.x0),
                             y: parseFloat(bounds.y1)},
@@ -267,6 +269,33 @@ geoapp.Map = function (arg) {
                              y: parseFloat(bounds.y0)}});
             params.center = nav.center;
             params.zoom = nav.zoom;
+             * we have to do the work ourselves. */
+            var curBounds = m_geoMap.bounds(),
+                curZoom = m_geoMap.zoom();
+            bounds.x0 = parseFloat(bounds.x0);
+            bounds.y0 = parseFloat(bounds.y0);
+            bounds.x1 = parseFloat(bounds.x1);
+            bounds.y1 = parseFloat(bounds.y1);
+            /* We want to view the entire rectangle that is specified, so
+             * calculate the appropriate zoom. */
+            params.center = {
+                x: (bounds.x0 + bounds.x1) / 2,
+                y: geo.mercator.y2lat((geo.mercator.lat2y(bounds.y0) +
+                                       geo.mercator.lat2y(bounds.y1)) / 2)
+            };
+            var scale = 1,
+                scalex = Math.abs((bounds.x1 - bounds.x0) /
+                    (curBounds.lowerRight.x - curBounds.upperLeft.x)),
+                scaley = Math.abs((geo.mercator.lat2y(bounds.y1) -
+                                   geo.mercator.lat2y(bounds.y0)) /
+                    (geo.mercator.lat2y(curBounds.lowerRight.y) -
+                     geo.mercator.lat2y(curBounds.upperLeft.y)));
+            if (scalex && (!scaley || (scalex > scaley))) {
+                scale = scalex;
+            } else if (scaley) {
+                scale = scaley;
+            }
+            params.zoom = curZoom - Math.log(scale) / Math.log(2);
         } else {
             params.center = m_defaultCenter;
             params.zoom = m_defaultZoom;

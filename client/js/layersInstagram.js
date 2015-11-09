@@ -650,6 +650,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
             return;
         }
         var item = mapData.data[m_currentPoint];
+        var noCoord = (!item[mapData.columns.longitude] &&
+                       !item[mapData.columns.latitude]);
         var mapW = $('#ga-main-map').width(),
             mapH = $('#ga-main-map').height(),
             pos = m_this.map.getMap().gcsToDisplay({
@@ -664,6 +666,12 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 ).format('YYYY MMM D HH:mm');
         if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
             $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
+            $('.ga-instagram-overlay-goto', overlay).css('display', '');
+        } else if (noCoord) {
+            pos.x = 0;
+            pos.y = mapH;
+            $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
+            $('.ga-instagram-overlay-goto', overlay).css('display', 'none');
         } else {
             /* Clamp position to the screen, so that the overlay is always
             /* visible.  Point an arrow to where the point is located. */
@@ -678,6 +686,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 display: 'block',
                 transform: 'rotate(' + Math.atan2(dy, dx).toFixed(3) + 'rad)'
             });
+            $('.ga-instagram-overlay-goto', overlay).css('display', '');
             offset = 0;
         }
         /* Bias very slightly to the upper right */
