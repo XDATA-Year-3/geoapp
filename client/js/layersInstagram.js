@@ -820,6 +820,9 @@ geoapp.mapLayers.instagram = function (map, arg) {
                      m_currentPoint),
             item = mapData.data[point];
         var intentsData = {
+            /* user is the old name in the intents.  We can remove it once the
+             * intents are updated. */
+            user: item[mapData.columns.user_name],
             username: item[mapData.columns.user_name],
             geoloc: {
                 long: item[mapData.columns.longitude],

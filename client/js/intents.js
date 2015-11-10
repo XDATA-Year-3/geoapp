@@ -1,18 +1,43 @@
 geoapp.intents = {
     getIntents: function (intentsData, target) {
         geoapp.cancelRestRequests('intents');
-        var xhr = Backbone.ajax({
-            url: $('body').attr('intentsserver'),
-            dataType: 'json',
-            type: 'GET',
-            data: intentsData
+        var xhr = geoapp.restRequest({
+            path: 'geoapp/intents', data: intentsData
         }).done(_.bind(function (resp) {
             geoapp.intents.showMenu(intentsData, target, resp);
         }, this));
         xhr.girder = {intents: true};
+
+        /*
+        geoapp.cancelRestRequests('intents');
+        var param = {
+            url: $('body').attr('intentsserver'),
+            dataType: 'json',
+            data: intentsData
+        };
+        if (param.url.substr(0, 4) === 'http' && param.url.indexOf('@') >= 0 &&
+                param.url.indexOf('@') < param.url.indexOf('/', 8)) {
+            var auth = param.url.split('/')[2].split('@')[0];
+            //param.headers = {'Authorization': 'Basic ' + btoa(auth)};
+            param.username = auth.split(':')[0];
+            param.password = auth.split(':')[1];
+            param.url = (param.url.substr(0, param.url.indexOf('/') + 2) +
+                         param.url.substr(param.url.indexOf('/') +
+                                          auth.length + 3));
+            param.xhrFields = {withCredentials: true};
+        }
+        var xhr = Backbone.ajax(param).done(_.bind(function (resp) {
+            geoapp.intents.showMenu(intentsData, target, resp);
+        }, this)));
+        xhr.girder = {intents: true};
+        */
     },
 
     showMenu: function (intentsData, target, intents) {
+        if (!_.size(intents)) {
+            console.log('Got back an empty intents list.');
+            return;
+        }
         var widget = new geoapp.views.IntentsMenu({
             el: $('#g-dialog-container'),
             intentsData: intentsData,
@@ -66,7 +91,6 @@ geoapp.views.IntentsMenu = geoapp.View.extend({
             }
             $('.ga-intents-dialog').css({
                 left: x + 'px', top: y + 'px', visibility: 'visible'});
-            console.log(w, h, mapW, mapH, tx, ty, tw, th, x, y);
         });
         geoapp.View.prototype.render.apply(this, arguments);
         return this;

@@ -19,6 +19,7 @@
 
 # This file exposes endpoints to get taxi and other geoapp data.
 
+import base64
 import cherrypy
 import collections
 import datetime
@@ -28,6 +29,7 @@ import json
 import pymongo
 import time
 import urllib
+import urllib2
 
 import girder.api.rest
 from girder import logger
@@ -597,6 +599,7 @@ class GeoAppResource(girder.api.rest.Resource):
         self.resourceName = 'geoapp'
         self.route('POST', ('ingest', ), self.ingestMessages)
         self.route('GET', ('instagram', ), self.findInstagram)
+        self.route('GET', ('intents', ), self.getIntents)
         self.route('GET', ('message', ), self.findMessage)
         self.route('PUT', ('reporttest', ), self.storeTestResults)
         self.route('PUT', ('reporttest', ':id'), self.updateTestResults)
@@ -919,6 +922,33 @@ class GeoAppResource(girder.api.rest.Resource):
         .param('wc1', 'Ignored', paramType='path', required=True)
         .param('wc2', 'Ignored', paramType='path', required=True)
         .param('wc3', 'Ignored', paramType='path', required=True))
+
+    @access.public
+    def getIntents(self, params):
+        config = girder.utility.config.getConfig()
+        url = config.get('resources', {}).get('intentsServer')
+        auth = None
+        if (url.startswith('http') and len(url.split('/')) > 3 and
+                '@' in url.split('/')[2]):
+            parts = url.split('/')
+            auth = parts[2].split('@', 1)[0]
+            parts[2] = parts[2].split('@', 1)[1]
+            url = '/'.join(parts)
+        url += '?' + urllib.urlencode(params)
+        request = urllib2.Request(url)
+        if auth:
+            request.add_header(
+                'Authorization', 'Basic %s' % base64.encodestring(
+                    auth).replace('\n', ''))
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+
+        def resultFunc():
+            yield urllib2.urlopen(request, timeout=10).read()
+
+        return resultFunc
+    getIntents.description = (
+        Description('Get intents from the configured intents server.  This '
+                    'function works around CORS issues.'))
 
 
 def load(info):
