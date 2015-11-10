@@ -820,19 +820,16 @@ geoapp.mapLayers.instagram = function (map, arg) {
                      m_currentPoint),
             item = mapData.data[point];
         var intentsData = {
-            /* user is the old name in the intents.  We can remove it once the
-             * intents are updated. */
-            user: item[mapData.columns.user_name],
             username: item[mapData.columns.user_name],
-            geoloc: {
+            geoloc: JSON.stringify({
                 long: item[mapData.columns.longitude],
                 lat: item[mapData.columns.latitude]
-            }
+            })
         };
         var url_parts = (item[mapData.columns.url] || '').split('/');
         if (url_parts[0] === 't' && url_parts.length === 3) {
             intentsData.user_id = url_parts[1];
-            intentsData.tweet = {ID: url_parts[2]};
+            intentsData.tweet = JSON.stringify({ID: url_parts[2]});
         }
         geoapp.intents.getIntents(intentsData, evt.target);
     };

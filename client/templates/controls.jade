@@ -6,10 +6,13 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
             href="#"+content_id)
           .panel-title
             b= title
-            i.icon-info-circled(data-placement="bottom", data-container="body",
+            i.icon-info-circled.notoggle(data-placement="bottom", data-container="body",
                 title=tooltip, logid="help_icon")
             i.icon-down-open.open-icon.toggle-icon
             i.icon-up-open.close-icon.toggle-icon
+            i.icon-link-ext.ga-intents-button.hidden.notoggle(data-placement="bottom", 
+                data-container="body", logid="intents_icon",
+                title="Show links to external applications")
       .panel-collapse.collapse.in(id=content_id)
         .panel-body
           if block
