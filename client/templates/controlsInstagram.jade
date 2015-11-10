@@ -1,5 +1,5 @@
 +standardPanel('ga-instagram-settings-panel', 'ga-instagram-settings',
-    'Messages - Twitter and Instagram',
+    'Messages - Twitter',
     'These parameters affect which messages are loaded from the database and how they are shown.',
     'instagram')
   .ga-filter-controls(ga-section-name="instagram")
@@ -37,7 +37,7 @@
         i.icon-spin1.animate-spin
       span#ga-inst-points-loaded.ga-data-loaded
       label.ga-slider-label(for="ga-inst-data-grams",
-        title="Maximum number of Instagram / Twitter messages to load.") Max Msgs.
+        title="Maximum number of Twitter messages to load.") Max Msgs.
       input#ga-inst-data-grams.form-control.input-sm.ga-slider-ctl(
           type="text", data-slider-min="10000", data-slider-max="1000000",
           data-slider-step="5000", data-slider-value="25000",
