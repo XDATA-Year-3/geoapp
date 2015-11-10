@@ -1001,9 +1001,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var intentsData = {
             geobounds: JSON.stringify({
                 long0: bounds.upperLeft.x.toFixed(7),
-                lat0: bounds.upperLeft.y.toFixed(7),
+                lat1: bounds.upperLeft.y.toFixed(7),
                 long1: bounds.lowerRight.x.toFixed(7),
-                lat1: bounds.lowerRight.y.toFixed(7)
+                lat0: bounds.lowerRight.y.toFixed(7)
             })
         };
         this.getDateRange('#ga-main-page #ga-date-range', params, 'date',
