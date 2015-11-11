@@ -666,12 +666,13 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 ).format('YYYY MMM D HH:mm');
         if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
             $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
-            $('.ga-instagram-overlay-goto', overlay).css('display', '');
+            $('.ga-instagram-overlay-goto', overlay).css('visibility', '');
         } else if (noCoord) {
             pos.x = 0;
             pos.y = mapH;
             $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
-            $('.ga-instagram-overlay-goto', overlay).css('display', 'none');
+            $('.ga-instagram-overlay-goto', overlay).css(
+                'visibility', 'hidden');
         } else {
             /* Clamp position to the screen, so that the overlay is always
             /* visible.  Point an arrow to where the point is located. */
@@ -686,9 +687,11 @@ geoapp.mapLayers.instagram = function (map, arg) {
                 display: 'block',
                 transform: 'rotate(' + Math.atan2(dy, dx).toFixed(3) + 'rad)'
             });
-            $('.ga-instagram-overlay-goto', overlay).css('display', '');
+            $('.ga-instagram-overlay-goto', overlay).css('visibility', '');
             offset = 0;
         }
+        $('.ga-instagram-overlay-external', overlay).toggleClass(
+            'hidden', !$('body').attr('intentsserver'));
         /* Bias very slightly to the upper right */
         var bias = 5,
             ctrX = mapW / 2 + bias,
@@ -739,6 +742,8 @@ geoapp.mapLayers.instagram = function (map, arg) {
         }
         $('.ga-instagram-overlay-arrow', overlay).on(
             'click.instagram-overlay', m_this.centerOnMap);
+        $('.ga-instagram-overlay-external', overlay).on(
+            'click.instagram-overlay', m_this.showIntentsMenu);
         if (url.indexOf('t/') === 0) {
             var parts = url.split('/');
             url = 'http://twitter.com/' + parts[1] + '/status/' + parts[2];
@@ -800,6 +805,33 @@ geoapp.mapLayers.instagram = function (map, arg) {
             interp: d3.interpolateZoom,
             duration: 1000
         });
+    };
+
+    /* Compose a list of information that might be usable by intents and ask
+     * for a relevant intents menu.
+     *
+     * @param evt: the event that triggered this call.  Use to determine the
+     *             position that the menu should be shown.
+     */
+    this.showIntentsMenu = function (evt) {
+        var mapData = m_this.data(true),
+            overlay = $('#ga-instagram-overlay'),
+            point = (m_currentPoint === null ? overlay.attr('point') :
+                     m_currentPoint),
+            item = mapData.data[point];
+        var intentsData = {
+            username: item[mapData.columns.user_name],
+            geoloc: JSON.stringify({
+                long: item[mapData.columns.longitude],
+                lat: item[mapData.columns.latitude]
+            })
+        };
+        var url_parts = (item[mapData.columns.url] || '').split('/');
+        if (url_parts[0] === 't' && url_parts.length === 3) {
+            intentsData.user_id = url_parts[1];
+            intentsData.tweet = JSON.stringify({ID: url_parts[2]});
+        }
+        geoapp.intents.getIntents(intentsData, evt.target);
     };
 };
 

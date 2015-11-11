@@ -146,6 +146,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
             this.adjustControls();
         },
         'click .panel-heading a': function (evt) {
+            if ($(evt.target).hasClass('notoggle')) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                return false;
+            }
             var elem = $('.panel-collapse', $(evt.currentTarget).closest(
                     '[id]')),
                 id = elem.attr('id'),
@@ -157,7 +162,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.updateNavigation('mapview', 'panels', panel, true,
                                     true);
         },
-        'apply.daterangepicker .ga-filter-controls .ga-date-range':  function (evt) {
+        'apply.daterangepicker .ga-filter-controls .ga-date-range': function (evt) {
             var val = this.getDateRange(evt.target, {}, 'date', true);
             $(evt.target).val(val);
             $('#ga-taxi-filter').addClass('btn-primary');
@@ -175,6 +180,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 return false;
             }
             $(evt.target).val(val);
+        },
+        'click #ga-general-settings-panel .ga-intents-button': function (evt) {
+            this.showIntentsMenu(evt);
         }
     },
 
@@ -195,6 +203,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                  the different control groups.
      */
     initialize: function (settings) {
+        geoapp.map.parentView = this;
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
         this.firstRender = true;
@@ -228,6 +237,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * @param speed: the number of milliseconds to take to pan the map.
      */
     finalizeInit: function (settings, speed) {
+        $('#ga-general-settings-panel .ga-intents-button').toggleClass(
+            'hidden', !$('body').attr('intentsserver'));
         var bounds = geoapp.getQuerySection(settings, 'map');
         if (!$.isEmptyObject(bounds)) {
             geoapp.map.fitBounds(bounds, speed);
@@ -975,6 +986,40 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.throttleCallback(
                 'updatebin', _.bind(this.displayUpdate, this), 0, 300);
         }
+    },
+
+    /* Compose a list of information that might be usable by intents and ask
+     * for a relevant intents menu.
+     *
+     * @param evt: the event that triggered this call.  Use to determine the
+     *             position that the menu should be shown.
+     */
+    showIntentsMenu: function (evt) {
+        var params = {},
+            bounds = geoapp.map.getMap().bounds(),
+            inst = this.updateSection('instagram-filter', false);
+        var intentsData = {
+            geobounds: JSON.stringify({
+                long0: bounds.upperLeft.x.toFixed(7),
+                lat0: bounds.upperLeft.y.toFixed(7),
+                long1: bounds.lowerRight.x.toFixed(7),
+                lat1: bounds.lowerRight.y.toFixed(7)
+            })
+        };
+        this.getDateRange('#ga-main-page #ga-date-range', params, 'date',
+                          true);
+        if (params.date_min && params.date_max) {
+            intentsData.daterange = JSON.stringify({
+                start: moment.utc(params.date_min).format(
+                    'YYYY-MM-DDTHH:mm:ss.SSS') + 'Z',
+                end: moment.utc(params.date_max).format(
+                    'YYYY-MM-DDTHH:mm:ss.SSS') + 'Z'
+            });
+        }
+        if ((inst.caption_search || '').trim()) {
+            intentsData.keyword = JSON.stringify(inst.caption_search.trim());
+        }
+        geoapp.intents.getIntents(intentsData, evt.target);
     },
 
     /* This is a copy of the original DateRangePicker updateFromControl that

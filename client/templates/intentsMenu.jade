@@ -1,0 +1,9 @@
+.modal-dialog#ga-intents-menu
+  .ga-intents-dialog
+    .ga-intents-header
+      | External Applications
+    ul.ga-intents-list
+      each endpoints, app in intents
+        each link, endpoint in endpoints
+          li.ga-intents-link
+            a(href=link, target='_blank')= app + ' - ' + endpoint
