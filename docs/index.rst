@@ -8,8 +8,11 @@ Introduction Video
 
 .. raw:: html
 
+    <!--
     <video src="../video.mp4" controls="controls" width="480">
     </video>
+    -->
+    <iframe width="640" height="360" src="https://www.youtube.com/embed/ix3JGbIkNwc" frameborder="0" allowfullscreen></iframe>
 
 Help Topics
 -----------
