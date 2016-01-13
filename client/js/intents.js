@@ -6,11 +6,13 @@ geoapp.intents = {
      *                     server.
      * @param target: the target element used to align the displayed menu.
      * @param direct: if falsy, use the rest end point.  If truthy, use a
-     *                direct query.  The direct query is provided for testing
-     *                and is more likely to suffer a CORS issue.
+     *                direct query.  If undefined, use the settings value.
      */
     getIntents: function (intentsData, target, direct) {
         var xhr;
+        if (direct === undefined) {
+            direct = $('body').attr('intentsdirect') === 'true';
+        }
         geoapp.cancelRestRequests('intents');
         if (!direct) {
             xhr = geoapp.restRequest({

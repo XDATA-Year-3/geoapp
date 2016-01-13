@@ -46,15 +46,19 @@ class GeoAppRoot(object):
         'apiRoot': 'api/v1',
         'staticRoot': 'built',
         'girderRoot': 'girder/static',
+        'appTitle': 'Minerva Taxi',
+        'appIcon': 'icon.png',
         'iniSettings': ''
     }
 
     def GET(self, *args, **kwargs):
         config = girder.utility.config.getConfig()
         vars = self.vars
+        for key in ('appTitle', 'appIcon'):
+            if config.get('application', {}).get(key):
+                vars[key] = config['application'][key]
         iniList = {}
-        if 'resources' in config:
-            iniList.update(config['resources'])
+        iniList.update(config.get('resources', {}))
         sectionList = {
             'controls': 'defaultControls',
             'places': 'placeControls',

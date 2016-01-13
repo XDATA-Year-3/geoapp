@@ -845,7 +845,7 @@ geoapp.graphData.instagram = function (arg) {
     this.dataItems = {
         messages: {
             name: 'Messages',
-            description: 'Number of Instagram / Twitter messages',
+            description: 'Number of ' + ($('body').attr('messagename') || 'Twitter and Instagram') + ' messages',
             column: 'posted_date',
             sort: 0,
             unit: 'msg',

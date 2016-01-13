@@ -1,6 +1,6 @@
 #ga-results-page.ga-results-ui
   +standardPanel('ga-instagram-results-panel', 'ga-instagram-results',
-      'Instagram and Twitter Results',
+      ($('body').attr('messagename') || 'Twitter and Instagram') + ' Results',
       "These are the instagram results based on the Caption Search in the Filters panel.",
       'results')(class="hidden")
     .results-table.al-scroller
