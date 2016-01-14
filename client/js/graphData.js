@@ -774,12 +774,12 @@ geoapp.graphData.taxi = function (arg) {
 
     this.dataItems = {
         pickups: {
-            name: 'Trip Pickups',
-            longname: 'Trip Pickups (based on current filters)',
-            description: 'Filtered trip pickups',
+            name: 'Permits',
+            longname: 'Permits (based on current filters)',
+            description: 'Filtered permits',
             column: 'pickup_datetime',
-            unit: 'trip',
-            units: 'trips',
+            unit: 'permit',
+            units: 'permits',
             axisunits: null
         },
         dropoffs: {
