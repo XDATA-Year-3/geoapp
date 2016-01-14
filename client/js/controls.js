@@ -546,7 +546,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             if (!onlyval.isValid()) {
                 onlyval = null;
             } else {
-                if (onlyval.year() < 2010) {
+                if (onlyval.year() < 1960) {
                     onlyval.year(defaultYear);
                 }
                 params[baseKey] = onlyval.format(dbForm);
@@ -557,7 +557,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 if (!minval.isValid()) {
                     minval = null;
                 } else {
-                    if (minval.year() < 2010) {
+                    if (minval.year() < 1960) {
                         minval.year(defaultYear);
                     }
                     params[baseKey + '_min'] = minval.format(dbForm);
@@ -568,7 +568,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 if (!maxval.isValid()) {
                     maxval = null;
                 } else {
-                    if (maxval.year() < 2010) {
+                    if (maxval.year() < 1960) {
                         maxval.year(defaultYear + (maxval.isSame(
                             moment(maxval).startOf('year')) ? 1 : 0));
                     }
