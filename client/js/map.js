@@ -14,6 +14,10 @@
  */
 
 geoapp.TileSets = {
+    mapbox: {
+        url: 'https://b.tiles.mapbox.com/v3/datamade.hn83a654',
+        credit: '<a href="http://www.mapbox.com/about/maps/" target="_blank">Terms &amp; Feedback</a>'
+    },
     mapquest: {
         url: 'http://otile1.mqcdn.com/tiles/1.0.0/map/',
         credit: 'Tiles Courtesy of <a href="http://www.mapquest.com/">MapQuest</a>'
