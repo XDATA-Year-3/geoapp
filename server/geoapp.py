@@ -28,6 +28,7 @@ import functools
 import HTMLParser
 import json
 import pymongo
+import re
 import time
 import urllib
 import urllib2
@@ -536,7 +537,6 @@ class MessageRealTimeViaElasticsearch(MessageViaElasticsearch):
 class DataViaMongo():
 
     def __init__(self, dbUri=None, **params):
-        print params  # ##DWM::
         self.dbUri = dbUri
         db_connection = self.getDbConnection()
         self.database = db_connection.get_default_database()
@@ -570,6 +570,11 @@ class DataViaMongo():
                 findParam.setdefault(field, {})
                 if isinstance(findParam[field], dict):
                     findParam[field]['$lt'] = value
+            if field + '_search' in params:
+                value = self.getParamValue(field, params[field + '_search'])
+                findParam.setdefault(field, {})
+                if isinstance(findParam[field], dict):
+                    findParam[field] = re.compile(value, re.IGNORECASE)
         query = {}
         for key in findParam:
             query[self.KeyTable.get(key, key)] = findParam[key]
@@ -696,7 +701,7 @@ def findGeneralDescription(desc, sortKey, fieldTable, defaultDbKey):
                 required=False, dataType=dataType)
         if fieldType == 'search':
             description.param(
-                field + '_search', 'tsquery search of ' + fieldDesc,
+                field + '_search', 'Substring search of ' + fieldDesc,
                 required=False, dataType='string')
     return description
 

@@ -834,3 +834,91 @@ geoapp.dataHandlers.instagram = function (arg) {
 };
 
 inherit(geoapp.dataHandlers.instagram, geoapp.DataHandler);
+
+/* -------- generic data handler -------- */
+
+geoapp.addDataHandler = function (datainfo) {
+    geoapp.dataHandlers[datainfo.key] = function (arg) {
+        'use strict';
+        var m_datakey = datainfo.key;
+        var m_date = datainfo.datekey || 'date';
+
+        if (!(this instanceof geoapp.dataHandlers[m_datakey])) {
+            return new geoapp.dataHandlers[m_datakey](arg);
+        }
+        arg = arg || {};
+        geoapp.DataHandler.call(this, arg);
+
+        this.datakey = m_datakey;
+        this.loadingElement = '#ga-' + m_datakey + '-loading';
+
+        /* Replace or add to the data used for the current map.
+         *
+         * @param: options: a dictionary with the parameters to use for fetching
+         *                  data and the state of the process.  See
+         *                  setupRequestOptions for more details.
+         */
+        this.dataLoad = function (options) {
+            this.setupRequestOptions(options, m_datakey, (
+                options.display['display-max-' + m_datakey + '-points'] ||
+                this.maximumDataPoints ||
+                Math.max(geoapp.map.maximumMapPoints,
+                         geoapp.map.maximumVectors)));
+            if (!options.params.fields) {
+                options.params.fields = (datainfo.fields ||
+                    'date,latitude,longitude');
+            }
+            geoapp.cancelRestRequests(m_datakey + 'data');
+            this.loadingAnimation(!options.params.offset ? 'first' : 'second');
+            options.params.clientid = geoapp.clientID;
+            var xhr = geoapp.restRequest({
+                path: 'geoapp/' + m_datakey, type: 'GET', data: options.params
+            }).done(_.bind(function (resp) {
+                this.processRequestData(options, resp, this.dataShow,
+                                        this.dataLoaded);
+            }, this)).error(_.bind(function () {
+                if (xhr.statusText !== 'abort') {
+                    this.loadingAnimation(null);
+                    this.loadedMessage(
+                        '#ga-' + m_datakey + '-loaded', undefined, false,
+                        false, datainfo.name, datainfo.names);
+                }
+            }, this));
+            xhr.girder = {};
+            xhr.girder[m_datakey + 'data'] = true;
+        };
+
+        /* Show the data after it has been fetched.
+         *
+         * @param options: the request options.
+         */
+        this.dataShow = function (options) {
+            var layer = geoapp.map.getLayer(this.datakey);
+            layer.data(options.data);
+            layer.setCycleDateRange(
+                options.params, m_date + '_min', m_date + '_max',
+                m_datakey);
+            geoapp.map.showMap(options.description, options.display);
+        };
+
+        /* Load more data or indicated that we are finished loading.
+         *
+         * @param options: the request options.
+         * @param callNext: true if more data is needed.
+         * @param moreData: true if more data is available.
+         */
+        this.dataLoaded = function (options, callNext, moreData) {
+            this.loadedMessage(
+                '#ga-' + m_datakey + '-loaded', options.data.datacount,
+                callNext, moreData, datainfo.name, datainfo.names,
+                options.data.loadFactor);
+            if (callNext) {
+                this.dataLoad(options);
+            } else {
+                this.loadingAnimation(null);
+            }
+        };
+    };
+
+    inherit(geoapp.dataHandlers[datainfo.key], geoapp.DataHandler);
+};

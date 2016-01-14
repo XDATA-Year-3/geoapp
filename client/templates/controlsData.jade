@@ -1,0 +1,105 @@
+//- This expects the following values to be passed in:
+  key : main key for all references
+  name : user visible name to show (e.g., 'trip')
+  names : user visible plural name to show (e.g., 'trips')
+  capname : user visible capitalized name to show (e.g., 'Trip')
+  capnames : user visible capitalized plural name to show (e.g., 'Trips') 
+  title : title shown on the layer panel
+  description : a description for the panel
+  showSource : a boolean
+  controls : a list of objects of which controls to expose.  Each item
+             contains:
+    key : control key
+    name : name of the control
+    description : tooltip (optional)
+    placeholder : placeholder for the text
+    type : one of boolean, dateRange, float, floatRange, int, intRange, or
+           other 
+include standardPanel.jade
++standardPanel('ga-'+key+'-settings-panel', 'ga-'+key+'-settings',
+    title, description, key)
+  .ga-filter-controls(ga-section-name=key)
+    .form-group(class=(showSource ? '' : 'hidden'))
+      label(for="ga-"+key+"-source") Data Source
+      select.form-control.input-sm(title="Database "+names+" source",
+          taxifield=key+"_source", id="ga-"+key+"-source") 
+      //- the database source options are dynamically set in controls.js
+    each ctl in controls
+      .form-group
+        label(for="ga-"+key+"-"+ctl.key) #{ctl.name}
+        input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
+          type="text", placeholder=ctl.placeholder, title=ctl.description,
+          taxifield=key+"_"+ctl.key, taxitype=ctl.type)
+    .form-group
+      button.btn.btn-default.btn-sm(id="ga-"+key+"-filter",
+          title="Load "+names+" from the database")
+        i.icon-ok
+        |  Filter
+      ga-loading-spinner.hidden(id="ga-"+key+"-loading")
+        i.icon-spin1.animate-spin
+      span.ga-data-loaded(id="ga-"+key+"-loaded")
+      label.ga-slider-label(for="ga-data-"+key,
+        title="Maximum number of "+names+" to load.  Loading more "+names+" takes longer and produces more accurate binning.") Max #{capnames}
+      input.form-control.input-sm.ga-slider-ctl(id="ga-data-"+key,
+          type="text", data-slider-min="10000", data-slider-max="1000000",
+          data-slider-step="5000", data-slider-value="50000",
+          data-slider-handle="square", data-slider-scale="logarithmic",
+          data-slider-id="ga-slider-ctl-points-"+key,
+          taxifield="max_"+key, taxitype="int")
+  .ga-display-controls(ga-section-name=key)
+    .form-group
+      span(title="Show "+name+" data")
+        input.form-control.input-sm(id="ga-show-"+key+"-data",
+          type="checkbox", checked="checked",
+          taxifield="show-"+key+"-data", taxitype="boolean")
+        label(for="ga-show-"+key+"-data") Show #{capnames}
+  .ga-display-controls(ga-section-name=key)
+    .form-group
+      label(for="ga-display-"+key+"-process") Processing
+      select.form-control.input-sm(id="ga-display-"+key+"-process"
+          title="Processing",
+          taxifield="display-process-"+key)
+        option(value="raw") Individual #{capnames}
+        option(value="binned") Binned Heatmap
+    .form-group
+      span(id="ga-display-max-"+key+"-points-group")
+        label.ga-slider-label(for="ga-display-max-"+key+"-points",
+          title="Maximum number of "+name+" points to display.") Max Points
+        input.form-control.input-sm.ga-slider-ctl(
+            id="ga-display-max-"+key+"-points",
+            type="text", data-slider-min="10000",
+            data-slider-max="1000000", data-slider-step="5000",
+            data-slider-value="25000", data-slider-handle="square",
+            data-slider-scale="logarithmic",
+            data-slider-id="ga-slider-ctl-points-max-"+key,
+            taxifield="display-max-"+key+"-points", taxitype="int")
+      span.hidden(id="ga-display-"+key+"-num-bins-group")
+        label(for="ga-display-"+key+"num-bins") Bins
+        input.form-control.input-sm.ga-slider-ctl(
+            id="ga-display-"+key+"num-bins",
+            type="text", data-slider-min="5",
+            data-slider-max="30", data-slider-step="1",
+            data-slider-value="15", data-slider-handle="square",
+            data-slider-id="ga-display-"+key+"num-bins-ctl",
+            taxifield="display-"+key+"-num-bins", taxitype="int")
+      spani(id="ga-"+key+"-opacity-group")
+        label.ga-slider-label(for="ga-"+key+"-opacity",
+          title="Opacity of "+name+" points.") Opacity
+        input.form-control.input-sm.ga-slider-ctl(id="ga-"+key+"-opacity",
+            type="text", data-slider-min="0.004",
+            data-slider-max="1", data-slider-step="0.004",
+            data-slider-value="0.1", data-slider-handle="square",
+            data-slider-id="ga-data-opacity-ctl",
+            data-slider-scale="logarithmic",
+            taxifield=key+"-opacity", taxitype="float")
+  .ga-legend(ga-section-name=key)
+    .form-group
+      .ga-legend-item.hidden(class="legend-"+key+" "+key+"-raw")
+        i.icon-circle
+        | #{capname}
+      .ga-legend-item.hidden(class="legend-"+key+" "+key+"-binned")
+        i.icon-stop
+        | Many #{capnames}
+      .ga-legend-item.faint.hidden(class="legend-"+key+" "+key+"-binned")
+        i.icon-stop
+        | Few #{capnames}

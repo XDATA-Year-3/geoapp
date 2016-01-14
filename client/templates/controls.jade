@@ -1,25 +1,4 @@
-mixin standardPanel(panel_id, content_id, title, tooltip, group)
-  .panel-group(id=panel_id, class!=attributes .class, loggroup=group || title)
-    .panel.panel-default
-      .panel-heading(logsub="header", logid=(group || panel_id) + "_panel")
-        a(data-toggle="collapse", data-parent="#"+panel_id,
-            href="#"+content_id)
-          .panel-title
-            b= title
-            i.icon-info-circled.notoggle(data-placement="bottom", data-container="body",
-                title=tooltip, logid="help_icon")
-            i.icon-down-open.open-icon.toggle-icon
-            i.icon-up-open.close-icon.toggle-icon
-            i.icon-link-ext.ga-intents-button.hidden.notoggle(data-placement="bottom", 
-                data-container="body", logid="intents_icon",
-                title="Show links to external applications")
-      .panel-collapse.collapse.in(id=content_id)
-        .panel-body
-          if block
-            block
-          else
-            p No Content
-
+include standardPanel.jade
 #ga-main-page.ga-main-ui
   +standardPanel('ga-general-settings-panel', 'ga-general-settings',
       'Location and Date',
@@ -72,6 +51,8 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
   include controlsTaxi.jade
 
   include controlsInstagram.jade
+
+  .insert-more-panels-here
 
   +standardPanel('ga-anim-settings-panel', 'ga-anim-settings', 'Animation',
       "After changing animation parameters, select Update to use the new values.",
