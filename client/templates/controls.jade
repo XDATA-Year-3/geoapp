@@ -42,6 +42,7 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
         label(for="ga-tile-set") Map Source
         select#ga-tile-set.form-control.input-sm(title="Map Source",
             taxifield="display-tile-set")
+          option(value="mapbox") MapBox
           option(value="mqsat") MapQuest Satellite
           option(value="mapquest") MapQuest Map
           option(value="openstreetmap") OpenStreetMap
