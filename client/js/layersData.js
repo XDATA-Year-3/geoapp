@@ -50,8 +50,8 @@ geoapp.addMapLayer = function (datainfo) {
 
         this.paramChangedKeys = [
             'display-type',
-            'display-' + datakey + '-process',
-            'display-num-bins',
+            'display-process-' + datakey,
+            'display-' + datakey + '-num-bins',
             'display-max-' + datakey + '-points',
             datakey + '-opacity',
             'display-date_min', 'display-date_max',
@@ -119,7 +119,7 @@ geoapp.addMapLayer = function (datainfo) {
          *                  reset the bin max values.
          */
         this.binMapData = function (params, anim, step, resetmax) {
-            var numBins = Math.max(params['display-num-bins'] || 15, 5);
+            var numBins = Math.max(params['display-' + datakey + '-num-bins'] || 15, 5);
             var node = m_this.map.getMap().node(),
                 width = node.width(), height = node.height(),
                 bounds = m_this.map.getMap().bounds();

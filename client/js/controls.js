@@ -917,6 +917,22 @@ geoapp.views.ControlsView = geoapp.View.extend({
             $('#ga-cycle-group').val(
                 $('#ga-cycle-group option').not('.hidden').val());
         }
+        var secs = {};
+        $('[ga-section-name]').each(function () {
+            secs[$(this).attr('ga-section-name')] = true;
+        });
+        $.each(secs, function (sec) {
+            var mode = values.display['display-process-' + sec];
+            if (mode === undefined) {
+                return;
+            }
+            $('#ga-display-max-' + sec + '-points-group').toggleClass('hidden',
+                mode === 'binned');
+            $('#ga-' + sec + '-opacity-group').toggleClass('hidden',
+                mode === 'binned');
+            $('#ga-display-' + sec + '-num-bins-group').toggleClass('hidden',
+                mode !== 'binned');
+        });
     },
 
     /* Get an value or range of values from a control.  The type is stored in

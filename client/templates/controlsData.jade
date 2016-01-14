@@ -74,15 +74,15 @@ include standardPanel.jade
             data-slider-id="ga-slider-ctl-points-max-"+key,
             taxifield="display-max-"+key+"-points", taxitype="int")
       span.hidden(id="ga-display-"+key+"-num-bins-group")
-        label(for="ga-display-"+key+"num-bins") Bins
+        label(for="ga-display-"+key+"-num-bins") Bins
         input.form-control.input-sm.ga-slider-ctl(
-            id="ga-display-"+key+"num-bins",
+            id="ga-display-"+key+"-num-bins",
             type="text", data-slider-min="5",
             data-slider-max="30", data-slider-step="1",
             data-slider-value="15", data-slider-handle="square",
-            data-slider-id="ga-display-"+key+"num-bins-ctl",
+            data-slider-id="ga-slider-ctl-bins-"+key,
             taxifield="display-"+key+"-num-bins", taxitype="int")
-      spani(id="ga-"+key+"-opacity-group")
+      span(id="ga-"+key+"-opacity-group")
         label.ga-slider-label(for="ga-"+key+"-opacity",
           title="Opacity of "+name+" points.") Opacity
         input.form-control.input-sm.ga-slider-ctl(id="ga-"+key+"-opacity",
