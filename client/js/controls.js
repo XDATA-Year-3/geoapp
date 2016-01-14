@@ -854,6 +854,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             values.anim.cycle === 'day');
         $('#ga-cycle-group option[value="week"]').toggleClass('hidden',
             values.anim.cycle === 'day' || values.anim.cycle === 'week');
+        $('#ga-cycle-group option[value="month"]').toggleClass('hidden',
+            values.anim.cycle === 'day' || values.anim.cycle === 'week');
         if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
                 '"]').hasClass('hidden')) {
             $('#ga-cycle-group').val(

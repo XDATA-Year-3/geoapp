@@ -90,6 +90,7 @@ mixin standardPanel(panel_id, content_id, title, tooltip, group)
         label(for="ga-cycle-group") Window
         select#ga-cycle-group.form-control.input-sm(title="Show data for this time interval during each frame of the animation",
             taxifield="cycle-group")
+          option(value="month") Month
           option(value="week") Week
           option(value="day") Day
           option(value="3-hour") 3 Hours
