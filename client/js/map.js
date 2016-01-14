@@ -117,7 +117,7 @@ geoapp.Map = function (arg) {
                 ]
             });
             hammer.get('pinch').set({enable: true});
-            hammer.on('panstart panmove panend pancancel', this.panEvent);
+            // hammer.on('panstart panmove panend pancancel', this.panEvent);
             hammer.on('pinchstart pinchmove pinchend', this.pinchEvent);
         }
         this.updateMapParams(datakey, params, 'always');
