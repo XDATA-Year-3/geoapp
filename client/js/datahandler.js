@@ -860,7 +860,7 @@ geoapp.addDataHandler = function (datainfo) {
          */
         this.dataLoad = function (options) {
             this.setupRequestOptions(options, m_datakey, (
-                options.display['display-max-' + m_datakey + '-points'] ||
+                options.params['max_field_' + m_datakey] ||
                 this.maximumDataPoints ||
                 Math.max(geoapp.map.maximumMapPoints,
                          geoapp.map.maximumVectors)));
@@ -868,6 +868,12 @@ geoapp.addDataHandler = function (datainfo) {
                 options.params.fields = (datainfo.fields ||
                     'date,latitude,longitude');
             }
+            $.each(options.params, function (key, val) {
+                if (key.startsWith(m_datakey + '_field_')) {
+                    options.params[key.substr(
+                        (m_datakey + '_field_').length)] = val;
+                }
+            });
             geoapp.cancelRestRequests(m_datakey + 'data');
             this.loadingAnimation(!options.params.offset ? 'first' : 'second');
             options.params.clientid = geoapp.clientID;

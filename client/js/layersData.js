@@ -255,7 +255,6 @@ geoapp.addMapLayer = function (datainfo) {
          * @param params: the new map parameters.
          */
         this.updateMapParams = function (params) {
-            console.log(params); //DWM::
             var visParam = {
                     dateMin: params['display-date_min'] ?
                         0 + moment.utc(params['display-date_min']) : null,

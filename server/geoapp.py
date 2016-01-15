@@ -750,7 +750,6 @@ class GeoAppResource(girder.api.rest.Resource):
                     name = 'findData_' + datainfo['rest']
                     fieldTable = datainfo['fields'] = collections.OrderedDict(
                         datainfo['fields'])
-                    print datainfo['rest'] + '_FieldTable'  # ##DWM::
                     globals()[datainfo['rest'] + '_FieldTable'] = fieldTable
                     setattr(self, name, wrap_findData(self, datainfo))
                     getattr(self, name).description = findGeneralDescription(

@@ -29,7 +29,7 @@ include standardPanel.jade
         label(for="ga-"+key+"-"+ctl.key) #{ctl.name}
         input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
           type="text", placeholder=ctl.placeholder, title=ctl.description,
-          taxifield=key+"_"+ctl.key, taxitype=ctl.type)
+          taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
     .form-group
       button.btn.btn-default.btn-sm(id="ga-"+key+"-filter",
           title="Load "+names+" from the database")
@@ -45,7 +45,7 @@ include standardPanel.jade
           data-slider-step="5000", data-slider-value="50000",
           data-slider-handle="square", data-slider-scale="logarithmic",
           data-slider-id="ga-slider-ctl-points-"+key,
-          taxifield="max_"+key, taxitype="int")
+          taxifield="max_field_"+key, taxitype="int")
   .ga-display-controls(ga-section-name=key)
     .form-group
       span(title="Show "+name+" data")
