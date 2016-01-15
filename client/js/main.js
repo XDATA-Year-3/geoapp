@@ -190,7 +190,8 @@ $(function () {
         taximodel: 'taximodel.json',
         taximodelgreen: 'taximodelgreen.json',
         taximodelboston: 'taximodelboston.json',
-        taximodeldc: 'taximodeldc.json'
+        taximodeldc: 'taximodeldc.json',
+        permitsboston: 'boston-census-permits.json'
     };
     _.each(staticData, function (url, key) {
         if (url.indexOf('/') < 0) {

@@ -330,6 +330,7 @@ geoapp.Map = function (arg) {
      * @returns: a dictionary of internal information based on the parameters.
      */
     this.updateMapParams = function (datakey, params, update) {
+        console.log('map.updateMapParams');
         var startTime = new Date().getTime();
         params = params || {};
         params.opacity = params.opacity || 0.05;
@@ -371,6 +372,7 @@ geoapp.Map = function (arg) {
                     params, origParams, update);
             }
         });
+        console.log(changed);
         if (changed) {
             /* clear animation preparation, but don't clear current step. */
             if (m_animationData && m_animationData.playState) {
@@ -382,6 +384,7 @@ geoapp.Map = function (arg) {
             }
             m_animationData = null;
             _.each(m_layers, function (layer, layerkey) {
+                console.log(layerkey);
                 if (datakey === 'all' || datakey === layerkey) {
                     layer.updateMapParams(params);
                 }

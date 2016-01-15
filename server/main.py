@@ -75,6 +75,7 @@ class GeoAppRoot(object):
                 key, xml.sax.saxutils.escape(val))
         datasets = {'taxidata': True, 'instagramdata': True}
         datasets.update(config.get('datasets', {}))
+
         datasrcList = [key for key in datasets if datasets[key]]
         data = {}
         for dbtype in datasrcList:

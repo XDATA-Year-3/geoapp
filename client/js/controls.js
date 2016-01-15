@@ -469,6 +469,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     panelsFromConfig: function () {
         var view = this;
         var panels = geoapp.parseJSON($('body').attr('panels'));
+        console.log(panels);
         $.each(panels, function (idx, panelSpec) {
             var key = panelSpec.key;
             if (!key) {
@@ -488,6 +489,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             /* Also create a datahandler and dataloader */
             geoapp.addDataHandler(panelSpec);
             geoapp.addMapLayer(panelSpec);
+            geoapp.addGraphData(panelSpec);
             geoapp.dataLoaders[key] = geoapp.dataHandlers[key]();
         });
         $('[ga-section-name]').each(function () {
@@ -715,6 +717,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                       have truthy values are the sections to update.
      */
     updateView: function (updateNav, updateSection) {
+        console.log('controls updateView');
         var results = {}, params, view = this;
         if (updateSection && $.type(updateSection) === 'string') {
             var sections = {};
@@ -912,6 +915,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             values.anim.cycle === 'day' || values.anim.cycle === 'week');
         $('#ga-cycle-group option[value="month"]').toggleClass('hidden',
             values.anim.cycle === 'day' || values.anim.cycle === 'week');
+        $('#ga-cycle-group option[value="year"]').toggleClass('hidden',
+            values.anim.cycle === 'day' || values.anim.cycle === 'week');
         if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
                 '"]').hasClass('hidden')) {
             $('#ga-cycle-group').val(
@@ -1048,6 +1053,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
 
     /* Update the display based on all display settings. */
     displayUpdate: function () {
+        console.log('displayUpdate');
         geoapp.map.updateMapParams(
             'all', this.updateSection('display', false), 'always');
     },
@@ -1055,11 +1061,13 @@ geoapp.views.ControlsView = geoapp.View.extend({
     /* When the map is moved, check if we need to mark that the display can be
      * updated. */
     mapMoved: function () {
+        console.log('mapMoved');
         var display  = this.updateSection('display', false);
-        if (display['display-process'] === 'binned') {
-            geoapp.throttleCallback(
-                'updatebin', _.bind(this.displayUpdate, this), 0, 300);
-        }
+        console.log(display);
+        // if (display['display-process'] === 'binned') {
+        geoapp.throttleCallback(
+            'updatebin', _.bind(this.displayUpdate, this), 0, 300);
+        // }
     },
 
     /* Compose a list of information that might be usable by intents and ask

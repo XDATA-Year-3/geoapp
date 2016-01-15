@@ -29,7 +29,7 @@ include standardPanel.jade
         label(for="ga-"+key+"-"+ctl.key) #{ctl.name}
         input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
           type="text", placeholder=ctl.placeholder, title=ctl.description,
-          taxifield=key+"_"+ctl.key, taxitype=ctl.type)
+          taxifield=ctl.key+"_"+ctl.type, taxitype=ctl.type)
     .form-group
       button.btn.btn-default.btn-sm(id="ga-"+key+"-filter",
           title="Load "+names+" from the database")

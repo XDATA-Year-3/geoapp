@@ -873,6 +873,54 @@ geoapp.graphData.instagram = function (arg) {
 inherit(geoapp.graphData.instagram, geoapp.GraphDataFromColumns);
 geoapp.graphData.instagram = geoapp.graphData.instagram();
 
+/* -------- data layers graph data -------- */
+
+geoapp.addGraphData = function (spec) {
+    var layer = spec.name;
+
+    geoapp.graphData[layer] = function (arg) {
+        'use strict';
+        var m_datakey = layer;
+
+        if (!(this instanceof geoapp.graphData[m_datakey])) {
+            return new geoapp.graphData[m_datakey](arg);
+        }
+        arg = arg || {};
+        geoapp.GraphDataFromColumns.call(this, arg, m_datakey);
+
+        this.dataItems = {
+            layer: {
+                name: layer,
+                description: 'Number of ' + layer,
+                column: 'date',
+                sort: 0,
+                unit: layer,
+                units: layer,
+                axisunits: null
+            }
+        };
+
+        /* List what data, if any, is available to be graphed.
+         *
+         * @param datakey: if present, check if this datakey is available.
+         * @returns: a list of available data keys if datakey is undefined, or a
+         *           boolean indicating if the specified datakey is available.
+         */
+        this.available = function (datakey) {
+            var data = geoapp.map.getLayer(m_datakey).data();
+            if (!data || !data.columns || !data.data) {
+                return datakey ? false : [];
+            }
+            return (datakey ? (this.dataItems[datakey] !== undefined) :
+                _.keys(this.dataItems));
+        };
+    };
+
+    inherit(geoapp.graphData[layer], geoapp.GraphDataFromColumns);
+    geoapp.graphData[layer] = geoapp.graphData[layer]();
+};
+
+
 /* -------- city graph data -------- */
 
 geoapp.graphDataClasses.city = function (arg) {
@@ -909,6 +957,13 @@ geoapp.graphDataClasses.city = function (arg) {
             description: 'Frequency of new food vendors being licensed',
             period: 'day',
             units: 'per day'
+        },
+        permits_total_est_buildings: {
+            name: 'Residential Permits',
+            longname: 'Total Residential Permits',
+            description: 'Number of new residential permits',
+            period: 'month',
+            units: 'per month'
         }
     };
 
@@ -977,7 +1032,7 @@ geoapp.graphDataClasses.city = function (arg) {
         var binres = moment.duration(1, dataItem.period || 'hour');
         if (!dataItem[binName]) {
             var data = geoapp.staticData[m_datakey],
-                xcol = data.columns.date,
+                xcol = data.columns.date || data.columns.datestr,
                 ycol = data.columns[dataItem.column || datakey],
                 lastitem,
                 periodsperbin = moment.duration(1, opts.bin) / binres,
@@ -1066,3 +1121,14 @@ geoapp.graphData.vendorboston = geoapp.graphDataClasses.city({
     region_name: 'Boston',
     region_shortname: 'Bos.'
 });
+geoapp.graphData.permitsboston = geoapp.graphDataClasses.city({
+    type: 'permits',
+    type_name: 'Permits',
+    name: 'permitsboston',
+    region: 'boston',
+    region_name: 'Boston',
+    region_shortname: 'Bos.'
+});
+
+console.log('hiya!');
+console.log(geoapp.graphData);

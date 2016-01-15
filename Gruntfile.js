@@ -218,9 +218,9 @@ module.exports = function (grunt) {
                 sourceMap: environment === 'dev',
                 sourceMapIncludeSources: true,
                 report: 'min',
-                beautify: {
-                    ascii_only: true
-                }
+                beautify: false,
+                mangle: false,
+                compress: false
             },
             app: {
                 options: {

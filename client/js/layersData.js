@@ -155,7 +155,7 @@ geoapp.addMapLayer = function (datainfo) {
                     }
                 }
                 if (!anim || this.inAnimationBin(
-                        anim.layers[this.datakey].dataBin2[i], anim.numBins, step,
+                        anim.layers[this.datakey].dataBin[i], anim.numBins, step,
                         anim.substeps)) {
                     x = (item[data.x2_column] - binX0) / binW;
                     y = (item[data.y2_column] - binY0) / binH;
@@ -270,6 +270,7 @@ geoapp.addMapLayer = function (datainfo) {
             m_geoPoly.visible(visible);
             $('.ga-legend-item.legend-taxi').addClass('hidden');
             if (!visible) {
+                console.log('Uh oh');
                 return;
             }
             $('.ga-legend-item.legend-taxi-' + params['display-type'] + '.taxi-' +
@@ -280,6 +281,9 @@ geoapp.addMapLayer = function (datainfo) {
             if (params[datakey + '-opacity'] > 0) {
                 params.opacity = params[datakey + '-opacity'];
             }
+            console.log('C');
+            console.log('display-process-' + datakey);
+            console.log(params);
             switch (params['display-process-' + datakey]) {
                 case 'binned':
                     this.binMapData(params);

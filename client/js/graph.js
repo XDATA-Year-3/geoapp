@@ -277,7 +277,7 @@ geoapp.Graph = function (arg) {
         this.graphOpts[position].scatterDate = scatterDate;
         spec.tooltip.format.title = function (value) {
             var binFormat = {
-                'month': '%b',
+                'month': '%b %Y',
                 'week': '%b %-d',
                 'day': '%a %b %-d',
                 'hour': '%a %b %-d %-H:%M'
