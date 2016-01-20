@@ -28,6 +28,7 @@ import functools
 import HTMLParser
 import json
 import pymongo
+import random
 import re
 import time
 import urllib
@@ -540,11 +541,29 @@ class DataViaMongo():
         self.dbUri = dbUri
         db_connection = self.getDbConnection()
         self.database = db_connection.get_default_database()
-        self.coll = self.database[params.get('collection', 'data')]
+        self.collectionName = params.get('collection', 'data')
+        self.coll = self.database[self.collectionName]
+        self.random = params.get('random', '_random')
         self.KeyTable = params['keytable']
+        if self.random and 'rand1' not in self.KeyTable:
+            self.KeyTable['rand1'] = self.random
         self.RevTable = {v: k for k, v in self.KeyTable.items()}
         self.queryBase = params.get('refname', 'data')
         self.fieldTable = globals()[self.queryBase + '_FieldTable']
+        # Ensure that we have a random value for sorting
+        if self.random:
+            cursor = self.coll.find({self.random: {'$exists': False}})
+            if cursor.count():
+                logger.info(
+                    'Adding random values to %s field of %s collection (%d)',
+                    self.random, self.collectionName, cursor.count())
+                for row in cursor:
+                    self.coll.update({'_id': row['_id']},
+                                     {'$set': {self.random: random.random()}})
+                logger.info(
+                    'Added random values to %s collection',
+                    self.collectionName)
+            self.coll.create_index([(self.random, pymongo.ASCENDING)])
 
     def processParams(self, params, sort, fields):
         """
@@ -580,6 +599,8 @@ class DataViaMongo():
             query[self.KeyTable.get(key, key)] = findParam[key]
         if sort:
             sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        elif self.random:
+            sort = [(self.random, 1)]
         if fields:
             mfields = {self.KeyTable.get(key, key): 1 for key in fields}
             mfields['_id'] = 0
@@ -744,6 +765,8 @@ class GeoAppResource(girder.api.rest.Resource):
         ]
         for datakey in config.get('datasets', {}):
             datainfo = config['datasets'].get(datakey, {})
+            if 'sortkey' not in datainfo:
+                datainfo['sortkey'] = '_id'
             if 'rest' in datainfo:
                 route = (datainfo['rest'], )
                 if datainfo['class'] == 'findData':

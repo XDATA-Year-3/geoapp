@@ -268,15 +268,15 @@ geoapp.addMapLayer = function (datainfo) {
                            data);
             m_geoPoints.visible(visible);
             m_geoPoly.visible(visible);
-            $('.ga-legend-item.legend-taxi').addClass('hidden');
+            $('.ga-legend-item.legend-' + datakey).addClass('hidden');
             if (!visible) {
                 return;
             }
-            $('.ga-legend-item.legend-taxi-' + params['display-type'] +
-                '.taxi-' + params['display-process-' + datakey]).removeClass(
-                'hidden');
-            if (params['display-max-points'] > 0) {
-                this.maximumMapPoints = params['display-max-points'];
+            $('.ga-legend-item.legend-' + datakey + '.' + datakey + '-' +
+                params['display-process-' + datakey]).removeClass('hidden');
+            if (params['display-max-' + datakey + '-points'] > 0) {
+                this.maximumMapPoints = params[
+                    'display-max-' + datakey + '-points'];
             }
             if (params[datakey + '-opacity'] > 0) {
                 params.opacity = params[datakey + '-opacity'];
@@ -287,7 +287,7 @@ geoapp.addMapLayer = function (datainfo) {
                     this.setMapDisplayToBinnedData(params);
                     break;
                 default:
-                    this.setMapDisplayToPoints('pickup');
+                    this.setMapDisplayToPoints();
                     break;
             }
         };

@@ -60,6 +60,8 @@
       display inherit
   .animate-spin
     animation spin 3s infinite linear
+  .hidden>.animate-spin
+    animation none
   .poll-load,.delayed-load
     animation finalpulse 10s infinite linear
   .ga-loading-spinner
@@ -122,6 +124,9 @@
     width 52px
   .ga-slider-label
     padding-right 1px
+    max-width 90px
+    vertical-align middle
+    line-height 1.2em
   [id^="ga-slider-ctl-points-"],[id^="ga-slider-ctl-lines-"]
     width 56px
   #ga-display-max-points-group,#ga-display-max-lines-group,#ga-display-max-msg-points-group
@@ -215,10 +220,10 @@
     opacity 0.95
   &.legend-messages-old i
     color #800
-  &.taxi-binned i
+  &.ga-legend-binned i
     font-size 14px
     opacity 1
-  &.taxi-binned.faint i
+  &.ga-legend-binned.faint i
     opacity 0.25
   .legend-vector
     display inline-block

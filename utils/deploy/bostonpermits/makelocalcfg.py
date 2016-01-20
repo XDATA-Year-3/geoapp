@@ -6,6 +6,10 @@ import os
 rootPath = os.environ['KWDEMO_KEY']
 
 cfg = """
+[application]
+appTitle: "Minverva Permits"
+appIcon: "icon.png"
+
 [database]
 uri: "mongodb://%HOSTIP%:27017/%ROOTPATH%"
 
@@ -18,9 +22,10 @@ static_root: "girder/static"
 [resources]
 # The activityLog is where the Draper logging receiver is located.  If this
 # optional module is not included, this parameter is irrelevant
-%FULL%activityLogURI: "http://10.1.93.208"
-%LIMITED%activityLogURI:
-%LOCAL%activityLogURI:
+defaultStartDate: "2009-01-01"
+defaultEndDate: "2016-01-01"
+
+initialload: True
 
 # Each entry in this section is an available database.  The order is by lowest
 # "order" value, then alphabetically for ties.  Each entry consists of {"name":
@@ -115,36 +120,21 @@ bostonviolation: {"order": 0, "name": "Boston Violations", "class": "DataViaMong
 bostoncrime: {"order": 0, "name": "Boston Permits", "class": "DataViaMongo", "params": {"dbUri": "mongodb://%HOSTIP%:27017/boston", "collection": "crime", "keytable": {"date": "fromdate", "latitude": "plat", "longitude": "plon", "category": "incident_type_description"}, "refname": "crime"}}
 
 [controls]
-#taxi-filter: {"ga-pickup-date": "2013-1-1 - 2013-1-1", "ga-data-trips": 1000}
-#taxi-display: {"ga-show-taxi-data": False}
-#general-display: {"ga-tile-set": "tonerlite"}
-# A degree larger vertically and two degrees wider horizontally than the
-# country extents.
-#map: {"x0": 34.62, "y0": 38.11, "x1": 43.36, "y1": 31.31}
+map: {"x0": -71.186, "y0": 42.418, "x1": -70.988, "y1": 42.224}
 remove: {"ga-taxi-settings-panel": True, "ga-instagram-settings-panel": True}
 
 [datasets]
 # taxidata: {"rest": "taxi", "class": "findTaxi"}
 # instagramdata: {"rest": "instagram", "class": "findInstagram"}
 # messagedata: {"rest": "message", "class": "findMessage"}
-permitdata: {"rest": "permit", "class": "findData", "sortkey": "_id", "fields": [('date', ('date', 'Permit Date')), ('latitude', ('float', 'Latitude')), ('longitude', ('float', 'Longitude')), ('comments', ('search', 'Comments')), ('permittypedescr', ('search', 'Type descr.')), ('occupancytype', ('search', 'Occupancy type')), ('description', ('search', 'Description'))]}
-violationdata: {"rest": "violation", "class": "findData", "sortkey": "_id", "fields": [('date', ('date', 'Violation Date')), ('latitude', ('float', 'Latitude')), ('longitude', ('float', 'Longitude')), ('category', ('search', 'Category'))]}
-crimedata: {"rest": "crime", "class": "findData", "sortkey": "_id", "fields": [('date', ('date', 'Crime Date')), ('latitude', ('float', 'Latitude')), ('longitude', ('float', 'Longitude')), ('category', ('search', 'Category'))]}
+permitdata: {"rest": "permit", "class": "findData", "sortkey": "_random", "fields": [('date', ('date', 'Permit Date')), ('latitude', ('float', 'Latitude')), ('longitude', ('float', 'Longitude')), ('comments', ('search', 'Comments')), ('permittypedescr', ('search', 'Type descr.')), ('occupancytype', ('search', 'Occupancy type')), ('description', ('search', 'Description'))]}
+violationdata: {"rest": "violation", "class": "findData", "sortkey": "_random", "fields": [('date', ('date', 'Violation Date')), ('latitude', ('float', 'Latitude')), ('longitude', ('float', 'Longitude')), ('category', ('search', 'Category'))]}
+crimedata: {"rest": "crime", "class": "findData", "sortkey": "_random", "fields": [('date', ('date', 'Crime Date')), ('latitude', ('float', 'Latitude')), ('longitude', ('float', 'Longitude')), ('category', ('search', 'Category'))]}
 
 [places]
-#manhattan: {"order": 0, "name": "Manhattan", "title": "Show all of Manhattan", "x0": -74.0276489, "y0": 40.8304859, "x1": -73.9161453, "y1": 40.6877773}
-#midtown: {"order": 1, "name": "Midtown", "title": "Show Midtown", "x0": -74.0140, "y0": 40.7730, "x1": -73.9588, "y1": 40.7320}
-#timessq: {"order": 2, "name": "Times Sq.", "title": "Show Times Square", "x0": -74.0048904, "y0": 40.7687378, "x1": -73.9708862, "y1": 40.7435085}
-#syria: {"order": 0, "name": "Syria", "title": "Show all of Syria", "x0": 33.62, "y0": 38.11, "x1": 44.36, "y1": 31.31}
-#damascus: {"order": 1, "name": "Damascus", "title": "Show the Damascus region", "x0": 35.8184, "y0": 33.8020, "x1": 36.7553, "y1": 33.2072}
-#aleppo: {"order": 2, "name": "Aleppo", "title": "Show the Aleppo region", "x0": 36.6444, "y0": 36.5235, "x1": 37.6422, "y1": 35.9106}
-
-greater: {"order": 0, "name": "Greater NYC", "title": "Show NYC including surrounding airports", "x0": -74.1670456, "y0": 40.8645278, "x1": -73.7660294, "y1": 40.5900000}
-manhattan: {"order": 3, "name": "Manhattan", "title": "Show all of Manhattan", "x0": -74.0276489, "y0": 40.8304859, "x1": -73.9161453, "y1": 40.6877773}
-dcarea: {"order": 2, "name": "Greater DC", "title": "Show Washington D.C. and the surrounding area", "x0": -77.211, "y0": 39.022, "x1": -76.861, "y1": 38.756}
-dcctr: {"order": 5, "name": "Center DC", "title": "Show downtown Washington D.C.", "x0": -77.057, "y0": 38.926, "x1": -76.994, "y1": 38.883}
-bostonarea: {"order": 1, "name": "Boston Area", "title": "Show Boston including the surrounding area", "x0": -71.243, "y0": 42.561, "x1": -70.766, "y1": 42.192}
-bostonctr: {"order": 4, "name": "Boston Ctr.", "title": "Show the central Boston area", "x0": -71.108, "y0": 42.369, "x1": -71.049, "y1": 42.331}
+bostonlarge: {"order": 0, "name": "Greater Bos.", "title": "Show Boston including a large surrounding area", "x0": -71.243, "y0": 42.561, "x1": -70.766, "y1": 42.192}
+bostonarea: {"order": 1, "name": "Boston Area", "title": "Show Boston include a surrounding area", "x0": -71.186, "y0": 42.418, "x1": -70.988, "y1": 42.224}
+bostonctr: {"order": 2, "name": "Boston Ctr.", "title": "Show the central Boston area", "x0": -71.108, "y0": 42.369, "x1": -71.049, "y1": 42.331}
 """
 
 hostip = os.popen("netstat -nr | grep '^0\.0\.0\.0' | awk '{print $2}'").read()

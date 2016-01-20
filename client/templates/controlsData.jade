@@ -7,6 +7,7 @@
   title : title shown on the layer panel
   description : a description for the panel
   showSource : a boolean
+  color : a color for the legend
   controls : a list of objects of which controls to expose.  Each item
              contains:
     key : control key
@@ -35,7 +36,7 @@ include standardPanel.jade
           title="Load "+names+" from the database")
         i.icon-ok
         |  Filter
-      ga-loading-spinner.hidden(id="ga-"+key+"-loading")
+      .ga-loading-spinner.hidden(id="ga-"+key+"-loading")
         i.icon-spin1.animate-spin
       span.ga-data-loaded(id="ga-"+key+"-loaded")
       label.ga-slider-label(for="ga-data-"+key,
@@ -95,11 +96,11 @@ include standardPanel.jade
   .ga-legend(ga-section-name=key)
     .form-group
       .ga-legend-item.hidden(class="legend-"+key+" "+key+"-raw")
-        i.icon-circle
+        i.icon-circle(style="color:"+color)
         | #{capname}
-      .ga-legend-item.hidden(class="legend-"+key+" "+key+"-binned")
-        i.icon-stop
+      .ga-legend-item.ga-legend-binned.hidden(class="legend-"+key+" "+key+"-binned")
+        i.icon-stop(style="color:"+color)
         | Many #{capnames}
-      .ga-legend-item.faint.hidden(class="legend-"+key+" "+key+"-binned")
-        i.icon-stop
+      .ga-legend-item.ga-legend-binned.faint.hidden(class="legend-"+key+" "+key+"-binned")
+        i.icon-stop(style="color:"+color)
         | Few #{capnames}

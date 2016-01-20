@@ -195,7 +195,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
         geoapp.map.parentView = this;
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
-        this.firstRender = true;
+        /* firstRender = true to not load data initially, 'update' to load
+         * data. */
+        this.firstRender = ($('body').attr('initialload') === 'true' ?
+            'update' : true);
         /* Load the list of place buttons. */
         if (geoapp.defaultControlsQuery === undefined) {
             var places = geoapp.parseJSON($('body').attr('placeControls'));
@@ -276,7 +279,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
-        this.finalizeInit(settings, 1000);
+        view.finalizeInit(settings, 1000);
     },
 
     /* Set the value of a control.  If this is a select control that doesn't
@@ -340,7 +343,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     });
                 }
             });
-            var update = false;
+            var update = (view.firstRender === 'update');
             if (view.initialSettings && !view.usedInitialSettings) {
                 var settings = view.initialSettings;
                 view.usedInitialSettings = true;
@@ -438,7 +441,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
     updateRegionControl: function () {
         if (!geoapp.regionOrder) {
             var regions = geoapp.parseJSON($('body').attr('regionControls'));
-            if (_.size(regions) > 0) {
+            for (var key in regions) {
+                if (regions.hasOwnProperty(key) && !regions[key]) {
+                    delete regions[key];
+                }
+            }
+            if (_.size(regions) > 1) {
                 geoapp.regionList = regions;
                 geoapp.regionOrder = [];
                 _.each(regions, function (region, key) {
@@ -483,6 +491,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             panelSpec.capname = panelSpec.capname || panelSpec.name;
             panelSpec.capnames = panelSpec.capnames || panelSpec.capname;
             panelSpec.controls = panelSpec.controls || [];
+            panelSpec.color = panelSpec.color || 'black';
             var html = geoapp.templates.controlsData(panelSpec);
             $('.insert-more-panels-here', $.el).before(html);
             /* Also create a datahandler and dataloader */
@@ -910,11 +919,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-cycle-group option[value="day"]').toggleClass('hidden',
             values.anim.cycle === 'day');
         $('#ga-cycle-group option[value="week"]').toggleClass('hidden',
-            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+            $.inArray(values.anim.cycle, ['day', 'week']) >= 0);
         $('#ga-cycle-group option[value="month"]').toggleClass('hidden',
-            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+            $.inArray(values.anim.cycle, ['day', 'week', 'month']) >= 0);
         $('#ga-cycle-group option[value="year"]').toggleClass('hidden',
-            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+            $.inArray(values.anim.cycle, ['day', 'week', 'month', 'year']) >= 0);
         if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
                 '"]').hasClass('hidden')) {
             $('#ga-cycle-group').val(
@@ -1059,7 +1068,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * updated. */
     mapMoved: function () {
         var display  = this.updateSection('display', false);
-        if (display['display-process'] === 'binned') {
+        var update = false;
+        $.each(display, function (key, val) {
+            update = update || (key.startsWith('display-process') &&
+                                val === 'binned');
+        });
+        if (update) {
             geoapp.throttleCallback(
                 'updatebin', _.bind(this.displayUpdate, this), 0, 300);
         }
