@@ -27,7 +27,7 @@ include standardPanel.jade
       //- the database source options are dynamically set in controls.js
     each ctl in controls
       .form-group
-        label(for="ga-"+key+"-"+ctl.key) #{ctl.name}
+        label(for="ga-"+key+"-"+ctl.key, class="ga-control-"+ctl.type) #{ctl.name}
         input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
           type="text", placeholder=ctl.placeholder, title=ctl.description,
           taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
