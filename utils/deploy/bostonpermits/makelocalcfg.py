@@ -7,8 +7,8 @@ rootPath = os.environ['KWDEMO_KEY']
 
 cfg = """
 [application]
-appTitle: "Minverva Permits"
-appIcon: "icon.png"
+appTitle: "Minerva Permits"
+appIcon: "minerva.png"
 
 [global]
 server.socket_port: 8080
@@ -32,7 +32,7 @@ defaultEndDate: "2016-01-01"
 initialload: True
 
 # fields are the comma-separated fields loaded into javascript
-panels: [{"key":"permit", "name":"permit", "names":"permits", "capname":"Permit", "capnames":"Permits", "title":"Boston Permits", "description":"Building permits in Boston", "controls":[{"key":"comments_search", "type":"search", "name": "comments"}, {"key":"permittypedescr_search", "type":"search", "name": "permittypedescr"}, {"key":"occupancytype_search", "type":"search", "name": "occupancytype"}, {"key":"description_search", "type":"search", "name": "description"}], "fields":"date,latitude,longitude", "color": "#d62728"}, {"key":"crime", "name":"crime", "names":"crimes", "capname":"Crime", "capnames":"Crimes", "title":"Boston Crimes", "description":"Crimes in Boston", "controls":[{"key":"category_search", "type":"search", "name": "Category"}], "fields":"date,latitude,longitude,category", "color": "#2ca02c"}, {"key":"violation", "name":"violation", "names":"violations", "capname":"Violation", "capnames":"Violations", "title":"Boston Violations", "description":"Violations in Boston", "controls":[{"key":"category_search", "type":"search", "name": "Category"}], "fields":"date,latitude,longitude,category", "color": "#1f77b4"}]
+panels: [{"key":"permit", "name":"permit", "names":"permits", "capname":"Permit", "capnames":"Permits", "title":"Boston Permits", "description":"Building permits in Boston", "controls":[{"key":"comments_search", "type":"search", "name": "Comments"}, {"key":"permittypedescr_search", "type":"search", "name": "Permit Type"}, {"key":"occupancytype_search", "type":"search", "name": "Occupancy Type"}, {"key":"description_search", "type":"search", "name": "Description"}], "fields":"date,latitude,longitude", "color": "#d62728"}, {"key":"crime", "name":"crime", "names":"crimes", "capname":"Crime", "capnames":"Crimes", "title":"Boston Crimes", "description":"Crimes in Boston", "controls":[{"key":"category_search", "type":"search", "name": "Category"}], "fields":"date,latitude,longitude,category", "color": "#2ca02c"}, {"key":"violation", "name":"violation", "names":"violations", "capname":"Violation", "capnames":"Violations", "title":"Boston Violations", "description":"Violations in Boston", "controls":[{"key":"category_search", "type":"search", "name": "Category"}], "fields":"date,latitude,longitude,category", "color": "#1f77b4"}]
 
 [regions]
 nyc:
