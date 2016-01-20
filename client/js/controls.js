@@ -488,6 +488,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             /* Also create a datahandler and dataloader */
             geoapp.addDataHandler(panelSpec);
             geoapp.addMapLayer(panelSpec);
+            geoapp.addGraphData(panelSpec);
             geoapp.dataLoaders[key] = geoapp.dataHandlers[key]();
         });
         $('[ga-section-name]').each(function () {
@@ -911,6 +912,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-cycle-group option[value="week"]').toggleClass('hidden',
             values.anim.cycle === 'day' || values.anim.cycle === 'week');
         $('#ga-cycle-group option[value="month"]').toggleClass('hidden',
+            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+        $('#ga-cycle-group option[value="year"]').toggleClass('hidden',
             values.anim.cycle === 'day' || values.anim.cycle === 'week');
         if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
                 '"]').hasClass('hidden')) {

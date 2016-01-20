@@ -113,13 +113,14 @@ geoapp.addMapLayer = function (datainfo) {
          *
          * @param params: the display parameters for the map.
          * @param anim: animation options.  null for full display.
-         * @param step: if animation options are specified, this is the step of the
-         *              animation.
+         * @param step: if animation options are specified, this is the step of
+         *              the animation.
          * @param resetmax: if animation options are specified and this is true,
          *                  reset the bin max values.
          */
         this.binMapData = function (params, anim, step, resetmax) {
-            var numBins = Math.max(params['display-' + datakey + '-num-bins'] || 15, 5);
+            var numBins = Math.max(params[
+                'display-' + datakey + '-num-bins'] || 15, 5);
             var node = m_this.map.getMap().node(),
                 width = node.width(), height = node.height(),
                 bounds = m_this.map.getMap().bounds();
@@ -142,7 +143,7 @@ geoapp.addMapLayer = function (datainfo) {
                 item = data.data[i];
                 checkedBad = null;
                 if (!anim || this.inAnimationBin(
-                        anim.layers[this.datakey].dataBin[i], anim.numBins, step,
+                        anim.layers[datakey].dataBin[i], anim.numBins, step,
                         anim.substeps)) {
                     x = (item[data.x1_column] - binX0) / binW;
                     y = (item[data.y1_column] - binY0) / binH;
@@ -155,7 +156,7 @@ geoapp.addMapLayer = function (datainfo) {
                     }
                 }
                 if (!anim || this.inAnimationBin(
-                        anim.layers[this.datakey].dataBin2[i], anim.numBins, step,
+                        anim.layers[datakey].dataBin[i], anim.numBins, step,
                         anim.substeps)) {
                     x = (item[data.x2_column] - binX0) / binW;
                     y = (item[data.y2_column] - binY0) / binH;
@@ -271,8 +272,9 @@ geoapp.addMapLayer = function (datainfo) {
             if (!visible) {
                 return;
             }
-            $('.ga-legend-item.legend-taxi-' + params['display-type'] + '.taxi-' +
-                params['display-process-' + datakey]).removeClass('hidden');
+            $('.ga-legend-item.legend-taxi-' + params['display-type'] +
+                '.taxi-' + params['display-process-' + datakey]).removeClass(
+                'hidden');
             if (params['display-max-points'] > 0) {
                 this.maximumMapPoints = params['display-max-points'];
             }
@@ -303,12 +305,12 @@ geoapp.addMapLayer = function (datainfo) {
 
         /* Calculate bins for animation
          *
-         * @param param: animation parameters.  The dataBin field should be added
-         *               at a minimum.
+         * @param param: animation parameters.  The dataBin field should be
+         *               added at a minimum.
          * @param start: start of animation interval in epoch milliseconds.
-         * @param range: milliseconds for animation cycle (for instance, if this is
-         *               showing one week, collecting all the weeks in a year, this
-         *               is the number of ms in a week).
+         * @param range: milliseconds for animation cycle (for instance, if
+         *               this is showing one week, collecting all the weeks in
+         *               a year, this is the number of ms in a week).
          * @param binWidth: width of each bin in milliseconds.
          */
         this.binForAnimation = function (params, start, range, binWidth) {
@@ -329,7 +331,7 @@ geoapp.addMapLayer = function (datainfo) {
                 dataLength = data.length;
             }
             var dataBin = new Int32Array(dataLength);
-            params.layers[this.datakey] = {dataBin: dataBin};
+            params.layers[datakey] = {dataBin: dataBin};
 
             switch (mapParams['display-process-' + datakey]) {
                 case 'binned':
@@ -357,13 +359,13 @@ geoapp.addMapLayer = function (datainfo) {
          * @param options: animation options.
          */
         this.animateFrame = function (options) {
-            if (!options.layers[this.datakey]) {
+            if (!options.layers[datakey]) {
                 return;
             }
             var mapParams = m_this.map.getMapParams(),
                 mapData = m_this.data(true),
                 visOpac = (options.opacity || 0.1),
-                dataBin = options.layers[this.datakey].dataBin,
+                dataBin = options.layers[datakey].dataBin,
                 i, j, v, opac, vis, vpf;
 
             if (mapParams[datakey + '-opacity']) {
@@ -385,7 +387,8 @@ geoapp.addMapLayer = function (datainfo) {
                         opac[v] = vis;
                     }
                 }
-                m_geoPoints.actors()[0].mapper().updateSourceBuffer('fillOpacity');
+                m_geoPoints.actors()[0].mapper().updateSourceBuffer(
+                    'fillOpacity');
             }
         };
 
