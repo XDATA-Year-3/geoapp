@@ -46,7 +46,7 @@ geoapp.getQuerySection = function (settings, section) {
 
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
-        'click #ga-taxi-filter,#ga-instagram-filter': function (evt) {
+        'click [id^="ga-"][id$="-filter"]': function (evt) {
             var filter = $(evt.target).closest('[ga-section-name]').attr(
                 'ga-section-name');
             $('#ga-' + filter + '-filter').removeClass('btn-primary');
@@ -98,15 +98,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change .ga-filter-controls[ga-section-name="taxi"] input[type="text"]:visible,.ga-filter-controls[ga-section-name="taxi"] select:visible,#ga-data-trips,.ga-filter-controls[ga-section-name="general"] select:visible': function () {
-            $('#ga-taxi-filter').addClass('btn-primary');
+        'change .ga-filter-controls input[type="text"]:visible,.ga-filter-controls select:visible,.ga-filter-controls input[type="checkbox"],.ga-filter-controls input[type="text"][data-slider-value]': function (evt) {
+            var sec = $(evt.target).closest('[ga-section-name]').attr('ga-section-name');
+            $('#ga-' + sec + '-filter').addClass('btn-primary');
         },
-        'change #ga-date-range': function () {
-            $('#ga-taxi-filter').addClass('btn-primary');
-            $('#ga-instagram-filter').addClass('btn-primary');
-        },
-        'change .ga-filter-controls[ga-section-name="instagram"] input[type="text"]:visible,.ga-filter-controls[ga-section-name="instagram"] select:visible,#ga-inst-data-grams,.ga-filter-controls[ga-section-name="instagram"] input[type="checkbox"],.ga-filter-controls[ga-section-name="general"] select:visible': function () {
-            $('#ga-instagram-filter').addClass('btn-primary');
+        'change #ga-date-range,.ga-filter-controls[ga-section-name="general"] select:visible': function () {
+            $('[id^="ga-"][id$="-filter"]').addClass('btn-primary');
         },
         'change .ga-anim-controls input[type="text"]:visible,.ga-anim-controls select:visible': function () {
             $('#ga-anim-update').addClass('btn-primary');
@@ -124,8 +121,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     if (filter !== 'general') {
                         $('#ga-' + filter + '-filter').click();
                     } else {
-                        $('#ga-taxi-filter').click();
-                        $('#ga-instagram-filter').click();
+                        $('[id^="ga-"][id$="-filter"]').click();
                     }
                 });
             }
@@ -165,10 +161,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'apply.daterangepicker .ga-filter-controls .ga-date-range': function (evt) {
             var val = this.getDateRange(evt.target, {}, 'date', true);
             $(evt.target).val(val);
-            $('#ga-taxi-filter').addClass('btn-primary');
-            $('#ga-instagram-filter').addClass('btn-primary');
-            $('#ga-taxi-filter').trigger('click');
-            $('#ga-instagram-filter').trigger('click');
+            $('[id^="ga-"][id$="-filter"]').addClass('btn-primary');
+            $('[id^="ga-"][id$="-filter"]').trigger('click');
         },
         'keydown input.ga-date-range': function (evt) {
             $(evt.target).data('daterangepicker').hide();
@@ -186,14 +180,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         }
     },
 
-    /* This is a dictionary of control sections used in routing. */
+    /* This is a dictionary of control sections used in routing.  It is
+     * adjusted in panelsFromConfig(). */
     controlSections: {
-        'general-filter': '.ga-filter-controls[ga-section-name="general"] #',
-        'taxi-filter': '.ga-filter-controls[ga-section-name="taxi"] #',
-        'instagram-filter': '.ga-filter-controls[ga-section-name="instagram"] #',
-        'general-display': '.ga-display-controls[ga-section-name="general"] #',
-        'taxi-display': '.ga-display-controls[ga-section-name="taxi"] #',
-        'instagram-display': '.ga-display-controls[ga-section-name="instagram"] #',
         anim: '.ga-anim-controls #'
     },
 
@@ -206,7 +195,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
         geoapp.map.parentView = this;
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
-        this.firstRender = true;
+        /* firstRender = true to not load data initially, 'update' to load
+         * data. */
+        this.firstRender = ($('body').attr('initialload') === 'true' ?
+            'update' : true);
         /* Load the list of place buttons. */
         if (geoapp.defaultControlsQuery === undefined) {
             var places = geoapp.parseJSON($('body').attr('placeControls'));
@@ -287,7 +279,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
-        this.finalizeInit(settings, 1000);
+        view.finalizeInit(settings, 1000);
     },
 
     /* Set the value of a control.  If this is a select control that doesn't
@@ -329,11 +321,19 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
+            view.panelsFromConfig();
             view.updateRegionControl();
-            _.each({
+            var optlist = {
                 taxidata: 'source',
                 instagramdata: 'msgsource'
-            }, function (sourceelem, datakey) {
+            };
+            $('[ga-section-name]').each(function () {
+                var sec = $(this).attr('ga-section-name');
+                if (!optlist[sec + 'data']) {
+                    optlist[sec + 'data'] = sec + '-source';
+                }
+            });
+            _.each(optlist, function (sourceelem, datakey) {
                 if (!$('#ga-' + sourceelem + ' option').length) {
                     $('#app-data ' + datakey + ' option').each(function () {
                         var opt = $(this);
@@ -343,7 +343,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     });
                 }
             });
-            var update = false;
+            var update = (view.firstRender === 'update');
             if (view.initialSettings && !view.usedInitialSettings) {
                 var settings = view.initialSettings;
                 view.usedInitialSettings = true;
@@ -441,7 +441,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
     updateRegionControl: function () {
         if (!geoapp.regionOrder) {
             var regions = geoapp.parseJSON($('body').attr('regionControls'));
-            if (_.size(regions) > 0) {
+            for (var key in regions) {
+                if (regions.hasOwnProperty(key) && !regions[key]) {
+                    delete regions[key];
+                }
+            }
+            if (_.size(regions) > 1) {
                 geoapp.regionList = regions;
                 geoapp.regionOrder = [];
                 _.each(regions, function (region, key) {
@@ -466,6 +471,43 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if ($('#ga-region option').length <= 1) {
             $('#ga-region').closest('.form-group').addClass('hidden');
         }
+    },
+
+    /* If any panels are specified in the config file, build them now. */
+    panelsFromConfig: function () {
+        var view = this;
+        var panels = geoapp.parseJSON($('body').attr('panels'));
+        $.each(panels, function (idx, panelSpec) {
+            var key = panelSpec.key;
+            if (!key) {
+                console.log('Cannot create panel from config', panelSpec);
+                return;
+            }
+            if ($('#ga-' + key + '-source').length > 0) {
+                return;  /* already created */
+            }
+            panelSpec.name = panelSpec.name || key;
+            panelSpec.names = panelSpec.names || panelSpec.name;
+            panelSpec.capname = panelSpec.capname || panelSpec.name;
+            panelSpec.capnames = panelSpec.capnames || panelSpec.capname;
+            panelSpec.controls = panelSpec.controls || [];
+            panelSpec.color = panelSpec.color || 'black';
+            var html = geoapp.templates.controlsData(panelSpec);
+            $('.insert-more-panels-here', $.el).before(html);
+            /* Also create a datahandler and dataloader */
+            geoapp.addDataHandler(panelSpec);
+            geoapp.addMapLayer(panelSpec);
+            geoapp.addGraphData(panelSpec);
+            geoapp.dataLoaders[key] = geoapp.dataHandlers[key]();
+        });
+        $('[ga-section-name]').each(function () {
+            var sec = $(this).attr('ga-section-name');
+            if (sec === 'anim') {
+                return;
+            }
+            view.controlSections[sec + '-filter'] = '.ga-filter-controls[ga-section-name="' + sec + '"] #';
+            view.controlSections[sec + '-display'] = '.ga-display-controls[ga-section-name="' + sec + '"] #';
+        });
     },
 
     /* Parse a string into a UTC moment.  The string can be:
@@ -683,25 +725,29 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                       have truthy values are the sections to update.
      */
     updateView: function (updateNav, updateSection) {
-        var results = {}, params;
+        var results = {}, params, view = this;
         if (updateSection && $.type(updateSection) === 'string') {
             var sections = {};
             sections[updateSection] = true;
             updateSection = sections;
         }
+        var secs = {}, anysec;
+        $('[ga-section-name]').each(function () {
+            secs[$(this).attr('ga-section-name')] = true;
+        });
+        delete secs.general;
+        delete secs.anim;
+
         results['general-filter'] = this.updateSection(
             'general-filter',
             updateNav || (!updateSection || updateSection['general-filter']));
-        if (!updateSection || updateSection['taxi-filter'] ||
-                updateSection['general-filter']) {
-            results['taxi-filter'] = this.updateSection(
-                'taxi-filter', updateNav);
-        }
-        if (!updateSection || updateSection['instagram-filter'] ||
-                updateSection['general-filter']) {
-            results['instagram-filter'] = this.updateSection(
-                'instagram-filter', updateNav);
-        }
+        $.each(secs, function (sec) {
+            if (!updateSection || updateSection[sec + '-filter'] ||
+                    updateSection['general-filter']) {
+                results[sec + '-filter'] = view.updateSection(
+                    sec + '-filter', updateNav);
+            }
+        });
         if (!updateSection || updateSection.display) {
             results.display = this.updateSection('display', updateNav);
             this.adjustControls(results);
@@ -709,8 +755,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (!updateSection || updateSection.anim) {
             results.anim = this.updateAnimValues(updateNav);
         }
-        if (!results.display && (results['taxi-filter'] ||
-                results['instagram-filter'])) {
+        anysec = false;
+        $.each(secs, function (sec) {
+            anysec = anysec || results[sec + '-filter'];
+        });
+        if (!results.display && anysec) {
             results.display = this.updateSection('display', false);
         }
         if (results['taxi-filter'] && $('#ga-taxi-filter').length > 0) {
@@ -748,8 +797,25 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 display: results.display
             });
         }
-        if (results.display && !results['taxi-filter'] &&
-                !results['instagram-filter']) {
+        $.each(secs, function (sec) {
+            if (sec === 'taxi' || sec === 'instagram') {
+                return;
+            }
+            if (results[sec + '-filter'] && $('#ga-' + sec + '-filter').length > 0 && geoapp.dataLoaders[sec]) {
+                params = $.extend({}, results[sec + '-filter'],
+                                  results['general-filter']);
+                params.source = params[sec + '_source'];
+                geoapp.dataLoaders[sec].dataLoad({
+                    params: params,
+                    display: results.display
+                });
+            }
+        });
+        anysec = false;
+        $.each(secs, function (sec) {
+            anysec = anysec || results[sec + '-filter'];
+        });
+        if (results.display && !anysec) {
             geoapp.map.updateMapParams('all', results.display);
         }
         if (results.anim) {
@@ -853,14 +919,32 @@ geoapp.views.ControlsView = geoapp.View.extend({
         $('#ga-cycle-group option[value="day"]').toggleClass('hidden',
             values.anim.cycle === 'day');
         $('#ga-cycle-group option[value="week"]').toggleClass('hidden',
-            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+            $.inArray(values.anim.cycle, ['day', 'week']) >= 0);
         $('#ga-cycle-group option[value="month"]').toggleClass('hidden',
-            values.anim.cycle === 'day' || values.anim.cycle === 'week');
+            $.inArray(values.anim.cycle, ['day', 'week', 'month']) >= 0);
+        $('#ga-cycle-group option[value="year"]').toggleClass('hidden',
+            $.inArray(values.anim.cycle, ['day', 'week', 'month', 'year']) >= 0);
         if ($('#ga-cycle-group option[value="' + values.anim['cycle-group'] +
                 '"]').hasClass('hidden')) {
             $('#ga-cycle-group').val(
                 $('#ga-cycle-group option').not('.hidden').val());
         }
+        var secs = {};
+        $('[ga-section-name]').each(function () {
+            secs[$(this).attr('ga-section-name')] = true;
+        });
+        $.each(secs, function (sec) {
+            var mode = values.display['display-process-' + sec];
+            if (mode === undefined) {
+                return;
+            }
+            $('#ga-display-max-' + sec + '-points-group').toggleClass('hidden',
+                mode === 'binned');
+            $('#ga-' + sec + '-opacity-group').toggleClass('hidden',
+                mode === 'binned');
+            $('#ga-display-' + sec + '-num-bins-group').toggleClass('hidden',
+                mode !== 'binned');
+        });
     },
 
     /* Get an value or range of values from a control.  The type is stored in
@@ -984,7 +1068,12 @@ geoapp.views.ControlsView = geoapp.View.extend({
      * updated. */
     mapMoved: function () {
         var display  = this.updateSection('display', false);
-        if (display['display-process'] === 'binned') {
+        var update = false;
+        $.each(display, function (key, val) {
+            update = update || (key.startsWith('display-process') &&
+                                val === 'binned');
+        });
+        if (update) {
             geoapp.throttleCallback(
                 'updatebin', _.bind(this.displayUpdate, this), 0, 300);
         }

@@ -24,9 +24,12 @@ import cherrypy
 import collections
 import datetime
 import dateutil.parser
+import functools
 import HTMLParser
 import json
 import pymongo
+import random
+import re
 import time
 import urllib
 import urllib2
@@ -530,6 +533,138 @@ class MessageRealTimeViaElasticsearch(MessageViaElasticsearch):
         self.realtime = True
 
 
+# -------- 'Data' classes and code --------
+
+class DataViaMongo():
+
+    def __init__(self, dbUri=None, **params):
+        self.dbUri = dbUri
+        db_connection = self.getDbConnection()
+        self.database = db_connection.get_default_database()
+        self.collectionName = params.get('collection', 'data')
+        self.coll = self.database[self.collectionName]
+        self.random = params.get('random', '_random')
+        self.KeyTable = params['keytable']
+        if self.random and 'rand1' not in self.KeyTable:
+            self.KeyTable['rand1'] = self.random
+        self.RevTable = {v: k for k, v in self.KeyTable.items()}
+        self.queryBase = params.get('refname', 'data')
+        self.fieldTable = globals()[self.queryBase + '_FieldTable']
+        # Ensure that we have a random value for sorting
+        if self.random:
+            cursor = self.coll.find({self.random: {'$exists': False}})
+            if cursor.count():
+                logger.info(
+                    'Adding random values to %s field of %s collection (%d)',
+                    self.random, self.collectionName, cursor.count())
+                for row in cursor:
+                    self.coll.update({'_id': row['_id']},
+                                     {'$set': {self.random: random.random()}})
+                logger.info(
+                    'Added random values to %s collection',
+                    self.collectionName)
+            self.coll.create_index([(self.random, pymongo.ASCENDING)])
+
+    def processParams(self, params, sort, fields):
+        """
+        :param params: a dictionary of query restrictions.  See the fieldtable.
+                       For values that aren't of type 'text', we also support
+                       (field)_min and (field)_max parameters, which are
+                       inclusive and exclusive respectively.
+        :param sort: a list of tuples of the form (key, direction).
+        :param fields: a list of fields to return, or None for all fields.
+        """
+        findParam = {}
+        for field in self.fieldTable:
+            if field in params:
+                value = self.getParamValue(field, params[field])
+                findParam[field] = value
+            if field + '_min' in params:
+                value = self.getParamValue(field, params[field + '_min'])
+                findParam.setdefault(field, {})
+                if isinstance(findParam[field], dict):
+                    findParam[field]['$gte'] = value
+            if field + '_max' in params:
+                value = self.getParamValue(field, params[field + '_max'])
+                findParam.setdefault(field, {})
+                if isinstance(findParam[field], dict):
+                    findParam[field]['$lt'] = value
+            if field + '_search' in params:
+                value = self.getParamValue(field, params[field + '_search'])
+                findParam.setdefault(field, {})
+                if isinstance(findParam[field], dict):
+                    findParam[field] = re.compile(value, re.IGNORECASE)
+        query = {}
+        for key in findParam:
+            query[self.KeyTable.get(key, key)] = findParam[key]
+        if sort:
+            sort = [(self.KeyTable.get(key, key), dir) for (key, dir) in sort]
+        elif self.random:
+            sort = [(self.random, 1)]
+        if fields:
+            mfields = {self.KeyTable.get(key, key): 1 for key in fields}
+            mfields['_id'] = 0
+        return query, sort, mfields
+
+    def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
+             **kwargs):
+        """
+        Get data from the mongo database.  Return each row in turn as a python
+        object with the default keys or the entire dataset as a list with
+        metadata.
+
+        :param params: a dictionary of query restrictions.  See the
+                       FieldTable.  For values that aren't of type 'text',
+                       we also support (field)_min and (field)_max parameters,
+                       which are inclusive and exclusive respectively.
+        :param limit: default limit for the data.
+        :param offset: default offset for the data.
+        :param sort: a list of tuples of the form (key, direction).
+        :param fields: a list of fields to return, or None for all fields.
+        :returns: a dictionary of results.
+        """
+        query, sort, fields = self.processParams(params, sort, fields)
+        logger.info('Query %r', ((query, offset, limit, sort, fields), ))
+        cursor = self.coll.find(spec=query, skip=offset, limit=limit,
+                                sort=sort, timeout=False, fields=fields)
+        total = cursor.count()
+        epoch = datetime.datetime.utcfromtimestamp(0)
+        dt = datetime.datetime
+        result = {'count': total, 'data': [{
+            self.RevTable.get(k, k):
+            v if not isinstance(v, dt) else int(
+                (v - epoch).total_seconds() * 1000)
+            for k, v in row.items() if k != '_id'}
+            for row in cursor
+        ]}
+        return result
+
+    def getDbConnection(self):
+        """
+        Connect to a mongo database.
+
+        :return client: a pymongo client.
+        """
+        clientOptions = {
+            'connectTimeoutMS': 15000,
+            # 'socketTimeoutMS': 60000,
+        }
+        # TODO: We should use the reconnect proxy
+        return pymongo.MongoClient(self.dbUri, **clientOptions)
+
+    def getParamValue(self, field, value):
+        if value == '':
+            return None
+        dataType = self.fieldTable[field][0]
+        if dataType == 'int':
+            return int(value)
+        if dataType == 'float':
+            return float(value)
+        if dataType == 'date':
+            return dateutil.parser.parse(value)
+        return value
+
+
 # -------- General classes and code --------
 
 def findGeneralDescription(desc, sortKey, fieldTable, defaultDbKey):
@@ -587,9 +722,24 @@ def findGeneralDescription(desc, sortKey, fieldTable, defaultDbKey):
                 required=False, dataType=dataType)
         if fieldType == 'search':
             description.param(
-                field + '_search', 'tsquery search of ' + fieldDesc,
+                field + '_search', 'Substring search of ' + fieldDesc,
                 required=False, dataType='string')
     return description
+
+
+def wrap_findData(cls, datainfo):
+    """
+    Wrap findData with specific access information.
+
+    :param cls: class instance of findData
+    :param datainfo: a dictionary of information to pass to findData
+    :returns: a method of findData with the set information.
+    """
+    @functools.wraps(cls.findData)
+    def wrapper(*args, **kwargs):
+        return cls.findData(datainfo=datainfo, **kwargs)
+    wrapper.accessLevel = 'public'
+    return wrapper
 
 
 class GeoAppResource(girder.api.rest.Resource):
@@ -609,10 +759,42 @@ class GeoAppResource(girder.api.rest.Resource):
         self.route('GET', ('tiles', ':tilename', ':wc1', ':wc2', ':wc3'),
                    self.gridTiles)
         config = girder.utility.config.getConfig()
-        for attrKey, confKey in [
+        accessKeys = [
             ('taxiAccess', 'taxidata'),
             ('instagramAccess', 'instagramdata')
-        ]:
+        ]
+        for datakey in config.get('datasets', {}):
+            datainfo = config['datasets'].get(datakey, {})
+            if 'sortkey' not in datainfo:
+                datainfo['sortkey'] = '_id'
+            if 'rest' in datainfo:
+                route = (datainfo['rest'], )
+                if datainfo['class'] == 'findData':
+                    name = 'findData_' + datainfo['rest']
+                    fieldTable = datainfo['fields'] = collections.OrderedDict(
+                        datainfo['fields'])
+                    globals()[datainfo['rest'] + '_FieldTable'] = fieldTable
+                    setattr(self, name, wrap_findData(self, datainfo))
+                    getattr(self, name).description = findGeneralDescription(
+                        'Get a set of %s data.' % datainfo['rest'],
+                        datainfo['sortkey'], fieldTable, 'mongo')
+                    datainfo['class'] = name
+                handler = getattr(self, datainfo['class'], None)
+                if handler is None:
+                    continue
+                present = None
+                for i in range(len(self._routes['GET'][len(route)])):
+                    if self._routes['GET'][len(route)][i][0] == route:
+                        present = self._routes['GET'][len(route)][i][1]
+                if present == handler:
+                    continue
+                if present:
+                    self.removeRoute('GET', route, present)
+                self.route('GET', route, handler)
+                accessKey = datainfo['rest'] + 'Access'
+                accessKeys.append((accessKey, datakey))
+
+        for attrKey, confKey in accessKeys:
             accessDict = {}
             for key in config.get(confKey, {}):
                 db = config[confKey][key]
@@ -773,6 +955,13 @@ class GeoAppResource(girder.api.rest.Resource):
                 'remote_ip': cherrypy.request.remote.ip,
             }
         return metadata
+
+    @access.public
+    def findData(self, params={}, datainfo={}):
+        return self.findGeneral(
+            params, datainfo['sortkey'], datainfo['fields'],
+            getattr(self, datainfo['rest'] + 'Access'), 'mongo',
+            queryBase=datainfo['rest'])
 
     @access.public
     def findInstagram(self, params):

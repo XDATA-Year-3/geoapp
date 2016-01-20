@@ -60,6 +60,8 @@
       display inherit
   .animate-spin
     animation spin 3s infinite linear
+  .hidden>.animate-spin
+    animation none
   .poll-load,.delayed-load
     animation finalpulse 10s infinite linear
   .ga-loading-spinner
@@ -118,16 +120,20 @@
     width 290px
   #ga-tile-opacity-ctl,#ga-data-opacity-ctl,#ga-inst-opacity-ctl
     width 25px
-  #ga-display-num-bins-ctl
+  [id^="ga-slider-ctl-bins-"],#ga-display-num-bins-ctl
     width 52px
   .ga-slider-label
     padding-right 1px
-  #ga-data-trips-ctl,#ga-display-max-points-ctl,#ga-display-max-lines-ctl,#ga-inst-data-grams-ctl,#ga-display-max-msg-points-ctl
+    max-width 80px
+    text-align right
+    vertical-align middle
+    line-height 1.2em
+  [id^="ga-slider-ctl-points-"],[id^="ga-slider-ctl-lines-"]
     width 56px
   #ga-display-max-points-group,#ga-display-max-lines-group,#ga-display-max-msg-points-group
     .slider
       height 26px
-  #ga-data-opacity-group label
+  [id$="-opacity-group"] label
     padding-left 10px
   .ga-loading-spinner.hidden
     visibility hidden !important
@@ -215,10 +221,10 @@
     opacity 0.95
   &.legend-messages-old i
     color #800
-  &.taxi-binned i
+  &.ga-legend-binned i
     font-size 14px
     opacity 1
-  &.taxi-binned.faint i
+  &.ga-legend-binned.faint i
     opacity 0.25
   .legend-vector
     display inline-block
@@ -366,3 +372,6 @@
 
 #g-dialog-container.fade
     transition-duration 0.05s
+.ga-control-search
+  min-width 100px
+  text-align right

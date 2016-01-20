@@ -73,8 +73,11 @@ class GeoAppRoot(object):
                 val = json.dumps(val)
             vars['iniSettings'] += '%s=\'%s\' ' % (
                 key, xml.sax.saxutils.escape(val))
+        datasets = {'taxidata': True, 'instagramdata': True}
+        datasets.update(config.get('datasets', {}))
+        datasrcList = [key for key in datasets if datasets[key]]
         data = {}
-        for dbtype in ('taxidata', 'instagramdata'):
+        for dbtype in datasrcList:
             datalist = []
             for key in config.get(dbtype, {}):
                 db = config[dbtype][key]

@@ -277,9 +277,9 @@ geoapp.Graph = function (arg) {
         this.graphOpts[position].scatterDate = scatterDate;
         spec.tooltip.format.title = function (value) {
             var binFormat = {
-                'month': '%b',
-                'week': '%b %-d',
-                'day': '%a %b %-d',
+                'month': '%b %Y',
+                'week': '%b %-d %Y',
+                'day': '%a %b %-d %Y',
                 'hour': '%a %b %-d %-H:%M'
             };
             return d3.time.format.utc(binFormat[opts.bin])(value);

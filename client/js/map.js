@@ -121,7 +121,7 @@ geoapp.Map = function (arg) {
                 ]
             });
             hammer.get('pinch').set({enable: true});
-            hammer.on('panstart panmove panend pancancel', this.panEvent);
+            // hammer.on('panstart panmove panend pancancel', this.panEvent);
             hammer.on('pinchstart pinchmove pinchend', this.pinchEvent);
         }
         this.updateMapParams(datakey, params, 'always');
@@ -548,7 +548,9 @@ geoapp.Map = function (arg) {
             month: {format: 'DD HH:mm'},
             week: {
                 format: 'ddd HH:mm',
-                start: moment.utc(geoapp.defaults.startDate).day(0)
+                start: function (date) {
+                    return moment.utc(date).day(0);
+                }
             },
             day: {format: 'HH:mm'},
             hour: {format: 'mm:ss'}
@@ -566,11 +568,13 @@ geoapp.Map = function (arg) {
         if (!units[cycle]) {
             cycle = 'none';
         }
-        start = units[cycle].start || moment.utc(geoapp.defaults.startDate);
+        var curRange = this.getCycleDateRange(start, true);
+        start = curRange.start;
+        if (units[cycle].start) {
+            start = units[cycle].start(start);
+        }
         range = moment.duration(1, cycle);
         if (cycle === 'none') {
-            var curRange = this.getCycleDateRange(start, true);
-            start = curRange.start;
             end = curRange.end;
             /* Intersect this with the graph cycle range */
             if (m_cycleDateRange_subRange && m_cycleDateRange_subRange[0] &&
@@ -581,7 +585,7 @@ geoapp.Map = function (arg) {
                     m_cycleDateRange_subRange[1] < end) {
                 end = moment.utc(m_cycleDateRange_subRange[1]);
             }
-            /* The range is based on the totla duration */
+            /* The range is based on the total duration */
             range = moment.duration(moment.utc(end) - moment.utc(start));
         }
         steps = parseInt(options['cycle-steps'] || 1);
