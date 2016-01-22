@@ -72,7 +72,8 @@ class GeoAppRoot(object):
             if not isinstance(val, basestring):
                 val = json.dumps(val)
             vars['iniSettings'] += '%s=\'%s\' ' % (
-                key, xml.sax.saxutils.escape(val))
+                key, xml.sax.saxutils.escape(val, {
+                    '"': '&quot;', '\'': '&apos;'}))
         datasets = {'taxidata': True, 'instagramdata': True}
         datasets.update(config.get('datasets', {}))
         datasrcList = [key for key in datasets if datasets[key]]
