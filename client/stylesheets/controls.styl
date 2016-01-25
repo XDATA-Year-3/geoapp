@@ -372,6 +372,23 @@
 
 #g-dialog-container.fade
     transition-duration 0.05s
-.ga-control-search
+.ga-control-search,.ga-control-combobox
   min-width 100px
   text-align right
+.combobox-container
+  display inline-block
+  vertical-align middle
+  .dropdown-toggle
+    width 23px
+    padding 0 4px 0 4px
+  .dropdown-menu
+    font-size 12px
+    margin 0
+    padding 2px 0
+    min-width 183px
+  .dropdown-menu>li>a
+    padding 2px 3px
+.ga-main-ui input.input-sm[taxitype="search"]
+  width 160px
+.ga-main-ui .combobox-container input.input-sm
+  width 160px

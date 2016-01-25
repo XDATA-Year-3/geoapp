@@ -3,7 +3,7 @@
   name : user visible name to show (e.g., 'trip')
   names : user visible plural name to show (e.g., 'trips')
   capname : user visible capitalized name to show (e.g., 'Trip')
-  capnames : user visible capitalized plural name to show (e.g., 'Trips') 
+  capnames : user visible capitalized plural name to show (e.g., 'Trips')
   title : title shown on the layer panel
   description : a description for the panel
   showSource : a boolean
@@ -12,10 +12,10 @@
              contains:
     key : control key
     name : name of the control
-    description : tooltip (optional)
+    title : tooltip (optional)
     placeholder : placeholder for the text
-    type : one of boolean, dateRange, float, floatRange, int, intRange, or
-           other 
+    type : one of search, text, boolean, dateRange, float, floatRange, int,
+           intRange, combobox, other
 include standardPanel.jade
 +standardPanel('ga-'+key+'-settings-panel', 'ga-'+key+'-settings',
     title, description, key)
@@ -23,14 +23,23 @@ include standardPanel.jade
     .form-group(class=(showSource ? '' : 'hidden'))
       label(for="ga-"+key+"-source") Data Source
       select.form-control.input-sm(title="Database "+names+" source",
-          taxifield=key+"_source", id="ga-"+key+"-source") 
+          taxifield=key+"_source", id="ga-"+key+"-source")
       //- the database source options are dynamically set in controls.js
     each ctl in controls
       .form-group(title=ctl.title)
         label(for="ga-"+key+"-"+ctl.key, class="ga-control-"+ctl.type) #{ctl.name}
-        input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
-          type="text", placeholder=ctl.placeholder, title=ctl.description,
-          taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
+        if ctl.type === 'combobox'
+          select.combobox.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
+              type="text", placeholder=ctl.placeholder, title=ctl.description,
+              taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
+            option
+            option(value="__blank__") &lt; All &gt;
+            each opt in ctl.options
+              option(value=opt.value) #{opt.text}
+        else
+          input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
+              type="text", placeholder=ctl.placeholder, title=ctl.description,
+              taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
     .form-group
       button.btn.btn-default.btn-sm(id="ga-"+key+"-filter",
           title="Load "+names+" from the database")
