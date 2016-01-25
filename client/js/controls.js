@@ -192,6 +192,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
      *                  the different control groups.
      */
     initialize: function (settings) {
+        var view = this;
+
         geoapp.map.parentView = this;
         this.initialSettings = settings;
         girder.cancelRestRequests('fetch');
@@ -220,6 +222,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
         geoapp.graph.initialize(this);
         $('[title]').tooltip(geoapp.defaults.tooltip);
         this.finalizeInit(settings, 0);
+        window.setTimeout(function () {
+            geoapp.showIntroduction(view, view.renderNeededUpdate);
+        }, 1);
     },
 
     /* Finish initializing or reinitializing the view.
@@ -279,6 +284,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
+        view.updateView(false, 'display');
         view.finalizeInit(settings, 1000);
     },
 
@@ -344,6 +350,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 }
             });
             var update = (view.firstRender === 'update');
+            view.renderNeededUpdate = false;
             if (view.initialSettings && !view.usedInitialSettings) {
                 var settings = view.initialSettings;
                 view.usedInitialSettings = true;
@@ -356,6 +363,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                         if (value !== '' && value !== undefined) {
                             view.setControlValue(baseSelector + id, value);
                             update = true;
+                            view.renderNeededUpdate = true;
                         }
                     });
                 });
