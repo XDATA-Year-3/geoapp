@@ -284,6 +284,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             });
         });
         view.updateView(false, update);
+        view.updateView(false, 'display');
         view.finalizeInit(settings, 1000);
     },
 
