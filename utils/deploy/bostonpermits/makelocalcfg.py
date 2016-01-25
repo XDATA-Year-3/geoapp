@@ -32,7 +32,19 @@ defaultEndDate: "2016-01-01"
 initialload: True
 
 # fields are the comma-separated fields loaded into javascript
-panels: [{"key":"permit", "name":"permit", "names":"permits", "capname":"Permit", "capnames":"Permits", "title":"Boston Permits", "description":"Building permits in Boston", "controls":[{"key":"comments_search", "type":"search", "name": "Comments"}, {"key":"permittypedescr_search", "type":"search", "name": "Permit Type"}, {"key":"occupancytype_search", "type":"search", "name": "Occupancy Type"}, {"key":"description_search", "type":"search", "name": "Description"}], "fields":"date,latitude,longitude", "color": "#d62728"}, {"key":"crime", "name":"crime", "names":"crimes", "capname":"Crime", "capnames":"Crimes", "title":"Boston Crimes", "description":"Crimes in Boston", "controls":[{"key":"category_search", "type":"search", "name": "Category"}], "fields":"date,latitude,longitude,category", "color": "#2ca02c"}, {"key":"violation", "name":"violation", "names":"violations", "capname":"Violation", "capnames":"Violations", "title":"Boston Violations", "description":"Violations in Boston", "controls":[{"key":"category_search", "type":"search", "name": "Category"}], "fields":"date,latitude,longitude,category", "color": "#1f77b4"}]
+panels: [
+  {"key":"permit", "name":"permit", "names":"permits", "capname":"Permit", "capnames":"Permits", "title":"Boston Permits", "description":"Building permits in Boston", "controls":[
+    {"key":"comments_search", "type":"search", "name": "Comments", "title": "Comments are a free-entry text field, and contain a wide range of values."},
+    {"key":"permittypedescr_search", "type":"search", "name": "Permit Type", "title": "Permit types include: Short Form, Electrical, Plumbing, Gas, Low Voltage, Long Form/Alteration, Fire Alarms, Certificate of Occupancy, Electrical Temporary Service, Excavation, Amendment, Erect/New Construction, Use of Premises, and Foundation"},
+    {"key":"occupancytype_search", "type":"search", "name": "Occupancy Type", "title": "Occupany types include: Comm, 1-<number>FAM, <number>Unit, Multi, Other, Mixed, 7More, VacLd.  The <number> is in range of 1-7."},
+    {"key":"description_search", "type":"search", "name": "Description", "title": "Common values include Electrical, Plumbing, Gas, Rennovations, Fire Alarm, Roofing, Low Voltage, Interior, Exterior, Insulation, Solar, Demolition, Signs, Siding"}
+  ], "fields":"date,latitude,longitude", "color": "#d62728"},
+  {"key":"crime", "name":"crime", "names":"crimes", "capname":"Crime", "capnames":"Crimes", "title":"Boston Crimes", "description":"Crimes in Boston", "controls":[
+    {"key":"category_search", "type":"search", "name": "Category"}
+  ], "fields":"date,latitude,longitude,category", "color": "#2ca02c"},
+  {"key":"violation", "name":"violation", "names":"violations", "capname":"Violation", "capnames":"Violations", "title":"Boston Violations", "description":"Violations in Boston", "controls":[
+    {"key":"category_search", "type":"search", "name": "Category"}
+  ], "fields":"date,latitude,longitude,category", "color": "#1f77b4"}]
 
 introduction: '''
   <p>Minerva Permits lets you explore permit, crime, and code violation data in Boston using data from the <a href="https://data.cityofboston.gov/" target="_blank">City of Boston</a>. Use the controls on the left to display points or a dynamically generated binned heatmap on the data, and to filter down your search to specific types of permits, crimes, or violations. The animation controls let you cycle through the queried data to view weekly or daily patterns.</p>
