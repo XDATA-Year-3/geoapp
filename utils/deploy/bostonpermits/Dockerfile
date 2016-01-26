@@ -73,6 +73,8 @@ RUN curl https://data.kitware.com/api/v1/file/559a77de8d777f649a9ba29f/download 
     curl https://data.kitware.com/api/v1/file/559bd8588d777f649a9ba2d0/download -o client/optional/static/vendorboston.json
 RUN curl https://data.kitware.com/api/v1/file/559d4c288d777f649a9ba2ed/download -o client/optional/static/taximodelboston.json
 RUN curl https://data.kitware.com/api/v1/file/569902c58d777f429eac9113/download -o client/optional/static/boston-census-permits.json
+RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
+    curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
 RUN npm install --production
 

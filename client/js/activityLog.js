@@ -518,7 +518,7 @@
         /* jshint -W055 */
         logger = new userale({
             loggingUrl: uri,
-            toolName: 'minerva',
+            toolName: $('body').attr('activitylogname') || 'minerva',
             toolVersion: geoapp.version,
             elementGroups: [
                 'main',
