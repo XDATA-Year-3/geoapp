@@ -30,8 +30,8 @@ before_install:
     - cd ..
 
 install:
-    - curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js
-    - curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
+    - curl 'https://raw.githubusercontent.com/draperlaboratory/user-ale/master/userale.js' -o client/optional/js/userale.js
+    - curl 'https://raw.githubusercontent.com/draperlaboratory/user-ale/master/userale-worker.js' -o client/optional/static/userale-worker.js
     
     - pip install --user -r requirements.txt -r requirements-dev.txt
     - export PATH=$PATH:~/.local/bin
