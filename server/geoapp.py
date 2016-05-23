@@ -593,6 +593,7 @@ class DataViaMongo():
                 value = self.getParamValue(field, params[field + '_search'])
                 findParam.setdefault(field, {})
                 if isinstance(findParam[field], dict):
+                    logger.info('Search field %r', value)
                     findParam[field] = re.compile(value, re.IGNORECASE)
         query = {}
         for key in findParam:

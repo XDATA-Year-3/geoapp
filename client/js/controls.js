@@ -98,7 +98,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         'slideStop #ga-step-slider': function (evt) {
             this.animationAction('jump', evt.value);
         },
-        'change .ga-filter-controls input[type="text"]:visible,.ga-filter-controls select:visible,.ga-filter-controls input[type="checkbox"],.ga-filter-controls input[type="text"][data-slider-value]': function (evt) {
+        'change .ga-filter-controls input[type="text"]:visible,.ga-filter-controls select:visible,.ga-filter-controls input[type="checkbox"],.ga-filter-controls input[type="text"][data-slider-value],.ga-filter-controls .combobox': function (evt) {
             var sec = $(evt.target).closest('[ga-section-name]').attr('ga-section-name');
             $('#ga-' + sec + '-filter').addClass('btn-primary');
         },
@@ -222,6 +222,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         geoapp.graph.initialize(this);
         $('[title]').tooltip(geoapp.defaults.tooltip);
         this.finalizeInit(settings, 0);
+        $('.combobox').combobox();
         window.setTimeout(function () {
             geoapp.showIntroduction(view, view.renderNeededUpdate);
         }, 1);
@@ -303,6 +304,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     elem.prop('checked', value === 'true');
                 }
                 return;
+            }
+            if ($('input.combobox', elem.parent()).length > 0) {
+                $('input.combobox', elem.parent()).val(value);
             }
             elem.val(value);
             if (elem.is('select') && elem.val() !== value &&
@@ -978,6 +982,17 @@ geoapp.views.ControlsView = geoapp.View.extend({
             case 'boolean':
                 params[field] = elem.is(':checked') ? true : false;
                 value = params[field];
+                break;
+            case 'combobox':
+                if (value === '') {
+                    value = $('input.combobox', elem.parent()).val();
+                }
+                if (value === '__blank__') {
+                    value = '';
+                }
+                if (value !== null && value !== undefined && value.length > 0) {
+                    params[field] = value;
+                }
                 break;
             case 'dateRange':
                 this.getDateRange(elem, params, field);

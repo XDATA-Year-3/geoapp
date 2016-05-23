@@ -44,6 +44,7 @@
     "phantomjs": "~1.9"
   },
   "scripts": {
-    "postinstall": "grunt init && grunt"
+    "postinstall": "grunt init default",
+    "build": "grunt init default"
   }
 }

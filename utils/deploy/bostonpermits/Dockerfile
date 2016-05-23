@@ -55,7 +55,7 @@ RUN git config --global url."https://".insteadOf git://
 
 RUN git clone git://github.com/XDATA-Year-3/geoapp.git && \
     cd geoapp && \
-    git checkout f55d6c2711a8fa355fb64dcf3a0baad1cdc7f2b2 && \
+    git checkout 53e07b3a362e154984e9eba2329c49e532cbacee && \
     git reset --hard
 WORKDIR /home/kwuser/geoapp
 ENV PATH $PATH:/home/kwuser/.local/bin
@@ -73,6 +73,8 @@ RUN curl https://data.kitware.com/api/v1/file/559a77de8d777f649a9ba29f/download 
     curl https://data.kitware.com/api/v1/file/559bd8588d777f649a9ba2d0/download -o client/optional/static/vendorboston.json
 RUN curl https://data.kitware.com/api/v1/file/559d4c288d777f649a9ba2ed/download -o client/optional/static/taximodelboston.json
 RUN curl https://data.kitware.com/api/v1/file/569902c58d777f429eac9113/download -o client/optional/static/boston-census-permits.json
+RUN curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale.js -o client/optional/js/userale.js && \
+    curl https://raw.githubusercontent.com/draperlaboratory/user-ale/master/helper-libs/javascript/userale-worker.js -o client/optional/static/userale-worker.js
 
 RUN npm install --production
 

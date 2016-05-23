@@ -129,7 +129,9 @@ module.exports = function (grunt) {
                         /* daterangepicker */
                         'node_modules/daterangepicker/daterangepicker-bs3.css',
                         /* bootstrap-slider */
-                        'node_modules/bootstrap-slider/dist/css/bootstrap-slider.css'
+                        'node_modules/bootstrap-slider/dist/css/bootstrap-slider.css',
+                        /* bootstrap-combobox */
+                        'client/lib/bootstrap-combobox.css'
                     ]
                 }
             }
@@ -254,6 +256,13 @@ module.exports = function (grunt) {
                         'node_modules/daterangepicker/daterangepicker.js',
                         /* bootstrap-slider */
                         'node_modules/bootstrap-slider/js/bootstrap-slider.js',
+                        /* bootstrap-combobox - downloaded from
+                         * https://github.com/RLHawk1/bootstrap-combobox,
+                         * because the official bower repositiory is lacking
+                         * the critical feature of allowing free-text
+                         * values. */
+                        'client/lib/bootstrap-combobox.js',
+                        /* Our version record */
                         'built/geoapplib-version.js',
                         /* Sortable */
                         'node_modules/sortablejs/Sortable.js',
