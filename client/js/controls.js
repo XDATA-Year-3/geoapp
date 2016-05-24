@@ -109,7 +109,11 @@ geoapp.views.ControlsView = geoapp.View.extend({
             $('#ga-anim-update').addClass('btn-primary');
         },
         'click #ga-instagram-results-sort': function () {
-            geoapp.dataLoaders.instagram.sortOrder('toggle');
+            $.each(geoapp.dataLoaders, function (key) {
+                if (geoapp.dataLoaders[key].sortOrder) {
+                    geoapp.dataLoaders[key].sortOrder('toggle');
+                }
+            });
         },
         'keydown .ga-filter-controls input[type="text"]': function (evt) {
             if (evt.which === 13) {
@@ -241,8 +245,10 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (!$.isEmptyObject(bounds)) {
             geoapp.map.fitBounds(bounds, speed);
         }
-        geoapp.dataLoaders.instagram.routeSettings(
-            geoapp.getQuerySection(settings, 'results'));
+        if (geoapp.dataHandlers.instagram) {
+            geoapp.dataLoaders.instagram.routeSettings(
+                geoapp.getQuerySection(settings, 'results'));
+        }
         geoapp.graph.graphsFromNavigation(
             geoapp.getQuerySection(settings, 'graph'));
         var panels = geoapp.getQuerySection(settings, 'panels');
@@ -421,7 +427,9 @@ geoapp.views.ControlsView = geoapp.View.extend({
                     'all', view.updateSection('display', false));
                 /* Make sure our layers are created in the desired order */
                 geoapp.map.getLayer('taxi');
-                geoapp.map.getLayer('instagram');
+                if (geoapp.dataHandlers.instagram) {
+                    geoapp.map.getLayer('instagram');
+                }
                 /* Add the place buttons */
                 _.each(geoapp.placeOrder, function (placeKey) {
                     var button = $('#ga-place-template').clone();

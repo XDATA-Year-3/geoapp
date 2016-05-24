@@ -6,8 +6,11 @@
   capnames : user visible capitalized plural name to show (e.g., 'Trips')
   title : title shown on the layer panel
   description : a description for the panel
-  showSource : a boolean
+  showSource : a boolean.  Show the source selector if true
+  checkSource : a boolean.  Show check boxes for sources if true
   color : a color for the legend
+  recent.pointColor : recent point color
+  recent.oldPointColor : old point color
   controls : a list of objects of which controls to expose.  Each item
              contains:
     key : control key
@@ -40,6 +43,9 @@ include standardPanel.jade
           input.form-control.input-sm(id="ga-"+key+"-"+ctl.key,
               type="text", placeholder=ctl.placeholder, title=ctl.description,
               taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
+    if (checkSource)
+      .form-group(title="Data Sources", logid="ga-"+key+"-checksource")
+      //- the database source options are dynamically set in controls.js
     .form-group
       button.btn.btn-default.btn-sm(id="ga-"+key+"-filter",
           title="Load "+names+" from the database")
@@ -107,6 +113,13 @@ include standardPanel.jade
       .ga-legend-item.hidden(class="legend-"+key+" "+key+"-raw")
         i.icon-circle(style="color:"+color)
         | #{capname}
+      if (recent && recent.pointColor && recent.oldPointColor)
+        .ga-legend-item.legend-item-new.hidden(class="legend-"+key+" "+key+"-raw")
+          i.icon-circle(style="color:"+recent.pointColor)
+          | Recent #{capname}
+        .ga-legend-item.legend-item-old.hidden(class="legend-"+key+" "+key+"-raw")
+          i.icon-circle(style="color:"+recent.oldPointColor)
+          | Older #{capname}
       .ga-legend-item.ga-legend-binned.hidden(class="legend-"+key+" "+key+"-binned")
         i.icon-stop(style="color:"+color)
         | Many #{capnames}

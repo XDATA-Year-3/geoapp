@@ -43,7 +43,7 @@ geoapp.mapLayers.instagram = function (map, arg) {
         m_strokeColor = geo.util.convertColor(m_strokeColorStr),
 
         /* If both recentPointCount and recentPointTime are falsy, no recent
-         * poinr highlighting is performed.  Otherwise, recentPointCount is
+         * point highlighting is performed.  Otherwise, recentPointCount is
          * used in preference to recentPointTime.  When used, points are drawn
          * in pointColor and with the opacity multiplied by recentOpacityBoost
          * for the number of recent points or duration of the recent time.  The

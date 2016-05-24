@@ -13,6 +13,8 @@
  *  limitations under the License.
  */
 
+/* globals geoapp, inherit, moment */
+
 geoapp.dataHandlers = {};
 
 geoapp.DataHandler = function (arg) {
@@ -153,12 +155,10 @@ geoapp.DataHandler = function (arg) {
         } else if (options.data.maxid && options.data.columns &&
                 options.data.columns._id !== undefined) {
             options.data.loadFactor = (
-                (options.data.data[options.data.datacount - 1][
-                options.data.columns._id] + 1) / (options.data.maxid + 1));
+                (options.data.data[options.data.datacount - 1][options.data.columns._id] + 1) / (options.data.maxid + 1));
         } else if (options.data.columns &&
                 options.data.columns.rand1 !== undefined) {
-            options.data.loadFactor = options.data.data[
-                options.data.datacount - 1][options.data.columns.rand1] *
+            options.data.loadFactor = options.data.data[options.data.datacount - 1][options.data.columns.rand1] *
                 0.000000001;
         }
         showfunc.call(this, options);
@@ -565,8 +565,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         options.params.offset = 0;
         delete options.params._id_max;
         if (moreData) {
-            options.params.rand1_max = options.data.data[
-                options.data.data.length - 1][options.data.columns.rand1] + 1;
+            options.params.rand1_max = options.data.data[options.data.data.length - 1][options.data.columns.rand1] + 1;
         }
         options.params.poll = parseFloat(options.poll);
         /* We might want this to be configurable, since the initwait is the
@@ -819,8 +818,7 @@ geoapp.dataHandlers.instagram = function (arg) {
         if ($.inArray(newOrder, m_sortOrderList) < 0) {
             /* If the specified value isn't in our list, cycle through the
              * valid values. */
-            newOrder = m_sortOrderList[($.inArray(
-                m_sortOrder, m_sortOrderList) + 1) % m_sortOrderList.length];
+            newOrder = m_sortOrderList[($.inArray(m_sortOrder, m_sortOrderList) + 1) % m_sortOrderList.length];
         }
         if (newOrder !== m_sortOrder) {
             m_sortOrder = newOrder;
@@ -837,20 +835,254 @@ inherit(geoapp.dataHandlers.instagram, geoapp.DataHandler);
 
 /* -------- generic data handler -------- */
 
+/* Add in handlers and controls for a results table.  This is used for
+ * instagram-like messages.
+ *
+ * @param m_this: the parent data handler class instance.
+ * @param m_datakey: the name of the data handler.
+ * @param datainfo: the original data specification.
+ * @param m_date: the name of the date column.
+ */
+function addResultsTable(m_this, m_datakey, datainfo, m_date) {
+    var m_sortOrder = 'raw',
+        m_sortedIndices,
+        m_sortOrderList = ['raw', 'date', 'date-desc'],
+        m_sortOrderIcons = ['sort', 'sort-down', 'sort-up'],
+        m_lastResultsTableInit = 0,
+        m_lastResultsTableCallNumber;
+
+    geoapp.events.on('ga:dataVisibility.' + m_datakey, function (params) {
+        if (params.visDate >= m_lastResultsTableInit) {
+            if (params.length) {
+                m_this.resultsTableInit(true);
+            } else {
+                if (!$(datainfo.results_id + '-panel').hasClass('hidden')) {
+                    geoapp.activityLog.logSystem(
+                        'results_table_hide', 'datahandler', {});
+                    $(datainfo.results_id + '-panel').addClass('hidden');
+                }
+            }
+        }
+    });
+
+    /* Initialize the results table, clearing any old results.
+     *
+     * @param always: if true, always initialize the table.  If false, only do
+     *                so if the table is currently shown.
+     */
+    m_this.resultsTableInit = function (always) {
+        if (!always && $(datainfo.results_id + '-panel').hasClass('hidden')) {
+            return;
+        }
+        var oldScroll, oldRows;
+        if (m_lastResultsTableCallNumber) {
+            oldScroll = $(datainfo.results_id + '-table .results-table').scrollTop();
+            if (oldScroll) {
+                var rows = $(datainfo.results_id + '-table tr[item]');
+                oldRows = rows.length;
+                var parentRect = $(datainfo.results_id + '-table').closest(
+                    '.al-scroller')[0].getBoundingClientRect();
+                for (var row = 0; row < oldRows; row += 100) {
+                    if (rows[row].getBoundingClientRect().top >
+                            parentRect.bottom) {
+                        oldRows = row;
+                        break;
+                    }
+                }
+            }
+        }
+        m_lastResultsTableInit = new Date().getTime();
+        m_sortedIndices = null;
+        var settings = m_this.routeSettings();
+        if (settings && settings[m_datakey + '-table-sort']) {
+            if ($.inArray(settings[m_datakey + '-table-sort'],
+                          m_sortOrderList) >= 0) {
+                m_sortOrder = settings[m_datakey + '-table-sort'];
+            }
+        }
+        var icon = $(datainfo.results_id + '-sort i');
+        for (var i = 0; i < m_sortOrderIcons.length; i += 1) {
+            icon.toggleClass('icon-' + m_sortOrderIcons[i],
+                             m_sortOrder === m_sortOrderList[i]);
+        }
+        $(datainfo.results_id + '-panel').removeClass('hidden');
+        $(datainfo.results_id + '-table tr:has(td)').remove();
+        $(datainfo.results_id + ' .results-table').scrollTop(0);
+        if (m_this.resultsTable(oldRows, oldScroll)) {
+            geoapp.infiniteScroll(datainfo.results_id + ' .results-table',
+                                  m_this.resultsTable, m_this);
+        }
+    };
+
+    /* Append rows to the results table.
+     *
+     * @param oldRows: if defined, make sure at least this many rows are shown.
+     * @param oldScroll: if defined, scroll to this point after adding rows.
+     * @return: true if there is more data. */
+    m_this.resultsTable = function (oldRows, oldScroll) {
+        var table = $(datainfo.results_id + '-table'),
+            page = Math.max(100, oldRows || 0),
+            layer = geoapp.map.getLayer(m_this.datakey),
+            data = layer.data(true),
+            moreData = false;
+        if (!data || !data.data || !data.data.length) {
+            return moreData;
+        }
+        var current = $('tr[item]', table).length,
+            date_column = data.columns[m_date],
+            caption_column = data.columns.msg,
+            url_column = data.columns.url,
+            dataIndices = [],
+            i, item;
+        $('.ga-more-results', table).remove();
+        switch (m_sortOrder) {
+            case 'date': case 'date-desc':
+                if (!m_sortedIndices) {
+                    m_sortedIndices = [];
+                    for (i = 0; i < data.data.length; i += 1) {
+                        m_sortedIndices.push(i);
+                    }
+                    m_sortedIndices.sort(function (a, b) {
+                        a = data.data[a];
+                        b = data.data[b];
+                        if (a[date_column] !== b[date_column]) {
+                            return a[date_column] - b[date_column];
+                        }
+                        return b[caption_column] < a[caption_column] ? 1 : -1;
+                    });
+                    if (m_sortOrder === 'date-desc') {
+                        m_sortedIndices.reverse();
+                    }
+                }
+                dataIndices = m_sortedIndices.slice(current, current + page);
+                break;
+            default:
+                if (data.sortedIndices) {
+                    dataIndices = data.sortedIndices.slice(current,
+                                                           current + page);
+                } else {
+                    for (i = current; i < data.data.length && i < current + page;
+                            i += 1) {
+                        dataIndices.push(i);
+                    }
+                }
+                break;
+        }
+        /* We may want to apply another filter to the data here */
+        for (i = 0; i < dataIndices.length; i += 1) {
+            item = data.data[dataIndices[i]];
+            table.append($('<tr/>')
+                .attr({
+                    item: dataIndices[i],
+                    url: item[url_column]
+                })
+                .append($('<td/>').text(moment(item[date_column])
+                    .utcOffset(0).format('MMM D HH:mm')))
+                .append($('<td/>').text(item[caption_column]))
+                /* Don't add a tooltip, since we pop up the photo elsewhere */
+            );
+        }
+        geoapp.activityLog.logSystem(
+            !current ? 'results_table' : 'results_table_add', 'datahandler', {});
+        if (current + page < data.data.length) {
+            moreData = true;
+            table.append($('<tr/>').attr({
+                class: 'ga-more-results'
+            }).append($('<td/>').attr({
+                colspan: 2
+            }).text('More ...')));
+        }
+        /* If hovering over a row, show the relevant point */
+        $('tr', table).off('.' + m_datakey + '-table'
+        ).on('mouseleave.' + m_datakey + '-table', function () {
+            if (!layer.persistentCurrentPoint()) {
+                layer.currentPoint(null);
+            }
+        }).on('click.' + m_datakey + '-table mouseenter.' + m_datakey + '-table',
+            m_this.resultsTableHighlight
+        );
+        if (oldScroll) {
+            $(datainfo.results_id + ' .results-table').scrollTop(oldScroll);
+        }
+        return moreData;
+    };
+
+    /* Highlight the hovered over row.
+     *
+     * @param evt: the event that triggered this call.
+     */
+    m_this.resultsTableHighlight = function (evt) {
+        var layer = geoapp.map.getLayer(m_this.datakey),
+            idx = $(evt.currentTarget).attr('item'),
+            isClick = evt.type === 'click';
+        if (idx === '' || idx === undefined) {
+            idx = null;
+        }
+        if (isClick) {
+            layer.persistentCurrentPoint(idx, 'table');
+        } else {
+            if (layer.persistentCurrentPoint()) {
+                return;
+            }
+        }
+        layer.currentPoint(idx, isClick, isClick, 'table');
+    };
+
+    /* Get, set, or toggle the sort of the main table between unsorted, date
+     * ascending, and date descending.
+     *
+     * @param newOrder: undefined to get the current sort order.  'toggle' to
+     *                  cycle through the various options.  Otherwise, one of
+     *                  m_sortOrderList[].
+     */
+    m_this.sortOrder = function (newOrder) {
+        if (newOrder === undefined) {
+            return m_sortOrder;
+        }
+        if ($.inArray(newOrder, m_sortOrderList) < 0) {
+            /* If the specified value isn't in our list, cycle through the
+             * valid values. */
+            newOrder = m_sortOrderList[($.inArray(m_sortOrder, m_sortOrderList) + 1) % m_sortOrderList.length];
+        }
+        if (newOrder !== m_sortOrder) {
+            m_sortOrder = newOrder;
+            var settings = {};
+            settings[m_datakey + '-table-sort'] = m_sortOrder;
+            geoapp.updateNavigation(
+                undefined, 'results', settings, true);
+            m_this.resultsTableInit();
+        }
+        return m_sortOrder;
+    };
+
+    /* Set the call number so we know if we need to update the whole table or
+     * not.
+     *
+     * @param callNumber: the most recent call number.
+     */
+    m_this.setResultsCallNumber = function (callNumber) {
+        m_lastResultsTableCallNumber = callNumber;
+    };
+}
+
 geoapp.addDataHandler = function (datainfo) {
     geoapp.dataHandlers[datainfo.key] = function (arg) {
         'use strict';
         var m_datakey = datainfo.key;
-        var m_date = datainfo.datekey || 'date';
 
         if (!(this instanceof geoapp.dataHandlers[m_datakey])) {
             return new geoapp.dataHandlers[m_datakey](arg);
         }
+
+        var m_date = datainfo.datekey || 'date',
+            m_this = this;
+
         arg = arg || {};
         geoapp.DataHandler.call(this, arg);
 
         this.datakey = m_datakey;
         this.loadingElement = '#ga-' + m_datakey + '-loading';
+        this.equalKeys = datainfo.equalKeys;
 
         /* Replace or add to the data used for the current map.
          *
@@ -859,6 +1091,9 @@ geoapp.addDataHandler = function (datainfo) {
          *                  setupRequestOptions for more details.
          */
         this.dataLoad = function (options) {
+            if (this.equalKeys) {
+                this.generalizeParameters(options, this.equalKeys);
+            }
             this.setupRequestOptions(options, m_datakey, (
                 options.params['max_field_' + m_datakey] ||
                 this.maximumDataPoints ||
@@ -870,24 +1105,52 @@ geoapp.addDataHandler = function (datainfo) {
             }
             $.each(options.params, function (key, val) {
                 if (key.startsWith(m_datakey + '_field_')) {
-                    options.params[key.substr(
-                        (m_datakey + '_field_').length)] = val;
+                    options.params[key.substr((m_datakey + '_field_').length)] = val;
                 }
             });
+            if (this.restartPollTimer) {
+                /* Cancel a poll-restart timer */
+                window.clearTimeout(this.restartPollTimer);
+                delete this.restartPollTimer;
+            }
             geoapp.cancelRestRequests(m_datakey + 'data');
-            this.loadingAnimation(!options.params.offset ? 'first' : 'second');
+            if (!options.updateFromPoll) {
+                this.loadingAnimation(!options.params.offset ? 'first' : 'second');
+            } else {
+                this.loadingAnimation(
+                    options.updateFromPoll === true ? 'poll' : 'delayed');
+            }
             options.params.clientid = geoapp.clientID;
             var xhr = geoapp.restRequest({
                 path: 'geoapp/' + m_datakey, type: 'GET', data: options.params
             }).done(_.bind(function (resp) {
+                if (m_this.equalKeys) {
+                    _.each(m_this.equalKeys, function (key1, key2) {
+                        if (resp.columns[key1] === undefined) {
+                            resp.columns[key1] = resp.columns[key2];
+                        }
+                        if (resp.columns[key2] === undefined) {
+                            resp.columns[key2] = resp.columns[key1];
+                        }
+                    });
+                }
+                if (resp.nextId && !options.params._id_max &&
+                        !options.updateFromPoll) {
+                    options.params._id_max = resp.nextId;
+                }
                 this.processRequestData(options, resp, this.dataShow,
                                         this.dataLoaded);
             }, this)).error(_.bind(function () {
                 if (xhr.statusText !== 'abort') {
-                    this.loadingAnimation(null);
-                    this.loadedMessage(
-                        '#ga-' + m_datakey + '-loaded', undefined, false,
-                        false, datainfo.name, datainfo.names);
+                    if (!options.updateFromPoll) {
+                        this.loadingAnimation(null);
+                        this.loadedMessage(
+                            '#ga-' + m_datakey + '-loaded', undefined, false,
+                            false, datainfo.name, datainfo.names);
+                    } else {
+                        /* If polling and we had an error, try to restart it. */
+                        this.pollRestart(options);
+                    }
                 }
             }, this));
             xhr.girder = {};
@@ -899,12 +1162,29 @@ geoapp.addDataHandler = function (datainfo) {
          * @param options: the request options.
          */
         this.dataShow = function (options) {
+            if (this.setResultsCallNumber) {
+                this.setResultsCallNumber(options.callNumber);
+            }
             var layer = geoapp.map.getLayer(this.datakey);
             layer.data(options.data);
             layer.setCycleDateRange(
                 options.params, m_date + '_min', m_date + '_max',
                 m_datakey);
+            options.display.callNumber = options.callNumber;
             geoapp.map.showMap(options.description, options.display);
+            if (datainfo.results_id) {
+                if (!options.data || !options.data.data ||
+                        !options.data.data.length) {
+                    if (!$(datainfo.results_id + '-panel').hasClass('hidden')) {
+                        geoapp.activityLog.logSystem(
+                            'results_table_hide', 'datahandler', {});
+                        $(datainfo.results_id + '-panel').addClass('hidden');
+                    }
+                    return;
+                }
+                var table = $(datainfo.results_id + '-panel');
+                table.attr('count', options.data.data.length);
+            }
         };
 
         /* Load more data or indicated that we are finished loading.
@@ -920,11 +1200,139 @@ geoapp.addDataHandler = function (datainfo) {
                 options.data.loadFactor);
             if (callNext) {
                 this.dataLoad(options);
+            } else if (options.poll && parseFloat(options.poll) > 0) {
+                this.pollMoreData(options, moreData);
             } else {
                 this.loadingAnimation(null);
             }
         };
+
+        /* Poll for more and changing data.
+         *
+         * @param options: the request options.
+         * @param moreData: true if more data is available.
+         */
+        this.pollMoreData = function (options, moreData) {
+            if (!options.maxcount || !options.data ||
+                    !options.data.nextId || !options.data.columns ||
+                    options.data.columns.rand1 === undefined) {
+                return;
+            }
+            options.params.limit = options.maxcount;
+            options.params._id_min = options.data.nextId;
+            options.params.offset = 0;
+            delete options.params._id_max;
+            if (moreData) {
+                options.params.rand1_max = options.data.data[options.data.data.length - 1][options.data.columns.rand1] + 1;
+            }
+            options.params.poll = parseFloat(options.poll);
+            /* We might want this to be configurable, since the initwait is
+             * the fastest update rate when data is coming in
+             * constantly. */
+            options.params.initwait = options.params.poll * 0.1;
+            /* We can make this a longer value, but it ties up cherrypy
+             * making it exhaust resources if too many queries are made. */
+            options.params.wait = 60;
+            options.updateFromPoll = true;
+            this.dataLoad(options);
+        };
+
+        /* If we had an error polling for more data, wait successively longer
+         * and longer times.  Each time try to requery the whole data.  Just
+         * reupdating won't always work (for instance, if the server bounced
+         * and was maintaining state).
+         *
+         * @param options: the request options. */
+        this.pollRestart = function (options) {
+            this.loadingAnimation('delayed');
+            if (options.updateFromPoll === true) {
+                options.updateFromPoll = Math.max(parseFloat(options.poll), 10);
+            } else {
+                options.updateFromPoll = Math.ceil(Math.min(
+                    options.updateFromPoll * 1.25, 900));
+            }
+            // wait the determined time, then requery
+            delete options.params._id_min;
+            delete options.params.poll;
+            delete options.params.initwait;
+            delete options.params.wait;
+            console.log('Failed to poll database.  Waiting ' +
+                options.updateFromPoll + ' seconds and trying again.');
+            this.restartPollTimer = window.setTimeout(function () {
+                m_this.dataLoad(options);
+            }, options.updateFromPoll * 1000);
+        };
+
+        /* Merge data from a polling cycle into the main data.  This adjusts
+         * the response to look like a general response and the options.data to
+         * include the new results.
+         *
+         * @param options: the request options.
+         * @param resp: the ajax response.
+         * @param newdata: true if there is new data.
+         */
+        this.mergeFromPoll = function (options, resp) {
+            /* Set the new _id_min so we don't requery more than we have
+             * to. */
+            options.params._id_min = options.data.nextId = resp.nextId;
+            /* If we didn't get any new data, keep polling */
+            if (!resp.datacount) {
+                this.pollMoreData(
+                    options, options.data.data.length >= options.maxcount);
+                return false;
+            }
+            /* Otherwise, merge the new data into the old, sort it by the
+             * random index, and delete any excess. */
+            $.merge(options.data.data, resp.data);
+            options.data.datacount += resp.datacount;
+            var col1 = options.data.columns.rand1,
+                col2 = options.data.columns.rand2;
+            options.data.data.sort(function (a, b) {
+                if (a[col1] !== b[col1]) {
+                    return parseInt(b[col1]) < parseInt(a[col1]) ? 1 : -1;
+                }
+                return parseInt(b[col2]) < parseInt(a[col2]) ? 1 : -1;
+            });
+            if (options.data.data.length > options.maxcount) {
+                options.data.data = options.data.data.slice(0, options.maxcount);
+                options.data.datacount = options.data.data.length;
+            }
+            resp.datacount = options.data.datacount;
+            return true;
+        };
+
+        if (datainfo.results_id) {
+            addResultsTable(this, m_datakey, datainfo, m_date);
+        }
     };
 
     inherit(geoapp.dataHandlers[datainfo.key], geoapp.DataHandler);
 };
+
+/* -------- instagram data handler -------- */
+
+// for now (May 2016), remove the instagram data handler.  This should only
+// be added if needed.
+delete geoapp.dataHandlers.instagram;
+
+/* The original class could be retired by replacing it with this:
+
+geoapp.addDataHandler({
+    key: 'instagram',
+    title: 'Messages - Twitter and Instagram',
+    name: 'message',
+    names: 'messages',
+    capname: 'Message',
+    capnames: 'Messages',
+    controls: [{
+        key: 'msg_search',
+        type: 'search',
+        name: 'Text Search',
+        title: 'Use quotes to specify exact required phrases, hashtags for exact hashtag matches, () to group clauses, | for or, and ! or - to exclude phrases.  For example, searching for \'hospital -"hospitality"\' finds hospitals but not warm welcomes.',
+   }],
+   fields: 'rand1,rand2,msg_date,msg,url,image_url,latitude,longitude,user_name',
+   datekey: 'msg_date',
+   results_id: '#ga-instagram-results'
+});
+
+*/
