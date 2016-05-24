@@ -13,6 +13,8 @@
  *  limitations under the License.
  */
 
+/* global geoapp, moment */
+
 geoapp.defaults = geoapp.defaults || {};
 geoapp.defaults.tooltip = {delay: {show: 500}};
 
@@ -42,7 +44,6 @@ geoapp.getQuerySection = function (settings, section) {
     }
     return results;
 };
-
 
 geoapp.views.ControlsView = geoapp.View.extend({
     events: {
@@ -203,16 +204,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
         girder.cancelRestRequests('fetch');
         /* firstRender = true to not load data initially, 'update' to load
          * data. */
-        this.firstRender = ($('body').attr('initialload') === 'true' ?
-            'update' : true);
+        this.firstRender = ($('body').attr('initialload') === 'true' ? 'update' : true);
         /* Load the list of place buttons. */
         if (geoapp.defaultControlsQuery === undefined) {
             var places = geoapp.parseJSON($('body').attr('placeControls'));
             if (_.size(places) > 0) {
                 geoapp.placeList = places;
-                geoapp.placeOrder = [];
-                _.each(places, function (place, key) {
-                    geoapp.placeOrder.push(key);
+                geoapp.placeOrder = _.map(places, function (place, key) {
+                    return key;
                 });
                 geoapp.placeOrder.sort(function (a, b) {
                     if (places[b].order !== places[a].order) {
@@ -314,6 +313,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
             if ($('input.combobox', elem.parent()).length > 0) {
                 $('input.combobox', elem.parent()).val(value);
             }
+            if (elem.hasClass('source-control') && elem.closest('.ga-filter-controls').find('.source-control-check').length > 0) {
+                var values = value ? value.split(',') : [];
+                $.each(elem.closest('.ga-filter-controls').find('.source-control-check input[type="checkbox"]'), function (idx, ctl) {
+                    ctl = $(ctl);
+                    ctl.prop('checked', $.inArray(ctl.attr('key'), values) >= 0);
+                });
+                value = values.length ? values[0] : '';
+            }
             elem.val(value);
             if (elem.is('select') && elem.val() !== value &&
                     value !== '') {
@@ -337,7 +344,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var view = this;
         var ctls = this.$el.html(geoapp.templates.controls(
         )).on('ready.geoapp.view', function () {
-            view.panelsFromConfig();
+            var panels = view.panelsFromConfig();
             view.updateRegionControl();
             var optlist = {
                 taxidata: 'source',
@@ -356,6 +363,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
                         $('#ga-' + sourceelem).append(
                             $('<option>').attr('value', opt.attr('key'))
                             .text(opt.attr('name')));
+                        var panelkey = $('#ga-' + sourceelem + '-check').attr('panelkey');
+                        $('#ga-' + sourceelem + '-check').append(
+                            $('<label>').append(
+                                $('<input>').attr({type: 'checkbox', key: opt.attr('key')}).addClass('form-control input-sm').prop('checked', $.inArray(opt.attr('key'), (panels[panelkey] && panels[panelkey].checkSource) || []) >= 0)
+                            ).append(
+                                $('<span>').text(opt.attr('name')).html()
+                            )
+                        );
                     });
                 }
             });
@@ -468,9 +483,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             if (_.size(regions) > 1) {
                 geoapp.regionList = regions;
-                geoapp.regionOrder = [];
-                _.each(regions, function (region, key) {
-                    geoapp.regionOrder.push(key);
+                geoapp.regionOrder = _.map(regions, function (region, key) {
+                    return key;
                 });
                 geoapp.regionOrder.sort(function (a, b) {
                     if (regions[b].order !== regions[a].order) {
@@ -497,6 +511,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     panelsFromConfig: function () {
         var view = this;
         var panels = geoapp.parseJSON($('body').attr('panels'));
+        var panelsByKey = {};
         $.each(panels, function (idx, panelSpec) {
             var key = panelSpec.key;
             if (!key) {
@@ -519,6 +534,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             geoapp.addMapLayer(panelSpec);
             geoapp.addGraphData(panelSpec);
             geoapp.dataLoaders[key] = geoapp.dataHandlers[key]();
+            panelsByKey[key] = panelSpec;
         });
         $('[ga-section-name]').each(function () {
             var sec = $(this).attr('ga-section-name');
@@ -528,6 +544,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
             view.controlSections[sec + '-filter'] = '.ga-filter-controls[ga-section-name="' + sec + '"] #';
             view.controlSections[sec + '-display'] = '.ga-display-controls[ga-section-name="' + sec + '"] #';
         });
+        return panelsByKey;
     },
 
     /* Parse a string into a UTC moment.  The string can be:
@@ -787,10 +804,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
                               results['general-filter']);
             _.each(['', '_min', '_max'], function (keySuffix) {
                 delete params['pickup_datetime' + keySuffix];
-                if (results['general-filter'][
-                        'date' + keySuffix]) {
-                    params['pickup_datetime' + keySuffix] = results[
-                        'general-filter']['date' + keySuffix];
+                if (results['general-filter']['date' + keySuffix]) {
+                    params['pickup_datetime' + keySuffix] = results['general-filter']['date' + keySuffix];
                 }
             });
             geoapp.dataLoaders.taxi.dataLoad({
@@ -804,10 +819,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
                               results['general-filter']);
             _.each(['', '_min', '_max'], function (keySuffix) {
                 delete params['posted_date' + keySuffix];
-                if (results['general-filter'][
-                        'date' + keySuffix]) {
-                    params['posted_date' + keySuffix] = results[
-                        'general-filter']['date' + keySuffix];
+                if (results['general-filter']['date' + keySuffix]) {
+                    params['posted_date' + keySuffix] = results['general-filter']['date' + keySuffix];
                 }
             });
             params.source = params.msgsource;
@@ -980,6 +993,14 @@ geoapp.views.ControlsView = geoapp.View.extend({
         if (elem.is('.ga-slider-ctl,.ga-slider-ctl-custom')) {
             value = '' + elem.slider('getValue');
         }
+        if (elem.hasClass('source-control') && elem.closest('.ga-filter-controls').find('.source-control-check').length > 0) {
+            var values = _.chain(elem.closest('.ga-filter-controls').find('.source-control-check input[type="checkbox"]')).filter(function (ctl) {
+                return $(ctl).prop('checked');
+            }).map(function (ctl) {
+                return $(ctl).attr('key');
+            }).value();
+            value = values.length ? values.join(',') : '';
+        }
 
         var field = elem.attr('taxifield');
         if (!field) {
@@ -988,7 +1009,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
         var ttype = elem.attr('taxitype');
         switch (ttype) {
             case 'boolean':
-                params[field] = elem.is(':checked') ? true : false;
+                params[field] = !!elem.is(':checked');
                 value = params[field];
                 break;
             case 'combobox':
@@ -1098,7 +1119,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
     /* When the map is moved, check if we need to mark that the display can be
      * updated. */
     mapMoved: function () {
-        var display  = this.updateSection('display', false);
+        var display = this.updateSection('display', false);
         var update = false;
         $.each(display, function (key, val) {
             update = update || (key.startsWith('display-process') &&
@@ -1164,10 +1185,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             dateString = val.split('- ');
         }
         if (dateString.length === 2) {
-            start = moment(dateString[0].trim() ? dateString[0] :
-                           geoapp.defaults.startDate);
-            end = moment(dateString[1].trim() ? dateString[1] :
-                         geoapp.defaults.endDate);
+            start = moment(dateString[0].trim() ? dateString[0] : geoapp.defaults.startDate);
+            end = moment(dateString[1].trim() ? dateString[1] : geoapp.defaults.endDate);
         }
 
         if (this.singleDatePicker || start === null || end === null) {

@@ -166,7 +166,8 @@ class ViaElasticsearch():
                 else:
                     filters.extend([{'exists': {'field': 'geo.coordinates'}}])
         else:
-            filters.extend([{'exists': {'field': 'location.longitude'}}])
+            if self.params.get('georequired', True):
+                filters.extend([{'exists': {'field': 'location.longitude'}}])
         if 'filters' in self.params:
             filters.extend(self.params['filters'])
         queries = []
@@ -397,8 +398,6 @@ class ViaElasticsearch():
                 'user_id':       inst.get('user', {}).get('id', None),
                 'msg_date':      float(inst['created_time']) * 1000,
                 'url':           inst['link'],
-                'latitude':      inst['location']['latitude'],
-                'longitude':     inst['location']['longitude'],
                 'rand1':         int((1 - res['_score']) * 1e9),
                 'rand2':         int((1 - res['_score']) * 1e18) % 1000000000,
                 # We don't need the _id.
@@ -406,6 +405,12 @@ class ViaElasticsearch():
             }
             if inst.get('caption', None):
                 item['msg'] = inst['caption']['text']
+            if ('location' in inst and 'latitude' in inst['location'] and
+                    'longitude' in inst['location']):
+                item['latitude'] = inst['location']['latitude']
+                item['longitude'] = inst['location']['longitude']
+            else:
+                item['latitude'] = item['longitude'] = 0
             item['msg_id'] = item['url'].strip('/').rsplit('/', 1)[-1]
             item['url'] = 'i/%s' % (item['msg_id'])
             data.append([item.get(field, None) for field in fields])

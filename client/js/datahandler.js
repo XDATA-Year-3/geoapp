@@ -145,7 +145,7 @@ geoapp.DataHandler = function (arg) {
             options.display = currentMapParams;
         }
         var moreData = (options.data.datacount < options.data.count ||
-            (resp.datacount === options.params.limit &&
+            (resp.datacount >= options.params.limit &&
             options.data.count === undefined));
         if (!moreData) {
             options.data.loadFactor = 1;

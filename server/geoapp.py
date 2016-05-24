@@ -821,13 +821,16 @@ class GeoAppResource(girder.api.rest.Resource):
                              accessList.
         :returns: the database response.
         """
+        dbKey = params.get('source', defaultDbKey)
+        if ',' in dbKey or not dbKey:
+            return self.findGeneralMultiple(params, sortKey, fieldTable,
+                                            accessList, defaultDbKey, **kwargs)
         limit, offset, sort = self.getPagingParameters(params, sortKey)
         if sort is None and sortKey:
             sort = sortKey
         fields = params.get('fields', '').replace(',', ' ').strip().split()
-        if not fields or not len(fields):
-            fields = fieldTable.keys()
-        accessObj = accessList[params.get('source', defaultDbKey)]
+        fields = fields if fields and len(fields) else fieldTable.keys()
+        accessObj = accessList[dbKey]
         if isinstance(accessObj, tuple):
             accessObj = accessObj[0](**accessObj[1])
             accessList[params.get('source', defaultDbKey)] = accessObj
@@ -895,6 +898,82 @@ class GeoAppResource(girder.api.rest.Resource):
             yield json.dumps(
                 result, check_circular=False, separators=(',', ':'),
                 sort_keys=False, default=str)
+
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        return resultFunc
+
+    def findGeneralMultiple(self, params, sortKey, fieldTable,  # noqa
+                            accessList, defaultDbKey, **kwargs):
+        """
+        Perform multiple database searches for a general find endpoint and
+        combine the results.
+
+        :param params: the parameters of the endpoint call.
+        :param sortKey: the default sortKey for the query.
+        :param fieldTable: an ordered dictionary with the fields that can be
+                           used.
+        :param accessList: a dictionary of access classes used to query
+                           different databases.
+        :param defaultDbKey: the default database source.  Used with the
+                             accessList.
+        :returns: the database response.
+        """
+        dbKeys = params.get('source', defaultDbKey)
+        if not dbKeys:
+            return
+        dbKeys = dbKeys.split(',')
+        partials = []
+        for dbKey in dbKeys:
+            subparams = params.copy()
+            subparams['source'] = dbKey
+            partial = self.findGeneral(
+                subparams, sortKey, fieldTable, accessList, defaultDbKey,
+                **kwargs)
+            if callable(partial):
+                partials.append(partial())
+            else:
+                partials.append(partial)
+        print len(partials)  # ##DWM::
+
+        def resultFunc():
+            results = []
+            while not results and len(partials):
+                for idx in range(len(partials) - 1, -1, -1):
+                    partial = partials[idx]
+                    if hasattr(partial, '__iter__'):
+                        chunk = partial.next()
+                        if chunk is None:
+                            partials[idx:idx + 1] = []
+                    else:
+                        chunk = partial
+                        partials[idx:idx + 1] = []
+                    if chunk and chunk != ' ':
+                        results.append(chunk)
+                if not results:
+                    yield ' '
+            if len(results):
+                if len(results) == 1:
+                    return
+                results = [json.loads(result) for result in results]
+                total = results[0]
+                results = results[1:]
+                combine = True
+                for result in results:
+                    for key in result:
+                        if (key not in ('data', 'datacount', 'nextId') and
+                                result[key] != total.get(key)):
+                            combine = False
+                if combine:
+                    for result in results:
+                        total['datacount'] += result['datacount']
+                        total['data'].extend(result['data'])
+                        if 'nextId' in total or 'nextId' in result:
+                            total['nextId'] = max(total.get('nextId', 0),
+                                                  result.get('nextId', 0))
+                    total['data'].sort()
+                yield json.dumps(
+                    total, check_circular=False, separators=(',', ':'),
+                    sort_keys=False, default=str)
 
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return resultFunc

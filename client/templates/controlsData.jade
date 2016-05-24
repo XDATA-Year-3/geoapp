@@ -25,8 +25,9 @@ include standardPanel.jade
   .ga-filter-controls(ga-section-name=key)
     .form-group(class=(showSource ? '' : 'hidden'))
       label(for="ga-"+key+"-source") Data Source
-      select.form-control.input-sm(title="Database "+names+" source",
-          taxifield=key+"_source", id="ga-"+key+"-source")
+      select.form-control.input-sm.source-control(
+          title="Database "+names+" source", taxifield=key+"_source",
+          id="ga-"+key+"-source")
       //- the database source options are dynamically set in controls.js
     each ctl in controls
       .form-group(title=ctl.title, logid="ga-"+key+"-"+ctl.key)
@@ -44,7 +45,9 @@ include standardPanel.jade
               type="text", placeholder=ctl.placeholder, title=ctl.description,
               taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
     if (checkSource)
-      .form-group(title="Data Sources", logid="ga-"+key+"-checksource")
+      .form-group.source-control-check(title="Data Sources",
+          logid="ga-"+key+"-checksource", id="ga-"+key+"-source-check", 
+          panelkey=key)
       //- the database source options are dynamically set in controls.js
     .form-group
       button.btn.btn-default.btn-sm(id="ga-"+key+"-filter",
