@@ -193,6 +193,12 @@ geoapp.MapLayer = function (map, datakey, arg) {
      * @param datakey: the datakey of item that is setting the date range.
      */
     this.setCycleDateRange = function (params, minkey, maxkey, datakey) {
+        if (params && params[minkey] === undefined &&
+                params[maxkey] === undefined && params['date_min'] &&
+                params['date_max']) {
+            minkey = 'date_min';
+            maxkey = 'date_max';
+        }
         if (params && params[minkey] !== params[maxkey]) {
             m_cycleDateRange = {
                 date_min: params[minkey],

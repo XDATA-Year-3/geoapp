@@ -109,6 +109,23 @@ class ViaElasticsearch():
                     '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
                 'user_id': lambda value: 'id:twitter.com:' + str(value),
             }
+        elif self.params.get('format') == 'traptor_twitter':
+            self.fieldName = {
+                'rand1': '_score',
+                'rand2': '_score',
+                'msg_date': 'doc.timestamp_ms',
+                'msg': 'doc.text',
+                'url': 'doc.id',
+                'latitude': 'doc.coordinates.coordinates',
+                'longitude': 'doc.geo',
+                'user_id': 'doc.user.id',
+                'user_name': 'doc.user.screen_name',
+                'user_fullname': 'doc.user.name',
+                'image_url': 'doc.entities.media.media_url_https',
+            }
+            self.fieldConversions = {
+                'msg_date': lambda value: '%1.0f' % (float(value) * 1000)
+            }
         if 'datefield' not in self.params and 'msg_date' in self.fieldName:
             self.params['datefield'] = self.fieldName['msg_date']
         self.realtimeData = {
@@ -128,8 +145,8 @@ class ViaElasticsearch():
             self.db = elasticsearch.Elasticsearch(**self.dbparams)
         return self.db
 
-    def find(self, params={}, limit=50, offset=0, sort=None, fields=None,
-             **kwargs):
+    def find(self, params={}, limit=50, offset=0, sort=None,   # noqa
+             fields=None, **kwargs):
         """
         Get data from an elasticsearch database.
 
@@ -156,8 +173,8 @@ class ViaElasticsearch():
             'columns': columns,
         }
         filters = []
-        if self.params.get('format') == 'gnip':
-            if self.params.get('georequired', True):
+        if self.params.get('georequired', True):
+            if self.params.get('format') == 'gnip':
                 if self.params.get('geoapproximate', False):
                     filters.extend([{'bool': {'should': [
                         {'exists': {'field': 'geo.coordinates'}},
@@ -165,8 +182,10 @@ class ViaElasticsearch():
                     ]}}])
                 else:
                     filters.extend([{'exists': {'field': 'geo.coordinates'}}])
-        else:
-            if self.params.get('georequired', True):
+            elif self.params.get('format') == 'traptor_twitter':
+                filters.extend([
+                    {'exists': {'field': 'doc.coordinates.coordinates'}}])
+            else:
                 filters.extend([{'exists': {'field': 'location.longitude'}}])
         if 'filters' in self.params:
             filters.extend(self.params['filters'])
@@ -213,6 +232,9 @@ class ViaElasticsearch():
         # This is an instagram-specific line, and should be abstracted
         if self.params.get('format') == 'gnip':
             result['data'] = self.gnipToData(fields, res['hits']['hits'])
+        elif self.params.get('format') == 'traptor_twitter':
+            result['data'] = self.traptorTwitterToData(
+                fields, res['hits']['hits'])
         else:
             result['data'] = self.instagramToData(fields, res['hits']['hits'])
         self.realTimeResultsFinalize(params, result)
@@ -240,8 +262,10 @@ class ViaElasticsearch():
                 continue
             for suffix in ['', '_min', '_max', '_search']:
                 if field + suffix not in params:
-                    continue
-                value = params[field + suffix]
+                    if (field != 'msg_date' or
+                            ('date' + suffix) not in params):
+                        continue
+                value = params.get(field + suffix, params.get('date' + suffix))
                 dtype = self.fieldTable[field][0]
                 fieldName = self.fieldName.get(field, field)
                 if suffix == '_search':
@@ -541,3 +565,41 @@ class ViaElasticsearch():
                         'gte': str(value)
                     }}})
         return True
+
+    def traptorTwitterToData(self, fields, results):
+        """
+        Convert elasticsearch instagram results into our data list format.
+
+        :param fields: the fields we want to keep (the columns for our data).
+        :param results: the ['hits']['hits'] part of the elasticsearch result.
+        :return: a list of the data in our format.
+        """
+        data = []
+        if not len(results):
+            return data
+        for res in results:
+            twit = res['_source']['doc']
+            item = {
+                'rand1':         int((1 - res['_score']) * 1e9),
+                'rand2':         int((1 - res['_score']) * 1e18) % 1000000000,
+                'msg_date':      float(twit['timestamp_ms']),
+                'msg':           twit['text'],
+                'user_name':     twit.get('user', {}).get('screen_name', None),
+                'user_fullname': twit.get('user', {}).get('name', None),
+                'user_id':       twit.get('user', {}).get('id', None),
+            }
+            item['url'] = 't/%s/%s' % (item['user_id'], str(twit['id']))
+            if ('coordinates' in twit and
+                    'coordinates' in twit['coordinates'] and
+                    len(twit['coordinates']['coordinates']) == 2):
+                item['latitude'] = twit['coordinates']['coordinates'][1]
+                item['longitude'] = twit['coordinates']['coordinates'][0]
+            else:
+                item['latitude'] = item['longitude'] = 0
+            item['msg_id'] = item['url'].strip('/').rsplit('/', 1)[-1]
+            if (len(twit.get('entities', {}).get('media', [])) > 0 and
+                    'media_url_https' in twit['entities']['media'][0]):
+                item['image_url'] = twit['entities']['media'][0][
+                    'media_url_https']
+            data.append([item.get(field, None) for field in fields])
+        return data

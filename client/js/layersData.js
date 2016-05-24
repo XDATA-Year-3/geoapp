@@ -309,7 +309,7 @@ geoapp.addMapLayer = function (datainfo) {
             });
         };
 
-        /* Update the taxi map based on the map parameters.  Values that are
+        /* Update the map based on the map parameters.  Values that are
          * updated include:
          *    display-process: 'raw' or 'binned'.
          *    opacity: the opacity used for non-animated points and lines.
@@ -320,7 +320,7 @@ geoapp.addMapLayer = function (datainfo) {
             var visParam = {
                     dateMin: params['display-date_min'] ? 0 + moment.utc(params['display-date_min']) : null,
                     dateMax: params['display-date_max'] ? 0 + moment.utc(params['display-date_max']) : null,
-                    dateColumn: 'date',
+                    dateColumn: this.getDateColumnName(),
                     maxPoints: m_recentPointCount || m_recentPointTime ? this.maximumMapPoints : null,
                     sortByDate: m_recentPointCount || m_recentPointTime
                 },
@@ -411,7 +411,7 @@ geoapp.addMapLayer = function (datainfo) {
                 radius) {
             var len = data.length, diff = 0,
                 res = {color: m_oldPointColor, opacity: opacity, radius: radius};
-            if (!len || !columns || !(columns.posted_date || columns.msg_date)) {
+            if (!len || !columns || this.getDateColumnName(data) === null) {
                 res.color = color;
                 return res;
             }
@@ -434,7 +434,7 @@ geoapp.addMapLayer = function (datainfo) {
                     deltaval = (m_lessRecentPointTime || 0) * 1000,
                     newval = curtime - m_recentPointTime * 1000,
                     oldval = newval - deltaval,
-                    col = columns.posted_date || columns.msg_date;
+                    col = this.getDateColumn(data);
                 _.each(data, function (d) {
                     if (d[col] <= oldval) {
                         delete d.recent;
@@ -495,13 +495,30 @@ geoapp.addMapLayer = function (datainfo) {
 
         /* Return the index of the date column for this data.
          *
+         * @param data: if specified, use this data rather than the instance
+         *              data.
          * @return: the date column, or null if undefined. */
-        this.getDateColumn = function () {
-            var data = m_this.data();
+        this.getDateColumn = function (data) {
+            var colname = this.getDateColumnName(data);
+            return colname === null ? null : data.columns[colname];
+        };
+
+        /* Return the name of the date column for this data.
+         *
+         * @param data: if specified, use this data rather than the instance
+         *              data.
+         * @return: the name of the date column, or null if undefined. */
+        this.getDateColumnName = function (data) {
+            if (!data) {
+                data = m_this.data();
+            }
             if (!data || !data.columns) {
                 return null;
             }
-            return data.columns.date;
+            var colname = _.find([datainfo.datekey, 'posted_date', 'msg_date', 'date'], function (name) {
+                return data.columns[name] !== undefined;
+            });
+            return colname === undefined ? null : colname;
         };
 
         /* Calculate bins for animation
@@ -869,7 +886,7 @@ geoapp.addMapLayer = function (datainfo) {
                 url = item[mapData.columns.url] || item[mapData.columns.image_url],
                 imageUrl = item[mapData.columns.image_url],
                 caption = item[mapData.columns.caption || mapData.columns.msg] || '',
-                date = moment(item[mapData.columns.posted_date || mapData.columns.msg_date]).utcOffset(0
+                date = moment(item[this.getDateColumn()]).utcOffset(0
                     ).format('YYYY MMM D HH:mm');
             if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
                 $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');

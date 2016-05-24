@@ -662,10 +662,7 @@ geoapp.views.ControlsView = geoapp.View.extend({
                 (!maxval || maxval.isSame(moment(maxval).startOf('day')))) {
             form = 'MMM D';
         }
-        if (formatForDisplay && ((onlyval && onlyval.year() !== defaultYear) ||
-                (minval && minval.year() !== defaultYear) ||
-                (maxval && maxval.year() !== defaultYear && !maxval.isSame(
-                moment(maxval).year(defaultYear + 1).startOf('year'))))) {
+        if (formatForDisplay) {
             form = 'YYYY ' + form;
         }
         if (onlyval) {

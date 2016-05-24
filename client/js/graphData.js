@@ -13,6 +13,8 @@
  *  limitations under the License.
  */
 
+/* global geoapp, moment, inherit */
+
 geoapp.graphData = {};
 geoapp.graphDataClasses = {};
 
@@ -134,7 +136,6 @@ geoapp.GraphData = function (arg) {
     };
 };
 
-
 geoapp.GraphDataFromColumns = function (arg, datakey) {
     'use strict';
     var m_datakey = datakey;
@@ -160,8 +161,7 @@ geoapp.GraphDataFromColumns = function (arg, datakey) {
     this.data = function (datakey, opts) {
         var binName = 'data' + (opts.bin !== 'day' ? '-' + opts.bin : ''),
             data = geoapp.map.getLayer(m_datakey).data();
-        if (this.dataItems[datakey][binName] && this.dataItems[datakey][
-                binName + 'Time'] >= data.requestTime) {
+        if (this.dataItems[datakey][binName] && this.dataItems[datakey][binName + 'Time'] >= data.requestTime) {
             return this.dataItems[datakey][binName];
         }
         var dateRange = this.dateRange(datakey, opts),
@@ -633,7 +633,7 @@ geoapp.graphDataClasses.taximodel = function (arg) {
                         value = d[ycol];
                         break;
                 }
-                item.y = value; //Math.pow(2, value);
+                item.y = value;  // Math.pow(2, value);
                 results.push(item);
             });
             this.dataItems[datakey].data = results;
@@ -682,20 +682,15 @@ geoapp.graphDataClasses.taximodel = function (arg) {
                 item.y = value;
                 if (lastitem && item.x === lastitem.x) {
                     lastitem.count += 1;
-                    lastitem.tally += (datakey === 'remainder' ? item.y :
-                        Math.pow(2, item.y));
+                    lastitem.tally += (datakey === 'remainder' ? item.y : Math.pow(2, item.y));
                     if (lastitem.tally) {
-                        lastitem.y = (datakey === 'remainder' ?
-                            lastitem.tally / lastitem.count :
-                            Math.log(lastitem.tally / lastitem.count) /
-                                Math.log(2)).toFixed(4);
+                        lastitem.y = (datakey === 'remainder' ? lastitem.tally / lastitem.count : Math.log(lastitem.tally / lastitem.count) / Math.log(2)).toFixed(4);
                     }
                 } else {
                     results.push(item);
                     lastitem = item;
                     lastitem.count = 1;
-                    lastitem.tally = (datakey === 'remainder' ? item.y :
-                        Math.pow(2, item.y));
+                    lastitem.tally = (datakey === 'remainder' ? item.y : Math.pow(2, item.y));
                 }
             });
             dataItem[binName] = results;
@@ -818,12 +813,12 @@ geoapp.graphData.taxi = function (arg) {
      *           boolean indicating if the specified datakey is available.
      */
     this.available = function (datakey) {
-        var data = geoapp.map.getLayer(m_datakey).data();
+        var layer = geoapp.map.getLayer(m_datakey),
+            data = layer && layer.data ? layer.data() : null;
         if (!data || !data.columns || !data.data) {
             return datakey ? false : [];
         }
-        return (datakey ? (this.dataItems[datakey] !== undefined) :
-            _.keys(this.dataItems));
+        return (datakey ? (this.dataItems[datakey] !== undefined) : _.keys(this.dataItems));
     };
 };
 
@@ -861,12 +856,12 @@ geoapp.graphData.instagram = function (arg) {
      *           boolean indicating if the specified datakey is available.
      */
     this.available = function (datakey) {
-        var data = geoapp.map.getLayer(m_datakey).data();
+        var layer = geoapp.map.getLayer(m_datakey),
+            data = layer && layer.data ? layer.data() : null;
         if (!data || !data.columns || !data.data) {
             return datakey ? false : [];
         }
-        return (datakey ? (this.dataItems[datakey] !== undefined) :
-            _.keys(this.dataItems));
+        return (datakey ? (this.dataItems[datakey] !== undefined) : _.keys(this.dataItems));
     };
 };
 
@@ -876,7 +871,7 @@ geoapp.graphData.instagram = geoapp.graphData.instagram();
 /* -------- data layers graph data -------- */
 
 geoapp.addGraphData = function (spec) {
-    var layer = spec.name;
+    var layer = spec.key || spec.name;
 
     geoapp.graphData[layer] = function (arg) {
         'use strict';
@@ -892,7 +887,7 @@ geoapp.addGraphData = function (spec) {
             layer: {
                 name: spec.capnames || layer,
                 description: 'Number of ' + spec.capnames || layer,
-                column: 'date',
+                column: spec.datekey || 'date',
                 sort: 0,
                 unit: spec.names || layer,
                 units: spec.names || layer,
@@ -907,12 +902,12 @@ geoapp.addGraphData = function (spec) {
          *           boolean indicating if the specified datakey is available.
          */
         this.available = function (datakey) {
-            var data = geoapp.map.getLayer(m_datakey).data();
+            var layer = geoapp.map.getLayer(m_datakey),
+                data = layer && layer.data ? layer.data() : null;
             if (!data || !data.columns || !data.data) {
                 return datakey ? false : [];
             }
-            return (datakey ? (this.dataItems[datakey] !== undefined) :
-                _.keys(this.dataItems));
+            return (datakey ? (this.dataItems[datakey] !== undefined) : _.keys(this.dataItems));
         };
     };
 
@@ -1038,11 +1033,11 @@ geoapp.graphDataClasses.city = function (arg) {
                 results = [];
             _.each(data.data, function (d) {
                 var item = {
-                        x: 0 + moment.utc(d[xcol]).startOf(opts.bin),
-                        y: (parseFloat(d[ycol]) / periodsperbin).toFixed(3),
-                        tally: d[ycol],
-                        count: 1
-                    };
+                    x: 0 + moment.utc(d[xcol]).startOf(opts.bin),
+                    y: (parseFloat(d[ycol]) / periodsperbin).toFixed(3),
+                    tally: d[ycol],
+                    count: 1
+                };
                 if (lastitem && item.x === lastitem.x) {
                     lastitem.count += 1;
                     lastitem.tally += item.tally;
