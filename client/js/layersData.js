@@ -889,7 +889,7 @@ geoapp.addMapLayer = function (datainfo) {
                 url = item[mapData.columns.url] || item[mapData.columns.image_url],
                 imageUrl = item[mapData.columns.image_url],
                 caption = item[mapData.columns.caption || mapData.columns.msg] || '',
-                date = moment(item[this.getDateColumn()]).utcOffset(0
+                date = moment(item[m_this.getDateColumn()]).utcOffset(0
                     ).format('YYYY MMM D HH:mm');
             if (pos.x >= 0 && pos.y >= 0 && pos.x <= mapW && pos.y <= mapH) {
                 $('.ga-instagram-overlay-arrow', overlay).css('display', 'none');
