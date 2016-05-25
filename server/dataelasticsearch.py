@@ -35,6 +35,96 @@ from girder import logger
 urllib3.disable_warnings()
 
 
+FormatTable = {
+    'gnip': {
+        'fieldName': {
+            'rand1': '_score',
+            'rand2': '_score',
+            'msg_date': 'postedTime',
+            'msg': 'body',
+            'url': 'link',
+            # we rarely include one without the other, and we can use both
+            'latitude': 'geo.coordinates',
+            'longitude': 'location.geo.coordinates',
+            'user_id': 'actor.id',
+            'user_name': 'actor.preferredUsername',
+            'user_fullname': 'actor.displayName',
+            'image_url': 'twitter_entities.media.media_url_https',
+        },
+        'fieldConversions': {
+            'msg_date': lambda value: time.strftime(
+                '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
+            'postedTime': lambda value: time.strftime(
+                '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
+            'user_id': lambda value: 'id:twitter.com:' + str(value),
+        },
+        'georequiredFilters': [{'exists': {'field': 'geo.coordinates'}}],
+        'geoapproximateFilters': [{'bool': {'should': [
+            {'exists': {'field': 'geo.coordinates'}},
+            {'exists': {'field': 'location.geo.coordinates'}},
+        ]}}],
+        'convertToData': 'gnipToData',
+    },
+    'instagram': {
+        'fieldName': {
+            'rand1': '_score',
+            'rand2': '_score',
+            'msg_date': 'created_time',
+            'msg': 'caption.text',
+            'url': 'link',
+            'latitude': 'location.latitude',
+            'longitude': 'location.longitude',
+            'user_id': 'user.id',
+            'user_name': 'user.username',
+            'user_fullname': 'user.full_name',
+        },
+        'fieldConversions': {},
+        'georequiredFilters': [{'exists': {'field': 'location.longitude'}}],
+        'convertToData': 'instagramToData',
+    },
+    'telegram': {
+        'fieldName': {
+            'rand1': '_score',
+            'rand2': '_score',
+            'msg_date': 'doc.date',
+            'msg': 'doc.text',
+            'url': 'doc.id',
+            'user_id': 'doc.sender.id',
+            'user_name': 'doc.sender.name',
+            'user_fullname': 'doc.sender.title',
+        },
+        'fieldConversions': {},
+        'filters': [{'exists': {'field': 'doc.sender'}}],
+        # This will always return an empty set, as there doesn't seem to be geo
+        # infomation in telegram
+        'georequiredFilters': [{'exists': {'field': 'longitude'}}],
+        'convertToData': 'telegramToData',
+    },
+    'traptor_twitter': {
+        'fieldName': {
+            'rand1': '_score',
+            'rand2': '_score',
+            'msg_date': 'doc.timestamp_ms',
+            'msg': 'doc.text',
+            'url': 'doc.id',
+            'latitude': 'doc.coordinates.coordinates',
+            'longitude': 'doc.geo',
+            'user_id': 'doc.user.id',
+            'user_name': 'doc.user.screen_name',
+            'user_fullname': 'doc.user.name',
+            'image_url': 'doc.entities.media.media_url_https',
+        },
+        'fieldConversions': {
+            'msg_date': lambda value: '%1.0f' % (float(value) * 1000)
+        },
+        'georequiredFilters': [{'exists': {
+            'field': 'doc.coordinates.coordinates'
+        }}],
+        'convertToData': 'traptorTwitterToData',
+    },
+}
+
+
 class ViaElasticsearch():
 
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -72,62 +162,14 @@ class ViaElasticsearch():
         self.dbparams = {key: params[key] for key in params if key in [
             'hosts', 'timeout']}
         self.db = None
-        # This is an instagram-specific dictionary, and should be abstracted.
-        # This list is not complete
-        self.fieldName = {
-            'rand1': '_score',
-            'rand2': '_score',
-            'msg_date': 'created_time',
-            'msg': 'caption.text',
-            'url': 'link',
-            'latitude': 'location.latitude',
-            'longitude': 'location.longitude',
-            'user_id': 'user.id',
-            'user_name': 'user.username',
-            'user_fullname': 'user.full_name',
-        }
-        self.fieldConversions = {}
-        if self.params.get('format') == 'gnip':
-            self.fieldName = {
-                'rand1': '_score',
-                'rand2': '_score',
-                'msg_date': 'postedTime',
-                'msg': 'body',
-                'url': 'link',
-                # we rarely include one without the other, and we can use both
-                'latitude': 'geo.coordinates',
-                'longitude': 'location.geo.coordinates',
-                'user_id': 'actor.id',
-                'user_name': 'actor.preferredUsername',
-                'user_fullname': 'actor.displayName',
-                'image_url': 'twitter_entities.media.media_url_https',
-            }
-            self.fieldConversions = {
-                'msg_date': lambda value: time.strftime(
-                    '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
-                'postedTime': lambda value: time.strftime(
-                    '%Y-%m-%dT%H:%M:%S.000Z', time.gmtime(float(value))),
-                'user_id': lambda value: 'id:twitter.com:' + str(value),
-            }
-        elif self.params.get('format') == 'traptor_twitter':
-            self.fieldName = {
-                'rand1': '_score',
-                'rand2': '_score',
-                'msg_date': 'doc.timestamp_ms',
-                'msg': 'doc.text',
-                'url': 'doc.id',
-                'latitude': 'doc.coordinates.coordinates',
-                'longitude': 'doc.geo',
-                'user_id': 'doc.user.id',
-                'user_name': 'doc.user.screen_name',
-                'user_fullname': 'doc.user.name',
-                'image_url': 'doc.entities.media.media_url_https',
-            }
-            self.fieldConversions = {
-                'msg_date': lambda value: '%1.0f' % (float(value) * 1000)
-            }
+        format = self.params.get('format', 'instagram')
+        self.fieldName = FormatTable[format]['fieldName']
+        self.fieldConversions = FormatTable[format].get('fieldConversions', {})
         if 'datefield' not in self.params and 'msg_date' in self.fieldName:
             self.params['datefield'] = self.fieldName['msg_date']
+        self.convertToData = getattr(
+            self, FormatTable[format]['convertToData'])
+        self.formatSpec = FormatTable[format]
         self.realtimeData = {
             'clients': {},
             'data': {},
@@ -145,7 +187,7 @@ class ViaElasticsearch():
             self.db = elasticsearch.Elasticsearch(**self.dbparams)
         return self.db
 
-    def find(self, params={}, limit=50, offset=0, sort=None,   # noqa
+    def find(self, params={}, limit=50, offset=0, sort=None,
              fields=None, **kwargs):
         """
         Get data from an elasticsearch database.
@@ -173,20 +215,14 @@ class ViaElasticsearch():
             'columns': columns,
         }
         filters = []
+        filters.extend(self.formatSpec.get('filters', []))
         if self.params.get('georequired', True):
-            if self.params.get('format') == 'gnip':
-                if self.params.get('geoapproximate', False):
-                    filters.extend([{'bool': {'should': [
-                        {'exists': {'field': 'geo.coordinates'}},
-                        {'exists': {'field': 'location.geo.coordinates'}},
-                    ]}}])
-                else:
-                    filters.extend([{'exists': {'field': 'geo.coordinates'}}])
-            elif self.params.get('format') == 'traptor_twitter':
-                filters.extend([
-                    {'exists': {'field': 'doc.coordinates.coordinates'}}])
+            if self.params.get('geoapproximate', False):
+                filters.extend(self.formatSpec.get(
+                    'geoapproximateFilters',
+                    self.formatSpec.get('georequiredFilters', [])))
             else:
-                filters.extend([{'exists': {'field': 'location.longitude'}}])
+                filters.extend(self.formatSpec.get('georequiredFilters', []))
         if 'filters' in self.params:
             filters.extend(self.params['filters'])
         queries = []
@@ -229,14 +265,7 @@ class ViaElasticsearch():
         if not self.realtime:
             result['count'] = res['hits']['total'],
         execTime = time.time()
-        # This is an instagram-specific line, and should be abstracted
-        if self.params.get('format') == 'gnip':
-            result['data'] = self.gnipToData(fields, res['hits']['hits'])
-        elif self.params.get('format') == 'traptor_twitter':
-            result['data'] = self.traptorTwitterToData(
-                fields, res['hits']['hits'])
-        else:
-            result['data'] = self.instagramToData(fields, res['hits']['hits'])
+        result['data'] = self.convertToData(fields, res['hits']['hits'])
         self.realTimeResultsFinalize(params, result)
         curtime = time.time()
         logger.info(
@@ -566,9 +595,41 @@ class ViaElasticsearch():
                     }}})
         return True
 
+    def telegramToData(self, fields, results):
+        """
+        Convert elasticsearch telegram results into our data list format.
+
+        :param fields: the fields we want to keep (the columns for our data).
+        :param results: the ['hits']['hits'] part of the elasticsearch result.
+        :return: a list of the data in our format.
+        """
+        data = []
+        if not len(results):
+            return data
+        for res in results:
+            tele = res['_source']['doc']
+            if 'sender' not in tele:
+                continue
+            item = {
+                'rand1':         int((1 - res['_score']) * 1e9),
+                'rand2':         int((1 - res['_score']) * 1e18) % 1000000000,
+                'msg_date':      float(tele['date']) * 1000,
+                'msg':           tele.get('text', ''),
+                'msg_id':        tele['id'],
+                'user_name':     tele['sender']['name'],
+                'user_fullname': tele['sender']['title'],
+                'user_id':       tele['sender']['id'],
+                'latitude':      0,
+                'longitude':     0,
+            }
+            item['url'] = 'g/%s/%s' % (item['user_id'], str(tele['id']))
+            data.append([item.get(field, None) for field in fields])
+        return data
+
     def traptorTwitterToData(self, fields, results):
         """
-        Convert elasticsearch instagram results into our data list format.
+        Convert elasticsearch traptor twitter results into our data list
+        format.
 
         :param fields: the fields we want to keep (the columns for our data).
         :param results: the ['hits']['hits'] part of the elasticsearch result.

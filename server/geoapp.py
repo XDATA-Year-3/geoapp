@@ -933,7 +933,6 @@ class GeoAppResource(girder.api.rest.Resource):
                 partials.append(partial())
             else:
                 partials.append(partial)
-        print len(partials)  # ##DWM::
 
         def resultFunc():
             results = []

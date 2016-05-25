@@ -500,6 +500,9 @@ geoapp.addMapLayer = function (datainfo) {
          * @return: the date column, or null if undefined. */
         this.getDateColumn = function (data) {
             var colname = this.getDateColumnName(data);
+            if (!data) {
+                data = m_this.data();
+            }
             return colname === null ? null : data.columns[colname];
         };
 
