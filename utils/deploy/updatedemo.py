@@ -29,7 +29,8 @@ def getDemoList():
                 'ExposedPorts' not in data['Config']):
             continue
         if ('NetworkSettings' not in data or
-                'IPAddress' not in data['NetworkSettings']):
+                'Networks' not in data['NetworkSettings'] or
+                not data['NetworkSettings']['Networks']):
             continue
         if ('State' not in data or 'StartedAt' not in data['State']):
             continue
@@ -37,6 +38,9 @@ def getDemoList():
                for item in data['Config']['Env'] if '=' in item}
         if 'KWDEMO_KEY' not in env:
             continue
+
+        network_mode = container['HostConfig']['NetworkMode']
+
         demo = {
             'id': container['Id'],
             'started': data['State']['StartedAt'],
@@ -45,7 +49,7 @@ def getDemoList():
             'desc': env.get('KWDEMO_DESC', ''),
             'url': env.get('KWDEMO_SRCURL', ''),
             'img': env.get('KWDEMO_IMG', ''),
-            'ip': data['NetworkSettings']['IPAddress'],
+            'ip': data['NetworkSettings']['Networks'][network_mode]['IPAddress'],
             'ready': env.get('KWDEMO_READY', ''),
             'ports': []
         }
