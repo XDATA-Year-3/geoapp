@@ -13,7 +13,7 @@ wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key a
 echo "deb http://apt.postgresql.org/pub/repos/apt/ "$(lsb_release -sc)"-pgdg" main | tee /etc/apt/sources.list.d/pgdg.list
 
 apt-get update
-apt-get install --force-yes -y inux-image-extra-$(uname -r) apt-transport-https lxc-docker mongodb-org postgresql-9.4 nginx vim python-pip 
+apt-get install --force-yes -y linux-image-extra-$(uname -r) apt-transport-https lxc-docker mongodb-org postgresql-9.4 nginx vim python-pip
 pip install docker-py
 
 

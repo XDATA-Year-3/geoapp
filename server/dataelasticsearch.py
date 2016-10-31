@@ -120,7 +120,8 @@ FormatTable = {
             'image_url': 'doc.entities.media.media_url_https',
         },
         'fieldConversions': {
-            'msg_date': lambda value: '%1.0f' % (float(value) * 1000)
+            'msg_date': lambda value: '%1.0f' % (float(value) * 1000),
+            'user_name': lambda value: str(value).lower(),
         },
         'georequiredFilters': [{'exists': {
             'field': 'doc.coordinates.coordinates'
@@ -261,7 +262,7 @@ class ViaElasticsearch():
         # mapping is enabled with store: true in Elasticsearch.
         # It would be nice if we could have a 'distinct' clause for
         # elasticsearch, but this requires options that are not enabled.
-        logger.info('Query: %s', json.dumps(query))
+        logger.info('Query: %s %r', json.dumps(query), self.dbparams)
         try:
             res = db.search(body=json.dumps(query))
         except elasticsearch.ConnectionError as exc:
