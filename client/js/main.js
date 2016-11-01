@@ -13,7 +13,7 @@
  *  limitations under the License.
  */
 
-/* global geoapp: true */
+/* global geoapp moment */
 var geoapp = girder;
 var m_lastUpdateNavigationSection;
 
@@ -165,6 +165,16 @@ geoapp.viewportMinimumSize = function () {
 
 /* Run this when everything else is loaded */
 $(function () {
+    // patch c3
+    var c3ParseDate = c3.chart.internal.fn.parseDate;
+    c3.chart.internal.fn.parseDate = function (date) {
+      if ((date._isAMomentObject || typeof date == 'string') &&
+          !isNaN(+date) && +date) {
+        date = new Date(+date);
+      }
+      return c3ParseDate(date);
+    };
+
     geoapp.viewportMinimumSize();
     $(window).on('resize orientationchange', geoapp.viewportMinimumSize);
     girder.apiRoot = 'api/v1';
