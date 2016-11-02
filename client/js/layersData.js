@@ -102,6 +102,7 @@ geoapp.addMapLayer = function (datainfo) {
             'display-process-' + datakey,
             'display-' + datakey + '-num-bins',
             'display-max-' + datakey + '-points',
+            'display-' + datakey + '-field-color',
             datakey + '-opacity',
             'display-date_min', 'display-date_max',
             'show-' + datakey + '-data'
@@ -124,8 +125,41 @@ geoapp.addMapLayer = function (datainfo) {
             }
             var color = m_color,
                 opacity = params.opacity,
-                radius = 5;
-            if (m_recentPointCount || m_recentPointTime) {
+                radius = 5,
+                fieldColor = params['display-' + datakey + '-field-color'];
+            if (data.columns[fieldColor] !== undefined) {
+                data.field_color_column = data.columns[fieldColor];
+                var range, i;
+                for (i = 0; i < (datainfo.fieldColors || []).length; i += 1) {
+                    if (datainfo.fieldColors[i].field === fieldColor) {
+                        range = datainfo.fieldColors[i].range;
+                        break;
+                    }
+                }
+                if (range) {
+                    for (i = 0; i < range.length; i += 1) {
+                        range[i].rgb = geo.util.convertColor(range[i].color);
+                    }
+                    color = function (d, idx) {
+                        var value = d[data.field_color_column], i, p, p1;
+                        if (value <= range[0].value) {
+                            return range[0].rgb;
+                        }
+                        for (i = 1; i < range.length; i += 1) {
+                            if (value <= range[i].value) {
+                                p = (value - range[i].value) / (range[i - 1].value - range[i].value);
+                                p1 = 1 - p;
+                                return {
+                                    r: range[i - 1].rgb.r * p + range[i].rgb.r * p1,
+                                    g: range[i - 1].rgb.g * p + range[i].rgb.g * p1,
+                                    b: range[i - 1].rgb.b * p + range[i].rgb.b * p1
+                                };
+                            }
+                        }
+                        return range[range.length - 1].rgb;
+                    };
+                }
+            } else if (m_recentPointCount || m_recentPointTime) {
                 var recentData = this.adjustRecentPoints(
                     pointData, data.columns, color, opacity, radius);
                 color = recentData.color;
@@ -326,7 +360,8 @@ geoapp.addMapLayer = function (datainfo) {
                 },
                 data = m_this.data(true, visParam),
                 visible = (params['show-' + datakey + '-data'] !== false &&
-                           data);
+                           data),
+                fieldColor = params['display-' + datakey + '-field-color'];
             m_geoPoints.visible(visible);
             m_geoPoly.visible(visible);
             var recent = ((m_recentPointCount || m_recentPointTime) && params['display-process-' + datakey] !== 'binned');
@@ -334,9 +369,11 @@ geoapp.addMapLayer = function (datainfo) {
             if (!visible) {
                 return;
             }
-            if (!recent) {
+            if (!recent && data.columns[fieldColor] === undefined) {
                 $('.ga-legend-item.legend-' + datakey + '.' + datakey + '-' +
                     params['display-process-' + datakey]).removeClass('hidden');
+            } else if (data.columns[fieldColor] !== undefined) {
+                $('.ga-legend-item.legend-' + datakey + '.legend-item-field-' + fieldColor).removeClass('hidden');
             } else {
                 $('.ga-legend-item.legend-' + datakey + '.legend-item-old')
                     .removeClass('hidden');

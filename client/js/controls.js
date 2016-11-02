@@ -970,6 +970,8 @@ geoapp.views.ControlsView = geoapp.View.extend({
             }
             $('#ga-display-max-' + sec + '-points-group').toggleClass('hidden',
                 mode === 'binned');
+            $('#ga-display-' + sec + '-field-color-group').toggleClass('hidden',
+                mode === 'binned');
             $('#ga-' + sec + '-opacity-group').toggleClass('hidden',
                 mode === 'binned');
             $('#ga-display-' + sec + '-num-bins-group').toggleClass('hidden',

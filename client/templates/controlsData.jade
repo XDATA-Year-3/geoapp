@@ -19,6 +19,20 @@
     placeholder : placeholder for the text
     type : one of search, text, boolean, dateRange, float, floatRange, int,
            intRange, combobox, other
+    options : if type is combobox, a list of options, each of which contains:
+      value : the value to use for the option
+      text : the text to display in the combobox
+  fieldColors : an optional list of ways of coloring points.  Each item
+                contains:
+    field : the internal numerical field that is used for coloring
+    text : the value to show in a drop down
+    legend : the value to show with the legend
+    range : an array of values sorted low to high for specific colors.
+            Anything beyond the ends of the range are at those colors,
+            otherwise colors are piecewise interpolated through the range
+            values.  Each item in the array contains:
+      value : the numerical value associated with a color.
+      color : a css color color for that value.
 include standardPanel.jade
 +standardPanel('ga-'+key+'-settings-panel', 'ga-'+key+'-settings',
     title, description, key)
@@ -46,7 +60,7 @@ include standardPanel.jade
               taxifield=key+"_field_"+ctl.key, taxitype=ctl.type)
     if (checkSource)
       .form-group.source-control-check(title="Data Sources",
-          logid="ga-"+key+"-checksource", id="ga-"+key+"-source-check", 
+          logid="ga-"+key+"-checksource", id="ga-"+key+"-source-check",
           panelkey=key)
       //- the database source options are dynamically set in controls.js
     .form-group
@@ -80,6 +94,15 @@ include standardPanel.jade
           taxifield="display-process-"+key)
         option(value="raw") Individual #{capnames}
         option(value="binned") Binned Heatmap
+    if (fieldColors && fieldColors.length > 0)
+      .form-group(id="ga-display-"+key+"-field-color-group")
+        label(for="ga-display-"+key+"-field-color") Color
+        select.form-control.input-sm(id="ga-display-"+key+"-field-color"
+            title="Color",
+            taxifield="display-"+key+"-field-color")
+          option(value="__blank__") Solid
+          each field in fieldColors
+            option(value=field.field) #{field.text}
     .form-group
       span(id="ga-display-max-"+key+"-points-group")
         label.ga-slider-label(for="ga-display-max-"+key+"-points",
@@ -123,6 +146,13 @@ include standardPanel.jade
         .ga-legend-item.legend-item-old.hidden(class="legend-"+key+" "+key+"-raw")
           i.icon-circle(style="color:"+recent.oldPointColor)
           | Older #{capname}
+      each field in (fieldColors || [])
+        each entry in field.range
+          .ga-legend-item.hidden(class="legend-"+key+" "+key+"-raw legend-item-field-"+field.field)
+            | #{entry === field.range[0] ? (field.legend || field.text) + ' ' : ''}
+            i.icon-circle(style="color:"+entry.color)
+            | !{entry === field.range[0] ? '&le; ' : entry === field.range[field.range.length-1] ? '&ge; ' : ''}
+            | #{entry.value}
       .ga-legend-item.ga-legend-binned.hidden(class="legend-"+key+" "+key+"-binned")
         i.icon-stop(style="color:"+color)
         | Many #{capnames}
