@@ -49,10 +49,10 @@ ln -s /etc/init/geoapp.conf /etc/init.d/geoapp
 initctl reload-configuration
 service geoapp start
 
-if [ -f /vagrant/ingest.tgz ]; then
+if [ -f /vagrant/ingested.tgz ]; then
   # Load data we have already ingested into mongo
   pushd /tmp
-  tar -zxvf /vagrant/ingest.tgz 
+  tar -zxvf /vagrant/ingested.tgz 
   mongorestore -v --db=pems /tmp/pems
   mongorestore -v --db=twitter /tmp/twitter
   popd
