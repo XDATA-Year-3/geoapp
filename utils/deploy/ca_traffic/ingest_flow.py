@@ -93,6 +93,7 @@ for point in cursor:
                 'longitude': point['longitude'],
                 'station_id': point['station_id'],
                 'avg_occupancy': point['avg_occupancy'],
+                'total_flow': point['total_flow'],
                 '_random': random.random() * (partial if partial else 1),
             })
             for key in ('avg_speed', ):

@@ -57,6 +57,7 @@ cursor = source.find({}, {
     'place': True,
     'user': True,
     'entities': True,
+    'lang': True,
     '_id': False
 })
 processed = used = updatetime = 0
@@ -82,6 +83,10 @@ for tweet in cursor:
         'url': 't/%s/%s' % (str(tweet['user']['id']), str(tweet['id'])),
         'user_id': tweet['user']['screen_name'],
         'user_fullname': tweet['user']['name'],
+        'lang': tweet.get('lang'),
+        'user_lang': tweet['user'].get('lang'),
+        'friends': tweet['user'].get('friends_count', 0),
+        'followers': tweet['user'].get('followers_count', 0),
         '_random': random.random(),
     }
     if (tweet.get('coordinates') and tweet['coordinates'].get('coordinates')):

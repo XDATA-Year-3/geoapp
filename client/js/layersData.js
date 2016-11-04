@@ -129,10 +129,11 @@ geoapp.addMapLayer = function (datainfo) {
                 fieldColor = params['display-' + datakey + '-field-color'];
             if (data.columns[fieldColor] !== undefined) {
                 data.field_color_column = data.columns[fieldColor];
-                var range, i;
+                var range, cat, cattbl, i;
                 for (i = 0; i < (datainfo.fieldColors || []).length; i += 1) {
                     if (datainfo.fieldColors[i].field === fieldColor) {
                         range = datainfo.fieldColors[i].range;
+                        cat = datainfo.fieldColors[i].category;
                         break;
                     }
                 }
@@ -157,6 +158,23 @@ geoapp.addMapLayer = function (datainfo) {
                             }
                         }
                         return range[range.length - 1].rgb;
+                    };
+                } else if (cat) {
+                    cattbl = {'_other_': color};
+                    for (i = 0; i < cat.length; i += 1) {
+                        cat[i].rgb = geo.util.convertColor(cat[i].color);
+                        if (cat[i].value !== '') {
+                            cattbl[cat[i].value] = cat[i].rgb;
+                        } else {
+                            cattbl['_other_'] = cat[i].rgb;
+                        }
+                    }
+                    color = function (d, idx) {
+                        var value = d[data.field_color_column];
+                        if (cattbl[value] !== undefined) {
+                            return cattbl[value];
+                        }
+                        return cattbl['_other_'];
                     };
                 }
             } else if (m_recentPointCount || m_recentPointTime) {

@@ -147,11 +147,18 @@ include standardPanel.jade
           i.icon-circle(style="color:"+recent.oldPointColor)
           | Older #{capname}
       each field in (fieldColors || [])
-        each entry in field.range
-          .ga-legend-item.hidden(class="legend-"+key+" legend-item-field-"+field.field)
-            | #{entry === field.range[0] ? (field.legend || field.text) + ' ' : ''}
-            i.icon-circle(style="color:"+entry.color)
-            | !{entry === field.range[0] ? '&le; ' : entry === field.range[field.range.length-1] ? '&ge; ' : ''}#{entry.value}
+        if (field.range)
+          each entry in field.range
+            .ga-legend-item.hidden(class="legend-"+key+" legend-item-field-"+field.field)
+              | #{entry === field.range[0] ? (field.legend || field.text) + ' ' : ''}
+              i.icon-circle(style="color:"+entry.color)
+              | !{entry === field.range[0] ? '&le; ' : entry === field.range[field.range.length-1] ? '&ge; ' : ''}#{entry.text || entry.value}
+        else if (field.category)
+          each entry in field.category
+            .ga-legend-item.hidden(class="legend-"+key+" legend-item-field-"+field.field)
+              | #{entry === field.category[0] ? (field.legend || field.text) + ' ' : ''}
+              i.icon-circle(style="color:"+entry.color)
+              | #{entry.text || entry.value}
       .ga-legend-item.ga-legend-binned.hidden(class="legend-"+key+" "+key+"-binned")
         i.icon-stop(style="color:"+color)
         | Many #{capnames}
