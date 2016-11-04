@@ -7,7 +7,7 @@ mkdir -p .local/bin
 
 git clone git://github.com/XDATA-Year-3/geoapp.git 
 cd geoapp
-git checkout 11955b802621762165101a8f2faf7c8bc392e344
+git checkout ca-traffic
 git reset --hard
 
 pip install --user -r requirements.txt 
