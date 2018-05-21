@@ -8,15 +8,19 @@ ENV KWDEMO_READY FALSE
 EXPOSE 8080
 
 RUN apt-get update && apt-get install -y \
+    curl \
+    git \
     libffi-dev \
     libpython-dev \
+    python-requests \
     python-pip
 
-RUN pip install girder==1.3.2 && \
-    girder-install web && \
-    girder-install plugin
+RUN curl -sL https://deb.nodesource.com/setup | sudo bash - && \
+    apt-get install -y nodejs && \
+    npm -g install npm@latest-2
 
-# RUN ln -s /usr/local/lib/python2.7/dist-packages/girder/clients /usr/local/lib/python2.7/dist-packages/clients
+RUN pip install girder==1.4.1 && \
+    girder-install web 
 
 # Create a user
 RUN adduser --disabled-password --gecos '' kwuser && \
@@ -25,11 +29,11 @@ RUN adduser --disabled-password --gecos '' kwuser && \
 
 COPY makelocalcfg.py /home/kwuser/makelocalcfg.py
 
-ENV KWDEMO_NAME Girder 1.3.2 Demo using Python 2.7
-ENV KWDEMO_KEY girder1.3-py2
+ENV KWDEMO_NAME Girder 1.4.1 Demo using Python 2.7
+ENV KWDEMO_KEY girder1-py2
 ENV KWDEMO_SRCURL https://github.com/girder/girder
 ENV KWDEMO_DESC Girder is a free and open source web-based data management platform.  Girder is both a standalone application and a platform for building new web services.
-ENV KWDEMO_IMG /girder1.3-py2/static/img/Girder_Mark.png
+ENV KWDEMO_IMG /girder1-py2/static/img/Girder_Mark.png
 
 RUN python /home/kwuser/makelocalcfg.py > /etc/girder.cfg
 

@@ -9,6 +9,8 @@ cfg = """
 [global]
 server.socket_port: 8080
 tools.proxy.on: True
+tools.proxy.base: "http://demo.kitware.com/girder1-py2"
+tools.proxy.local: ""
 
 [database]
 uri: "mongodb://%HOSTIP%:27017/%ROOTPATHSTRIP%"
